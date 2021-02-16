@@ -18,7 +18,7 @@ calculate_thresholds_CTfilter(
 \arguments{
 \item{ref}{Seurat object containing the reference data set}
 
-\item{markers}{List of markers for each cell type, for example `CTfilter::MCA.markers.Mm`}
+\item{markers}{List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}}
 
 \item{sd.dev}{Maximum standard deviations from mean to identify outliers}
 
@@ -33,8 +33,8 @@ calculate_thresholds_CTfilter(
 \item{verbose}{Verbose output}
 }
 \value{
-A new metadata column `is.pure` is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
-    The `active.ident` is also set to this variable. Additionally, scores for all signatures in `markers` are added to the metadata of the Seurat object.
+Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@misc$CTfilter}. Scores for individual signatures are
+    returned as metadata in the Seurat object
 }
 \description{
 Given a reference set, calculate thresholds that identify outliers from the reference
@@ -46,5 +46,5 @@ ref <- calculate_thresholds_CTfilter(ref)
 ref@misc$CTfilter
 }
 \seealso{
-[CTfilter()] to apply signatures on a query dataset and filter on a specific cell type
+\code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 }

@@ -24,11 +24,11 @@ CTfilter(
 \arguments{
 \item{query}{Seurat object containing a query data set - filtering will be applied to this object}
 
-\item{celltype}{Cell type to preserve from the query data set (should be one of cell types in `names(markers)`)}
+\item{celltype}{Cell type to preserve from the query data set (should be one of cell types in \code{names(markers)})}
 
-\item{CT.thresholds}{A named list with thresholds for each cell type - see function `calculate_thresholds_CTfilter`}
+\item{CT.thresholds}{A named list with thresholds for each cell type - see function \code{\link{calculate_thresholds_CTfilter}}}
 
-\item{markers}{List of markers for each cell type, for example `CTfilter::MCA.markers.Mm`}
+\item{markers}{List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}}
 
 \item{max.impurity}{Maximum fraction of impurity allowed in clusters to flag cells as "pure"}
 
@@ -51,8 +51,8 @@ CTfilter(
 \item{resul}{Resolution for cluster analysis}
 }
 \value{
-A new metadata column `is.pure` is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
-    The `active.ident` is also set to this variable. Additionally, scores for all signatures in `markers` are added to the metadata of the Seurat object.
+A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
+    The \code{active.ident} is also set to this variable. Additionally, scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
 }
 \description{
 Apply CTfilter for a specific cell type to a query dataset
@@ -63,5 +63,5 @@ DimPlot(query)
 query <- subset(query, subset=is.pure=="Pure")
 }
 \seealso{
-[calculate_thresholds_CTfilter()] to calculate celltype-specific thresholds
+\code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 }
