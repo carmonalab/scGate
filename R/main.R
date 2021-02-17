@@ -24,7 +24,7 @@
 #' query <- subset(query, subset=is.pure=="Pure")
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
-CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5,
+CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
                      ndim=5, resol=3, assay="RNA", genes.blacklist=NULL, min.gene.frac=0.5, rm.existing=TRUE,
                      seed=1234, skip.normalize=FALSE, verbose=FALSE) {
   
@@ -60,7 +60,6 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing)
   
   sign.names <- names(markers.list.pass)
-  Celltype_score_th_ref <- ref@misc$CTFilter
   
   meta <- query@meta.data
   filterCells <- c()
@@ -126,7 +125,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, sd.dev=7, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          rm.existing=TRUE, verbose=TRUE) {
+                                          level=1, rm.existing=TRUE, verbose=TRUE) {
   
   def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
@@ -144,8 +143,12 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, sd.dev=7, quant=0.9
     bulk <- bulk[bulk < quantile(bulk,p=quant)]
     ref_thr[sig] <- mean(bulk) + sd.dev*sd(bulk)
  }
+
+  if (!is.list(ref@misc$CTfilter)) {
+     ref@misc$CTfilter <- list()
+  } 
+  ref@misc$CTfilter[[level]] <- ref_thr
   
-  ref@misc$CTfilter <- ref_thr
   DefaultAssay(ref) <- def.assay
   message("Cell type thresholds available in ref@misc$CTfilter")
   return(ref)
