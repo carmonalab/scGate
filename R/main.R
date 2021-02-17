@@ -36,7 +36,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     CT.thresholds <- Tcell.TIL.thr #Default
   }  
   if (is.null(markers)) {
-    markers.list <- MCA.markers.Mm   #Default
+    markers <- MCA.markers.Mm   #Default
   } 
   if (is.null(genes.blacklist)) {
     genes.blacklist <- genes.blacklist.Mm  #Default
@@ -46,9 +46,9 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   }
   genes.blacklist <- unique(genes.blacklist)
   
-  markers.list.pass <- check_CTmarkers(obj=query, markers.list=markers.list, min.gene.frac=min.gene.frac, verbose=verbose)
+  markers.list.pass <- check_CTmarkers(obj=query, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
   
-  if (!celltype %in% names(markers.list)) {
+  if (!celltype %in% names(markers)) {
     message <- sprintf("Cell type provided (%s) not found in marker list", celltype)
     stop(message)
   }  
@@ -131,9 +131,9 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, sd.dev=7, quant=0.9
   def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
   if (is.null(markers)) {
-     markers.list <- MCA.markers.Mm   #Default
+     markers <- MCA.markers.Mm   #Default
   } 
-  markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers.list, min.gene.frac=min.gene.frac, verbose=verbose)
+  markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
   ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing)
   
   sign.names <- paste0(names(markers.list.pass),"_CTfilter")
