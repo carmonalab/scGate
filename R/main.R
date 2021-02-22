@@ -42,21 +42,59 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   def.assay <- DefaultAssay(query)
   DefaultAssay(query) <- assay
   
-  if (is.null(CT.thresholds)) {
-    CT.thresholds <- Tcell.TIL.thr #Default
-  }  
-  if (is.null(markers)) {
-    markers <- MCA.markers.Mm   #Default
+  #First guess the species from the gene names of the query
+  mm.genes <- unique(unlist(MCA.markers.Mm))
+  hs.genes <- unique(unlist(HCA.markers.Hs))
+  
+  mm.intersect <- length(intersect(mm.genes, rownames(query)))/length(mm.genes)
+  hs.intersect <- length(intersect(hs.genes, rownames(query)))/length(hs.genes)
+  if (max(mm.intersect, hs.intersect)<0.2) {
+    warning("More than 80% of genes not found in reference signatures...did you remove genes from the query data?")
   }
+  if (mm.intersect>hs.intersect) {
+    species <- "Mouse"
+  } else {
+    species <- "Human"
+  }
+  
+  if (is.null(markers)) { #Default
+    if (species=="Human") {
+      markers <- HCA.markers.Hs
+    } else {
+      markers <-  MCA.markers.Mm
+    }
+  }
+  
+  if (is.null(CT.thresholds)) { #Default
+    if (species=="Human") {
+      CT.thresholds <- Tcell.Hs.thr
+    } else {
+      CT.thresholds <- Tcell.TIL.thr 
+    }
+  }  
+ 
+  #Check that markers and threshold names correspond
+  marker.cols <- paste0(names(markers), "_CTfilter")
+  check.signatures <- intersect(marker.cols, names(CT.thresholds))
+  if (length(check.signatures) != length(marker.cols)) {
+     mess <- "Marker signatures (markers) do not correspond to the threshold file (CT.thresholds). Did you prepare the threshold file using this same set of markers?"
+     stop(mess)
+  }
+  
   if (!is.null(genes.blacklist)) {
-    if (genes.blacklist == "Tcell.blacklist") {
-       genes.blacklist <- genes.blacklist.Mm  #Default
+    if (length(genes.blacklist)==1 && genes.blacklist == "Tcell.blacklist") {  #Default
+      if (species=="Human") {
+         genes.blacklist <- genes.blacklist.Hs
+      } else {
+         genes.blacklist <- genes.blacklist.Mm 
+      }
     }  
     if (is.list(genes.blacklist)) {
       genes.blacklist <- unlist(genes.blacklist)
     }
     genes.blacklist <- unique(genes.blacklist)
   }
+  
   #Allow setting different impurity levels in successive iterations
   max.impurity.vec <- vector(mode="numeric", max.iterations)
   for (i in 1:length(max.impurity.vec)) {
@@ -136,7 +174,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     labs[colnames(q)] <- q$is.pure
     q <- subset(q, subset=is.pure=="Pure")
     
-    if (frac.to.rem <= stop.iterations | iter>=max.iterations | ncol(q)<min.cells) {
+    if (frac.to.rem < stop.iterations | iter>=max.iterations | ncol(q)<min.cells) {
       #Return clusters and active idents for easy filtering
       n_rem <- sum(labs=="Impure")
       frac.to.rem <- n_rem/length(labs)
