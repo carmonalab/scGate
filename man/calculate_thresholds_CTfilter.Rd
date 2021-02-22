@@ -11,6 +11,7 @@ calculate_thresholds_CTfilter(
   quant = 0.995,
   assay = "RNA",
   min.gene.frac = 0.5,
+  level = 1,
   rm.existing = TRUE,
   verbose = TRUE
 )
@@ -27,6 +28,8 @@ calculate_thresholds_CTfilter(
 \item{assay}{Seurat assay to use}
 
 \item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
+
+\item{level}{Annotation level - thresholds are saved in list element \code{ref@misc$CTfilter[[level]]}}
 
 \item{rm.existing}{Overwrite existing CTfilter scores in query object}
 
