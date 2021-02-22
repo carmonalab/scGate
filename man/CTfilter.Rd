@@ -9,15 +9,16 @@ CTfilter(
   celltype = "T.cell",
   CT.thresholds = NULL,
   markers = NULL,
-  max.impurity = c(0.7, 0.5, 0.3),
+  max.impurity = 0.5,
   ndim = 30,
   resol = 3,
   assay = "RNA",
-  genes.blacklist = NULL,
+  genes.blacklist = "Tcell.blacklist",
   min.gene.frac = 0.5,
   rm.existing = TRUE,
-  max.iterations = 3,
-  stop.iterations = 0.3,
+  max.iterations = 10,
+  stop.iterations = 0.01,
+  min.cells = 100,
   seed = 1234,
   skip.normalize = FALSE,
   verbose = FALSE,
@@ -43,7 +44,8 @@ CTfilter(
 
 \item{assay}{Seurat assay to use}
 
-\item{genes.blacklist}{Genes blacklisted from variable features}
+\item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{CTfilter::genes.blacklist.Mm};
+you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
 
@@ -52,6 +54,8 @@ CTfilter(
 \item{max.iterations}{Maximum number of iterations}
 
 \item{stop.iterations}{Stop iterating if fewer than this fraction of cells were removed in the last iteration}
+
+\item{min.cells}{Stop iterating if fewer than this number of cells is left}
 
 \item{seed}{Random seed for cluster analysis}
 

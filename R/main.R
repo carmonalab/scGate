@@ -136,7 +136,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     labs[colnames(q)] <- q$is.pure
     q <- subset(q, subset=is.pure=="Pure")
     
-    if (frac.to.rem <= stop.iterations | iter>=max.iterations | ncols(q)<min.cells) {
+    if (frac.to.rem <= stop.iterations | iter>=max.iterations | ncol(q)<min.cells) {
       #Return clusters and active idents for easy filtering
       n_rem <- sum(labs=="Impure")
       frac.to.rem <- n_rem/length(labs)
