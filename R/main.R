@@ -31,9 +31,9 @@
 #' query <- subset(query, subset=is.pure=="Pure")
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
-CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=c(0.7,0.5,0.3), 
+CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
                      ndim=30, resol=3, assay="RNA", genes.blacklist=NULL, min.gene.frac=0.5, rm.existing=TRUE,
-                     max.iterations=3, stop.iterations=0.3,
+                     max.iterations=10, stop.iterations=0.01,
                      seed=1234, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
   set.seed(seed)
