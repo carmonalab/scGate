@@ -17,8 +17,10 @@
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param max.iterations Maximum number of iterations
 #' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
+#' @param min.cells Stop iterating if fewer than this number of cells is left
 #' @param rm.existing Overwrite existing CTfilter scores in query object
-#' @param genes.blacklist Genes blacklisted from variable features
+#' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{CTfilter::genes.blacklist.Mm};
+#'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
 #' @param skip.normalize Skip data normalization
 #' @param seed Random seed for cluster analysis
 #' @param verbose Verbose output
@@ -32,8 +34,8 @@
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
 CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
-                     ndim=30, resol=3, assay="RNA", genes.blacklist=NULL, min.gene.frac=0.5, rm.existing=TRUE,
-                     max.iterations=10, stop.iterations=0.01,
+                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", min.gene.frac=0.5, rm.existing=TRUE,
+                     max.iterations=10, stop.iterations=0.01, min.cells=100,
                      seed=1234, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
   set.seed(seed)
@@ -45,15 +47,16 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   }  
   if (is.null(markers)) {
     markers <- MCA.markers.Mm   #Default
-  } 
-  if (is.null(genes.blacklist)) {
-    genes.blacklist <- genes.blacklist.Mm  #Default
-  }  
-  if (is.list(genes.blacklist)) {
-    genes.blacklist <- unlist(genes.blacklist)
   }
-  genes.blacklist <- unique(genes.blacklist)
-  
+  if (!is.null(genes.blacklist)) {
+    if (genes.blacklist == "Tcell.blacklist") {
+       genes.blacklist <- genes.blacklist.Mm  #Default
+    }  
+    if (is.list(genes.blacklist)) {
+      genes.blacklist <- unlist(genes.blacklist)
+    }
+    genes.blacklist <- unique(genes.blacklist)
+  }
   #Allow setting different impurity levels in successive iterations
   max.impurity.vec <- vector(mode="numeric", max.iterations)
   for (i in 1:length(max.impurity.vec)) {
@@ -102,8 +105,10 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     
     filterCells.this <- filterCells.ID[filterCells.ID %in% colnames(q)]
     imp.thr <- max.impurity.vec[iter]
+    
+    ndim.use <- ifelse(ncol(q)<300, 5, ndim)  #with very few cells, reduce dimensionality
+   
     ##High resolution clustering to detect dense regions of undesired cell types
-  
     if (!skip.normalize) {
       q <- NormalizeData(q, verbose = FALSE)
     }
@@ -111,7 +116,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
     q <- ScaleData(q, verbose=FALSE)
     q <- RunPCA(q, features = q@assays[[assay]]@var.features, verbose = FALSE)
-    q <- FindNeighbors(q, reduction = "pca", dims = 1:ndim, k.param = 5, verbose=FALSE)
+    q <- FindNeighbors(q, reduction = "pca", dims = 1:ndim.use, k.param = 5, verbose=FALSE)
     q  <- FindClusters(q, resolution = resol, verbose = FALSE)
     q$clusterCT <- q@active.ident
   
@@ -121,7 +126,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     filterCluster <- names(impure.freq)[impure.freq > imp.thr]
     n_rem <- sum(q$clusterCT %in% filterCluster)
     frac.to.rem <- n_rem/ncol(q)
-    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for signature %s (%.2f%% cells)",
+    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for signature %s (%.2f%% of remaining pure cells)",
                      iter, imp.thr, n_rem, celltype, 100*frac.to.rem)
     if (verbose) {
         message(mess)
@@ -131,7 +136,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     labs[colnames(q)] <- q$is.pure
     q <- subset(q, subset=is.pure=="Pure")
     
-    if (frac.to.rem <= stop.iterations | iter>=max.iterations) {
+    if (frac.to.rem <= stop.iterations | iter>=max.iterations | ncols(q)<min.cells) {
       #Return clusters and active idents for easy filtering
       n_rem <- sum(labs=="Impure")
       frac.to.rem <- n_rem/length(labs)
