@@ -72,15 +72,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
       CT.thresholds <- Tcell.TIL.thr 
     }
   }  
- 
-  #Check that markers and threshold names correspond
-  marker.cols <- paste0(names(markers), "_CTfilter")
-  check.signatures <- intersect(marker.cols, rownames(CT.thresholds))
-  if (length(check.signatures) != length(marker.cols)) {
-     mess <- "Marker signatures (markers) do not correspond to the threshold file (CT.thresholds). Did you prepare the threshold file using this same set of markers?"
-     stop(mess)
-  }
-  
+
   if (!is.null(genes.blacklist)) {
     if (length(genes.blacklist)==1 && genes.blacklist == "Tcell.blacklist") {  #Default
       if (species=="Human") {
@@ -105,7 +97,16 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     }
   }
   
-  markers.list.pass <- check_CTmarkers(obj=query, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
+  #Check that markers and threshold names correspond
+  marker.cols <- paste0(names(markers), "_CTfilter")
+  names(marker.cols) <- names(markers)
+  marker.cols.pass <- marker.cols[marker.cols %in% rownames(CT.thresholds)]
+  if (length(markers.cols.pass) ==0) {
+    mess <- "Error. Could not match markers with threshold file"
+    stop(mess)
+  }
+  markers.list.pass <- markers[names(marker.cols.pass)]
+  markers.list.pass <- check_CTmarkers(obj=query, markers.list=markers.list.pass, min.gene.frac=min.gene.frac, verbose=verbose)
   
   if (!celltype %in% names(markers)) {
     mess <- sprintf("Cell type provided (%s) not found in marker list", celltype)
