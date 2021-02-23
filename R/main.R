@@ -130,7 +130,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   names(CT.thr) <- rownames(CT.thresholds)
   ind <- which(names(CT.thr)==celltype_CT)
   CT.thr[ind] <- CT.thresholds[ind,"mean"] - sd.in*CT.thresholds[ind,"sd"]  
-  CT.thr[-ind] <- CT.thresholds[ind,"mean"] + sd.out*CT.thresholds[-ind,"sd"]
+  CT.thr[-ind] <- CT.thresholds[-ind,"mean"] + sd.out*CT.thresholds[-ind,"sd"]
   
   #Get scores
   query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing)
@@ -181,7 +181,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     filterCluster <- names(impure.freq)[impure.freq > imp.thr]
     n_rem <- sum(q$clusterCT %in% filterCluster)
     frac.to.rem <- n_rem/ncol(q)
-    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for signature %s (%.2f%% of remaining pure cells)",
+    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for signature %s (%.2f%% of remaining cells)",
                      iter, imp.thr, n_rem, celltype, 100*frac.to.rem)
     if (verbose) {
         message(mess)
