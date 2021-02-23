@@ -11,6 +11,8 @@
 #'   \item{Single number between 0 and 1 - the same impurity threshold is applied to all iterations}
 #'   \item{Vector of numbers between 0 and 1 - specific impurity thresholds for successive iterations e.g. \code{max.impurity=c(0.7,0.5,0.3)}}
 #' }
+#' @param sd.in Maximum standard deviations from mean to identify outliers for selected signature
+#' @param sd.out Maximum standard deviations from mean to identify outliers for all other signatures
 #' @param ndim Number of dimensions for cluster analysis
 #' @param resul Resolution for cluster analysis
 #' @param assay Seurat assay to use
@@ -34,13 +36,15 @@
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
 CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
-                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", min.gene.frac=0.5, rm.existing=TRUE,
+                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", min.gene.frac=0.5, 
+                     sd.in=2, sd.out=7, rm.existing=TRUE,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
                      seed=1234, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
   set.seed(seed)
   def.assay <- DefaultAssay(query)
   DefaultAssay(query) <- assay
+  celltype_CT <- paste0(celltype, "_CTfilter")
   
   #First guess the species from the gene names of the query
   mm.genes <- unique(unlist(MCA.markers.Mm))
@@ -112,11 +116,23 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     mess <- sprintf("Cell type provided (%s) not found in marker list", celltype)
     stop(mess)
   }  
+  if (!celltype_CT %in% rownames(CT.thresholds)) {
+    mess <- sprintf("Cell type provided (%s) not found in thresholds file", celltype)
+    stop(mess)
+  } 
   if (!celltype %in% names(markers.list.pass)) {
     mess <- sprintf("Fewer than %.1f%% of genes from selected signature %s in query data", 100*min.gene.frac, celltype)
     stop(mess)
   }
   
+  #Prepare thresholds vector
+  CT.thr <- vector(length=nrow(CT.thresholds))
+  names(CT.thr) <- rownames(CT.thresholds)
+  ind <- which(names(CT.thr)==celltype_CT)
+  CT.thr[ind] <- CT.thresholds[ind,"mean"] - sd.in*CT.thresholds[ind,"sd"]  
+  CT.thr[-ind] <- CT.thresholds[ind,"mean"] + sd.out*CT.thresholds[-ind,"sd"]
+  
+  #Get scores
   query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing)
   
   sign.names <- names(markers.list.pass)
@@ -125,10 +141,10 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   filterCells <- c()
   for (sig in sign.names){
     sig.meta <- paste0(sig,"_CTfilter")
-    if( sig == celltype ) {
-      filterCells <- c(filterCells, which(meta[,sig.meta] < CT.thresholds[sig.meta,"neg"]))
+    if( sig.meta == celltype_CT ) {
+      filterCells <- c(filterCells, which(meta[,sig.meta] < CT.thr[sig.meta]))
     } else {
-      filterCells <- c(filterCells, which(meta[,sig.meta] > CT.thresholds[sig.meta,"pos"]))
+      filterCells <- c(filterCells, which(meta[,sig.meta] > CT.thr[sig.meta]))
     }
   }
   filterCells <- unique(filterCells)
@@ -200,7 +216,6 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #'
 #' @param ref Seurat object containing the reference data set
 #' @param markers List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}
-#' @param sd.dev Maximum standard deviations from mean to identify outliers
 #' @param quant Quantile cutoff for score distribution
 #' @param assay Seurat assay to use
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
@@ -216,7 +231,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' ref@@misc$CTfilter
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
-calculate_thresholds_CTfilter <- function(ref, markers=NULL, sd.dev=7, quant=0.995, assay="RNA", min.gene.frac=0.5,
+calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
                                           level=1, rm.existing=TRUE, verbose=TRUE) {
   
   def.assay <- DefaultAssay(ref) 
@@ -231,13 +246,13 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, sd.dev=7, quant=0.9
   
   ref_thr <- matrix(nrow=length(sign.names), ncol=2)
   rownames(ref_thr) <- sign.names
-  colnames(ref_thr) <- c("pos","neg")
+  colnames(ref_thr) <- c("mean","sd")
   
   for(sig in sign.names){
     bulk <- ref@meta.data[,sig]
     bulk <- bulk[bulk < quantile(bulk,p=quant)]
-    ref_thr[sig,1] <- mean(bulk) + sd.dev*sd(bulk)
-    ref_thr[sig,2] <- mean(bulk) - sd.dev*sd(bulk)
+    ref_thr[sig,1] <- mean(bulk)
+    ref_thr[sig,2] <- sd(bulk)
  }
 
   if (!is.list(ref@misc$CTfilter)) {

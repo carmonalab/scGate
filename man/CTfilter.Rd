@@ -15,6 +15,8 @@ CTfilter(
   assay = "RNA",
   genes.blacklist = "Tcell.blacklist",
   min.gene.frac = 0.5,
+  sd.in = 2,
+  sd.out = 7,
   rm.existing = TRUE,
   max.iterations = 10,
   stop.iterations = 0.01,
@@ -48,6 +50,10 @@ CTfilter(
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
+
+\item{sd.in}{Maximum standard deviations from mean to identify outliers for selected signature}
+
+\item{sd.out}{Maximum standard deviations from mean to identify outliers for all other signatures}
 
 \item{rm.existing}{Overwrite existing CTfilter scores in query object}
 

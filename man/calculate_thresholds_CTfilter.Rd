@@ -7,7 +7,6 @@
 calculate_thresholds_CTfilter(
   ref,
   markers = NULL,
-  sd.dev = 7,
   quant = 0.995,
   assay = "RNA",
   min.gene.frac = 0.5,
@@ -20,8 +19,6 @@ calculate_thresholds_CTfilter(
 \item{ref}{Seurat object containing the reference data set}
 
 \item{markers}{List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}}
-
-\item{sd.dev}{Maximum standard deviations from mean to identify outliers}
 
 \item{quant}{Quantile cutoff for score distribution}
 
