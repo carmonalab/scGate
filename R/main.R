@@ -101,7 +101,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   marker.cols <- paste0(names(markers), "_CTfilter")
   names(marker.cols) <- names(markers)
   marker.cols.pass <- marker.cols[marker.cols %in% rownames(CT.thresholds)]
-  if (length(markers.cols.pass) ==0) {
+  if (length(marker.cols.pass) ==0) {
     mess <- "Error. Could not match markers with threshold file"
     stop(mess)
   }
