@@ -15,7 +15,7 @@ CTfilter(
   assay = "RNA",
   genes.blacklist = "Tcell.blacklist",
   min.gene.frac = 0.5,
-  sd.in = 2,
+  sd.in = 3,
   sd.out = 7,
   rm.existing = TRUE,
   max.iterations = 10,

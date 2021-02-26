@@ -12,7 +12,7 @@ CTfilter.multilevel(
   max.impurity = 0.5,
   assay = "RNA",
   min.gene.frac = 0.5,
-  sd.in = 2,
+  sd.in = 3,
   sd.out = 7,
   seed = 1234,
   quiet = FALSE,

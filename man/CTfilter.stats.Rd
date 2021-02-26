@@ -7,7 +7,7 @@
 CTfilter.stats(
   query,
   celltype = "T.cell",
-  sd.in = 2,
+  sd.in = 3,
   sd.out = 7,
   min.cells = 50
 )
