@@ -35,9 +35,9 @@ provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")
 
 \item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
 
-\item{sd.in}{Maximum standard deviations from mean to identify outliers for selected signature}
+\item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signature}
 
-\item{sd.out}{Maximum standard deviations from mean to identify outliers for all other signatures}
+\item{sd.out}{Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures}
 
 \item{seed}{Random seed for cluster analysis}
 

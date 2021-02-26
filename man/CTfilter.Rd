@@ -51,9 +51,9 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
 
-\item{sd.in}{Maximum standard deviations from mean to identify outliers for selected signature}
+\item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signature}
 
-\item{sd.out}{Maximum standard deviations from mean to identify outliers for all other signatures}
+\item{sd.out}{Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures}
 
 \item{rm.existing}{Overwrite existing CTfilter scores in query object}
 
@@ -75,7 +75,7 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 }
 \value{
 A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
-    The \code{active.ident} is also set to this variable. Additionally, scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
+    The \code{active.ident} is also set to this variable. Additionally, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
 }
 \description{
 Apply CTfilter for a specific cell type to a query dataset

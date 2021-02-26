@@ -2,4 +2,5 @@
 
 export(CTfilter)
 export(CTfilter.multilevel)
+export(CTfilter.stats)
 export(calculate_thresholds_CTfilter)

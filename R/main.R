@@ -12,8 +12,8 @@
 #' @param CT.thresholds A named list with thresholds for each cell type - see function \code{\link{calculate_thresholds_CTfilter}}
 #' @param markers List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}
 #' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure"
-#' @param sd.in Maximum standard deviations from mean to identify outliers for selected signature
-#' @param sd.out Maximum standard deviations from mean to identify outliers for all other signatures
+#' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
+#' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param assay Seurat assay to use
 #' @param seed Random seed for cluster analysis
@@ -89,8 +89,8 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #'   \item{Single number between 0 and 1 - the same impurity threshold is applied to all iterations}
 #'   \item{Vector of numbers between 0 and 1 - specific impurity thresholds for successive iterations e.g. \code{max.impurity=c(0.7,0.5,0.3)}}
 #' }
-#' @param sd.in Maximum standard deviations from mean to identify outliers for selected signature
-#' @param sd.out Maximum standard deviations from mean to identify outliers for all other signatures
+#' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
+#' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
 #' @param ndim Number of dimensions for cluster analysis
 #' @param resul Resolution for cluster analysis
 #' @param assay Seurat assay to use
@@ -106,7 +106,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @param verbose Verbose output
 #' @param quiet Suppress all output
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
-#'     The \code{active.ident} is also set to this variable. Additionally, scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
+#'     The \code{active.ident} is also set to this variable. Additionally, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
 #' @examples
 #' query <- CTfilter(query, celltype="T.cell")
 #' DimPlot(query)
@@ -342,3 +342,92 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   return(ref)
 }
 
+#' Calculate thresholds for CTfilter
+#'
+#' Calculate some stats after a CTfilter run.
+#'
+#' @param query A query object in Seurat format returned by CTfilter
+#' @param celltype The desidered cell type used in CTfilter
+#' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
+#' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
+#' @param min.cells Minimum number of cells to report a specific cell type. Everything else will be grouped in 'Others'
+#' @return Returns the query object with an additional column, reporting the cell type with the highest Z-score compared to the reference
+#'     thresholds. In the slot \code{query@@misc$CTfilter.counts}, a dataframe reports the number of cells for each signature that exceed the Z-score threshold. Note that individual
+#'     cells can be outliers for several signatures, so the total count does not correspond to the number of removed cells.
+#' @examples
+#' query <- CTfilter(query, celltype="Tcell")
+#' query <- CTfilter.stats(query, celltype="Tcell")
+#' Dimplot(query, group.by="top.zscore")
+#' head(query@@misc$CTfilter.counts)
+#' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
+#' @export
+
+
+CTfilter.stats <- function(query, celltype="T.cell", sd.in=2, sd.out=7, min.cells=50) {
+    
+    celltype_CT <- paste0(celltype,"_CTfilter")
+    query$top.zscore <- celltype_CT
+    
+    imp <- subset(query, is.pure=="Impure")
+    
+    cols <- grep("_CTfilter$", colnames(imp@meta.data),  perl=T, value=T)
+    meta <- imp@meta.data[,cols]
+    this.i <- which(colnames(meta) == celltype_CT)
+    if (length(this.i) == 0) {
+      stop(paste0("Celltype %s not found in query object",celltype))
+    }  
+    
+    #Get raw counts of outlier from background distribution
+    counts <- rep(0, length(cols))
+    names(counts) <- cols
+    for (type in cols) {
+       if (type==celltype_CT) {
+          counts[type] <- sum(meta[,type] < -sd.in)
+       } else {
+          counts[type] <- sum(meta[,type] > sd.out)
+       }
+    }
+    counts <- sort(counts[counts>0], decreasing = T)
+    counts <- as.data.frame(counts)
+    
+    ind <- which(rownames(counts) == celltype_CT)
+    if (length(ind) > 0) {
+       rownames(counts)[ind] <- paste0("NON_",celltype_CT)
+    }
+    rownames(counts) = substr(rownames(counts), 1, nchar(rownames(counts))-9)
+    
+    
+    top.imp <- vector(length=nrow(meta))
+    names(top.imp) <- rownames(meta)
+    #Now assign cell type with top z-score
+    meta.out <- meta[,-this.i]
+    max.sd <- apply(meta.out, 1, max)
+    max.which <- apply(meta.out, 1, which.max)
+    max.type <- colnames(meta.out)[max.which]
+    
+    meta.in <- meta[,this.i]
+    
+    for (i in 1:length(top.imp)) {
+       if (max.sd[i] > sd.out) {
+          top.imp[i] <- max.type[i]
+       } else if (meta.in[i] < -sd.in) {
+          top.imp[i] <- paste0("NON_",celltype_CT)
+       } else {
+          top.imp[i] <- celltype_CT
+       }
+    }
+    query$top.zscore[names(top.imp)] <- top.imp
+    
+    query$top.zscore = substr(query$top.zscore, 1, nchar(query$top.zscore)-9)
+    
+    #Group cell types with few cells
+    tab <- table(query$top.zscore)
+    join <- names(tab[tab<min.cells])
+    query$top.zscore[query$top.zscore %in% join] <- "Others"
+    
+    query@misc$CTfilter.counts <- counts
+    return(query)
+}
+  
+  
+  
