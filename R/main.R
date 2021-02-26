@@ -203,8 +203,8 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     stop(mess)
   }
   
-  #Get scores
-  query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing, bg=CT.thresholds)
+  #Get Zscores
+  query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing, bg=CT.thresholds, raw.score=F)
   
   sign.names <- names(markers.list.pass)
   
@@ -311,7 +311,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
      markers <- MCA.markers.Mm   #Default
   } 
   markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
-  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing)
+  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, raw.score=TRUE)
   
   sign.names <- paste0(names(markers.list.pass),"_CTfilter")
   

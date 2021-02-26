@@ -12,7 +12,7 @@ check_CTmarkers <- function(obj, markers.list, min.gene.frac=0.5, verbose=TRUE) 
   return(markers.list.pass)
 }
 
-get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL) {
+get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, raw.score=FALSE) {
   if (rm.existing) {  #remove existing CTfilter scores - necessary because AddModuleScore won't overwrite them
     index.rm <- grep("_CTfilter",colnames(obj@meta.data), perl=T)
     if (length(index.rm)>0) {
@@ -28,10 +28,14 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL) {
   
   names(obj@meta.data)[index.start:index.end] <- sign.names
   
+  if (raw.score) {
+    return(obj) 
+  }
+  
   #Convert to Z-score
   for (j in index.start:index.end) {
-     sign <- colnames(obj@meta.data)[j]
-     obj@meta.data[,j] <- (obj@meta.data[,j] - bg[sign,"mean"])/bg[sign,"sd"]
+    sign <- colnames(obj@meta.data)[j]
+    obj@meta.data[,j] <- (obj@meta.data[,j] - bg[sign,"mean"])/bg[sign,"sd"]
   }
   return(obj)
 }
