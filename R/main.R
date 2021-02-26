@@ -1,5 +1,83 @@
 #' Filter single-cell data by cell type
 #'
+#' Apply CTfilter for a specific cell type to a query dataset. This function expands \code{\link{CTfilter}} to allow multi-level signatures to be used
+#' for filtering; e.g. Tcells at level 1, and CD8.Tcells at level 2. To prepare markers and signatures in the correct format, store them in a list where
+#' the list index corresponds to the signature level. Then select the desired cell at each level with the celltype parameter
+#' (e.g. \code{celltype=c("T.cell","Tcell.CD8")}). Note that for the parameters listed below, you can also specify different values for different levels, by
+#' setting them as vectors (e.g. sd.out=c(7,4)).
+#'
+#' @param query Seurat object containing a query data set - filtering will be applied to this object
+#' @param celltype Cell type to preserve from the query data set (should be one of cell types in \code{names(markers)}). For multi-level filtering,
+#'     provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")})
+#' @param CT.thresholds A named list with thresholds for each cell type - see function \code{\link{calculate_thresholds_CTfilter}}
+#' @param markers List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}
+#' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure"
+#' @param sd.in Maximum standard deviations from mean to identify outliers for selected signature
+#' @param sd.out Maximum standard deviations from mean to identify outliers for all other signatures
+#' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
+#' @param assay Seurat assay to use
+#' @param seed Random seed for cluster analysis
+#' @param quiet Suppress all output
+#' @param ... Additional parameters for \code{\link{CTfilter}}
+#' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
+#'     The \code{active.ident} is also set to this variable.
+#' @examples
+#' query <- CTfilter.multilevel(query, celltype=c("T.cell","Tcell.CD4"))
+#' DimPlot(query)
+#' query <- subset(query, subset=is.pure=="Pure")
+#' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
+#' @export
+CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
+                     assay="RNA", min.gene.frac=0.5, sd.in=2, sd.out=7, seed=1234, quiet=FALSE, ...) {
+
+  set.seed(seed)
+  def.assay <- DefaultAssay(query)
+  DefaultAssay(query) <- assay
+  
+  n.levels <- length(celltype)
+  
+  #Single-level run
+  if (n.levels==1) {
+     query <- CTfilter(query=query, celltype=celltype, CT.thresholds=CT.thresholds, markers=markers, max.impurity=max.impurity,
+                       min.gene.frac=min.gene.frac, sd.in=sd.in, sd.out=sd.out, assay = assay, seed=seed, quiet=quiet, ...)
+     return(query)
+  }
+  
+  #Multi-level run
+  if (!is.list(CT.thresholds) || length(CT.thresholds) < length(celltype)) {
+     stop(sprintf("Please provide a list of thresholds (CT.thresholds) for each desidered celltype level (%s levels)", n.levels))
+  }
+  
+  parameters <- list("max.impurity"=max.impurity,
+                     "min.gene.frac"=min.gene.frac,
+                     "sd.in"=sd.in,
+                     "sd.out"=sd.out)
+  parameters <- lapply(parameters, vectorize.parameters, lgt=n.levels)
+  
+  query$is.pure <- "Impure"
+  sub <- query
+  for (lev in 1:n.levels) {
+     message(sprintf("--- Running CTfilter for level %i: %s celltype...",lev, celltype[lev]))
+     
+     sub <- CTfilter(query=sub, celltype=celltype[lev],
+                      CT.thresholds=CT.thresholds[[lev]],
+                      markers=markers[[lev]],
+                      max.impurity=parameters$max.impurity[lev],
+                      min.gene.frac=parameters$min.gene.frac[lev],
+                      sd.in=parameters$sd.in[lev],
+                      sd.out=parameters$sd.out[lev],
+                      assay = assay, seed=seed, quiet=quiet, ...)
+    
+     sub <- subset(sub, subset=is.pure=="Pure")
+  }
+  pure.cells <- colnames(sub)
+  query@meta.data[pure.cells, "is.pure"] <- "Pure"
+  
+  return(query)
+
+}  
+#' Filter single-cell data by cell type
+#'
 #' Apply CTfilter for a specific cell type to a query dataset
 #'
 #' @param query Seurat object containing a query data set - filtering will be applied to this object
@@ -260,7 +338,13 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   } 
   ref@misc$CTfilter[[level]] <- ref_thr
   
+  if (!is.list(ref@misc$CTfilter.markers)) {
+    ref@misc$CTfilter.markers <- list()
+  } 
+  ref@misc$CTfilter.markers[[level]] <- markers.list.pass
+  
   DefaultAssay(ref) <- def.assay
   message("Cell type thresholds available in ref@misc$CTfilter")
+  message("Marker list available in ref@misc$CTfilter.markers")
   return(ref)
 }

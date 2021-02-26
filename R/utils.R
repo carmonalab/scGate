@@ -29,3 +29,15 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE) {
   names(obj@meta.data)[index.start:index.end] <- sign.names
   return(obj)
 }
+
+vectorize.parameters <- function(par, lgt=1) {
+  vec <- vector(mode="numeric", lgt)
+  for (i in 1:length(vec)) {
+    if (i <= length(par)) {
+      vec[i] <- par[i]
+    } else {
+      vec[i] <- par[i-1]
+    }
+  }
+  return(vec)
+}
