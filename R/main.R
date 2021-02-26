@@ -203,15 +203,8 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     stop(mess)
   }
   
-  #Prepare thresholds vector
-  CT.thr <- vector(length=nrow(CT.thresholds))
-  names(CT.thr) <- rownames(CT.thresholds)
-  ind <- which(names(CT.thr)==celltype_CT)
-  CT.thr[ind] <- CT.thresholds[ind,"mean"] - sd.in*CT.thresholds[ind,"sd"]  
-  CT.thr[-ind] <- CT.thresholds[-ind,"mean"] + sd.out*CT.thresholds[-ind,"sd"]
-  
   #Get scores
-  query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing)
+  query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing, bg=CT.thresholds)
   
   sign.names <- names(markers.list.pass)
   
@@ -220,9 +213,9 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   for (sig in sign.names){
     sig.meta <- paste0(sig,"_CTfilter")
     if( sig.meta == celltype_CT ) {
-      filterCells <- c(filterCells, which(meta[,sig.meta] < CT.thr[sig.meta]))
+      filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell type
     } else {
-      filterCells <- c(filterCells, which(meta[,sig.meta] > CT.thr[sig.meta]))
+      filterCells <- c(filterCells, which(meta[,sig.meta] > sd.out))   # Z.score threshold for contaminants
     }
   }
   filterCells <- unique(filterCells)
@@ -348,3 +341,4 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   message("Marker list available in ref@misc$CTfilter.markers")
   return(ref)
 }
+
