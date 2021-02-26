@@ -28,7 +28,7 @@
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
 CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
-                     assay="RNA", min.gene.frac=0.5, sd.in=2, sd.out=7, seed=1234, quiet=FALSE, ...) {
+                     assay="RNA", min.gene.frac=0.5, sd.in=3, sd.out=7, seed=1234, quiet=FALSE, ...) {
 
   set.seed(seed)
   def.assay <- DefaultAssay(query)
@@ -115,7 +115,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @export
 CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
                      ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", min.gene.frac=0.5, 
-                     sd.in=2, sd.out=7, rm.existing=TRUE,
+                     sd.in=3, sd.out=7, rm.existing=TRUE,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
                      seed=1234, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
@@ -304,7 +304,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          min.sd=0.1, level=1, rm.existing=TRUE, verbose=TRUE) {
+                                          min.sd=0.02, level=1, rm.existing=TRUE, verbose=TRUE) {
   
   def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
@@ -364,7 +364,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
 #' @export
 
 
-CTfilter.stats <- function(query, celltype="T.cell", sd.in=2, sd.out=7, min.cells=50) {
+CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cells=50) {
     
     celltype_CT <- paste0(celltype,"_CTfilter")
     query$top.zscore <- celltype_CT
