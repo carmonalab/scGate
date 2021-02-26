@@ -290,6 +290,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @param quant Quantile cutoff for score distribution
 #' @param assay Seurat assay to use
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
+#' @param min.sd Minimum value for standard deviation - set to this value if calculated standard deviation is lower 
 #' @param level Annotation level - thresholds are saved in list element \code{ref@@misc$CTfilter[[level]]}
 #' @param rm.existing Overwrite existing CTfilter scores in query object
 #' @param verbose Verbose output
@@ -303,7 +304,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          level=1, rm.existing=TRUE, verbose=TRUE) {
+                                          min.sd=0.1, level=1, rm.existing=TRUE, verbose=TRUE) {
   
   def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
@@ -323,7 +324,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
     bulk <- ref@meta.data[,sig]
     bulk <- bulk[bulk < quantile(bulk,p=quant)]
     ref_thr[sig,1] <- mean(bulk)
-    ref_thr[sig,2] <- sd(bulk)
+    ref_thr[sig,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
  }
 
   if (!is.list(ref@misc$CTfilter)) {

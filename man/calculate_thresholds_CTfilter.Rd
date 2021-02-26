@@ -10,6 +10,7 @@ calculate_thresholds_CTfilter(
   quant = 0.995,
   assay = "RNA",
   min.gene.frac = 0.5,
+  min.sd = 0.1,
   level = 1,
   rm.existing = TRUE,
   verbose = TRUE
@@ -25,6 +26,8 @@ calculate_thresholds_CTfilter(
 \item{assay}{Seurat assay to use}
 
 \item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
+
+\item{min.sd}{Minimum value for standard deviation - set to this value if calculated standard deviation is lower}
 
 \item{level}{Annotation level - thresholds are saved in list element \code{ref@misc$CTfilter[[level]]}}
 
