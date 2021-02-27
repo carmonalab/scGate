@@ -10,7 +10,7 @@ calculate_thresholds_CTfilter(
   quant = 0.995,
   assay = "RNA",
   min.gene.frac = 0.5,
-  min.sd = 0.02,
+  min.sd = 0.05,
   level = 1,
   rm.existing = TRUE,
   verbose = TRUE

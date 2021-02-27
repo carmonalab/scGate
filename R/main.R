@@ -72,6 +72,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
   }
   pure.cells <- colnames(sub)
   query@meta.data[pure.cells, "is.pure"] <- "Pure"
+  Idents(query) <- query$is.pure
   
   return(query)
 
@@ -304,7 +305,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          min.sd=0.02, level=1, rm.existing=TRUE, verbose=TRUE) {
+                                          min.sd=0.05, level=1, rm.existing=TRUE, verbose=TRUE) {
   
   def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
