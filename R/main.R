@@ -305,7 +305,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          min.sd=0.05, level=1, rm.existing=TRUE, verbose=TRUE) {
+                                          min.sd=0.05, level=1, rm.existing=TRUE, chunk.size=1000, ncores=1, verbose=TRUE) {
   
   def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
@@ -313,7 +313,9 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
      markers <- MCA.markers.Mm   #Default
   } 
   markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
-  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, raw.score=TRUE)
+  
+  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, raw.score=TRUE,
+                      chunk.size=chunk.size, ncores=ncores)
   
   sign.names <- paste0(names(markers.list.pass),"_CTfilter")
   
