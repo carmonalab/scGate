@@ -93,7 +93,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
 #' @param ndim Number of dimensions for cluster analysis
-#' @param resul Resolution for cluster analysis
+#' @param resol Resolution for cluster analysis
 #' @param assay Seurat assay to use
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param max.iterations Maximum number of iterations
@@ -317,6 +317,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, raw.score=TRUE,
                       chunk.size=chunk.size, ncores=ncores)
   
+  
   sign.names <- paste0(names(markers.list.pass),"_CTfilter")
   
   ref_thr <- matrix(nrow=length(sign.names), ncol=2)
@@ -324,7 +325,9 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   colnames(ref_thr) <- c("mean","sd")
   
   for(sig in sign.names){
-    bulk <- ref@meta.data[,sig]
+    #bulk <- ref@meta.data[,sig]
+    bulk <- as.numeric(ref@meta.data[,sig])
+    
     bulk <- bulk[bulk < quantile(bulk,p=quant)]
     ref_thr[sig,1] <- mean(bulk)
     ref_thr[sig,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
