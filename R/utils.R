@@ -110,7 +110,7 @@ AddModuleScore_UCell <- function(obj, features, chunk.size=1000, ncores=1) {
   #Parallelize?
   if (ncores>1) {
     ncores_future_apply <<- ncores
-    plan(tweak(future::multisession(workers=ncores_future_apply)))
+    plan(future::multisession(workers=ncores_future_apply))
     
     meta.list <- future_lapply(
       X = split.data,
@@ -174,7 +174,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
   #Parallelize?
   if (ncores>1) {
     ncores_future_apply <<- ncores
-    plan(tweak(future::multisession(workers=ncores_future_apply)))
+    plan(future::multisession(workers=ncores_future_apply))
     
     meta.list <- future_lapply(
       X = split.data,
