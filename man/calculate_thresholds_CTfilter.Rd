@@ -10,7 +10,7 @@ calculate_thresholds_CTfilter(
   quant = 0.995,
   assay = "RNA",
   min.gene.frac = 0.5,
-  min.sd = 0.05,
+  min.sd = 0.02,
   level = 1,
   rm.existing = TRUE,
   method = c("UCell", "AUCell", "ModuleScore"),
@@ -40,7 +40,7 @@ calculate_thresholds_CTfilter(
 
 \item{chunk.size}{Number of cells per batch to be scored by the method}
 
-\item{ncores}{Number of processors for parallel processing (requires \code{future_apply})}
+\item{ncores}{Number of processors for parallel processing (requires \code{future.apply})}
 
 \item{verbose}{Verbose output}
 }

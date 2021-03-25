@@ -97,7 +97,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @param assay Seurat assay to use
 #' @param method Scoring method for cell signatures (default \code{UCell})
 #' @param chunk.size Number of cells per batch to be scored by the method
-#' @param ncores Number of processors for parallel processing (requires \code{future_apply})
+#' @param ncores Number of processors for parallel processing (requires \code{future.apply})
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param max.iterations Maximum number of iterations
 #' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
@@ -305,7 +305,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @param level Annotation level - thresholds are saved in list element \code{ref@@misc$CTfilter[[level]]}
 #' @param rm.existing Overwrite existing CTfilter scores in query object
 #' @param chunk.size Number of cells per batch to be scored by the method
-#' @param ncores Number of processors for parallel processing (requires \code{future_apply})
+#' @param ncores Number of processors for parallel processing (requires \code{future.apply})
 #' @param verbose Verbose output
 #' @return Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@@misc$CTfilter}. Scores for individual signatures are
 #'     returned as metadata in the Seurat object
@@ -317,7 +317,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          min.sd=0.05, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
+                                          min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
                                           chunk.size=1000, ncores=1, verbose=TRUE) {
   
   def.assay <- DefaultAssay(ref) 

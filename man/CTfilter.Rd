@@ -66,7 +66,7 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{chunk.size}{Number of cells per batch to be scored by the method}
 
-\item{ncores}{Number of processors for parallel processing (requires \code{future_apply})}
+\item{ncores}{Number of processors for parallel processing (requires \code{future.apply})}
 
 \item{max.iterations}{Maximum number of iterations}
 
