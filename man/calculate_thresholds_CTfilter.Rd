@@ -13,6 +13,9 @@ calculate_thresholds_CTfilter(
   min.sd = 0.05,
   level = 1,
   rm.existing = TRUE,
+  method = c("UCell", "AUCell", "ModuleScore"),
+  chunk.size = 1000,
+  ncores = 1,
   verbose = TRUE
 )
 }
@@ -32,6 +35,12 @@ calculate_thresholds_CTfilter(
 \item{level}{Annotation level - thresholds are saved in list element \code{ref@misc$CTfilter[[level]]}}
 
 \item{rm.existing}{Overwrite existing CTfilter scores in query object}
+
+\item{method}{Scoring method for cell signatures (default \code{UCell})}
+
+\item{chunk.size}{Number of cells per batch to be scored by the method}
+
+\item{ncores}{Number of processors for parallel processing (requires \code{future_apply})}
 
 \item{verbose}{Verbose output}
 }

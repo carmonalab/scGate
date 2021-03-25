@@ -18,6 +18,9 @@ CTfilter(
   sd.in = 3,
   sd.out = 7,
   rm.existing = TRUE,
+  method = c("UCell", "AUCell", "ModuleScore"),
+  chunk.size = 1000,
+  ncores = 1,
   max.iterations = 10,
   stop.iterations = 0.01,
   min.cells = 100,
@@ -44,6 +47,8 @@ CTfilter(
 
 \item{ndim}{Number of dimensions for cluster analysis}
 
+\item{resol}{Resolution for cluster analysis}
+
 \item{assay}{Seurat assay to use}
 
 \item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{CTfilter::genes.blacklist.Mm};
@@ -56,6 +61,12 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 \item{sd.out}{Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures}
 
 \item{rm.existing}{Overwrite existing CTfilter scores in query object}
+
+\item{method}{Scoring method for cell signatures (default \code{UCell})}
+
+\item{chunk.size}{Number of cells per batch to be scored by the method}
+
+\item{ncores}{Number of processors for parallel processing (requires \code{future_apply})}
 
 \item{max.iterations}{Maximum number of iterations}
 
@@ -70,8 +81,6 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 \item{verbose}{Verbose output}
 
 \item{quiet}{Suppress all output}
-
-\item{resul}{Resolution for cluster analysis}
 }
 \value{
 A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
