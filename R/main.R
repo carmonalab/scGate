@@ -220,7 +220,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   #Get Zscores
   query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing,
                         method=method, chunk.size=chunk.size, ncores=ncores,
-                        bg=CT.thresholds, raw.score=F)
+                        bg=CT.thresholds, z.score=TRUE)
   
   sign.names <- names(markers.list.pass)
   
@@ -343,7 +343,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   } 
   markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
   
-  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, raw.score=TRUE,
+  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, z.score=FALSE,
                       method=method, chunk.size=chunk.size, ncores=ncores)
   
   

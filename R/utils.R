@@ -24,13 +24,13 @@ check_CTmarkers <- function(obj, markers.list, min.gene.frac=0.5, verbose=TRUE) 
 }
 
 #Calculate CTfilter scores
-get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, raw.score=FALSE,
+get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=FALSE,
                          method=c("UCell","AUCell","ModuleScore"), chunk.size=1000, ncores=1) {
   
   method.use <- method[1]
   
   if (rm.existing) {  #remove existing CTfilter scores
-    index.rm <- grep("_CTfilter",colnames(obj@meta.data), perl=T)
+    index.rm <- grep("_CTfilter|_Zscore",colnames(obj@meta.data), perl=T)
     if (length(index.rm)>0) {
       obj@meta.data <- subset(obj@meta.data, select = -index.rm)
     }
@@ -46,15 +46,18 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, raw.score
      stop("Please give a valid method for signature scoring (see 'method' parameter)")
   }
 
-  if (raw.score) {
+  if (!z.score) {
     return(obj) 
   }
   
   #Convert to Z-score
   cols <- paste0(names(markers.list),"_CTfilter")
-
-  for (sig in cols) {
-    obj@meta.data[,sig] <- (obj@meta.data[,sig] - bg[sig,"mean"])/bg[sig,"sd"]
+  zcols <- paste0(names(markers.list),"_Zscore")
+  
+  for (i in seq_along(cols)) {
+    sig <- cols[i]
+    zsig <- zcols[i]
+    obj@meta.data[,zsig] <- (obj@meta.data[,sig] - bg[sig,"mean"])/bg[sig,"sd"]
   }
   return(obj)
 }
