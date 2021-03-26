@@ -413,7 +413,7 @@ CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cell
     colnames(meta) <- cols
     this.i <- which(colnames(meta) == celltype)
     if (length(this.i) == 0) {
-      stop(paste0("Celltype %s not found in query object",celltype))
+      stop(sprintf("Celltype %s not found in query object",celltype))
     }  
     
     #Get raw counts of outlier from background distribution

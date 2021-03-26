@@ -66,36 +66,41 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
 #Calculate AUC as Mann–Whitney U statistic from a vector of ranks
 # (len_sig*(len_sig+1))/2 is the total rank sum
 # U1+U2=n1*n2 (n1,n2: sample sizes); U1/(n1*n2)=AUC
-u_stat <- function(rank_value, maxRank=1000){
-  
-  rank_value[rank_value>maxRank] <- maxRank
-  rank_sum <- sum(rank_value)
-  len_sig <- length(rank_value)
-  
-  u_value <- rank_sum - (len_sig*(len_sig+1))/2 
-  
-  auc <- u_value / (len_sig * maxRank) 
-  auc <- 1.0 - auc
-  return (auc)
+u_stat = function(rank_value, maxRank=1000){
+  rank_value[rank_value==0] <- maxRank+1 #in case we are using sparse matrices
+  insig <- rank_value > maxRank
+  if(all(insig)) {
+    return(0L)
+  } else {
+    rank_value[insig] <- maxRank+1
+    rank_sum = sum(rank_value)
+    len_sig <- length(rank_value)
+    u_value = rank_sum - (len_sig * (len_sig + 1))/2
+    auc = u_value/(len_sig * maxRank)
+    auc = 1 - auc
+    return(auc)
+  }
 }
 
 #Calculate AUC for a list of signatures, from a ranks matrix
 u_stat_signature_list = function(sig_list, ranks_matrix, maxRank=1000) {
+  
   u_matrix <- sapply(sig_list, function(sig) {
-    as.numeric(ranks_matrix[sig, lapply(.SD, function(x) u_stat(x,maxRank = maxRank)),.SDcols=-1])
+    as.numeric(ranks_matrix[sig, lapply(.SD, function(x) u_stat(x,maxRank = maxRank)),.SDcols=-1, on="rn"])
   })
+  
   rownames(u_matrix) <- colnames(ranks_matrix)[-1]
   return (u_matrix)
 }
 
 
-data_to_ranks_data_table <- function(data) {
-  
+# Calculate feature ranks from expression data matrices
+data_to_ranks_data_table = function(data) {
   dt <- as.data.table(data)
   rnaDT.ranks.dt <- dt[, lapply(.SD, function(x) frankv(x,ties.method="random",order=c(-1L)))]
   rnaDT.ranks.rownames <- rownames(data)
   rnaDT.ranks.dt.rn <- cbind(rn=rnaDT.ranks.rownames, rnaDT.ranks.dt)
-  setkey(rnaDT.ranks.dt.rn, rn)
+  setkey(rnaDT.ranks.dt.rn, rn, physical = F)
   return(rnaDT.ranks.dt.rn)
 }
 
@@ -141,18 +146,7 @@ AddModuleScore_UCell <- function(obj, features, chunk.size=1000, ncores=1) {
   }
   
   meta.merge <- Reduce(rbind, meta.list)
-  # cols <- colnames(meta.merge)
-  
   obj <- Seurat::AddMetaData(obj, as.data.frame(meta.merge))
-  
-  #Add small amount of noise to avoid draws
-  #obj@meta.data[,cols] <- sapply(obj@meta.data[,cols],
-  #                               FUN = function(c) {
-  #                                 c <- as.numeric(c)
-  #                                 epsilon <- rnorm(length(c))/10^8
-  #                                 c <- c + epsilon
-  #                                 return(c)
-  #                               } )
   
   return(obj)
 }
@@ -197,18 +191,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
   }
   
   meta.merge <- Reduce(rbind, meta.list)
- # cols <- colnames(meta.merge)
-  
   obj <- Seurat::AddMetaData(obj, as.data.frame(meta.merge))
-  
-  #Add small amount of noise to avoid draws
-  #obj@meta.data[,cols] <- sapply(obj@meta.data[,cols],
-  #                               FUN = function(c) {
-  #                                 c <- as.numeric(c)
-  #                                 epsilon <- rnorm(length(c))/10^8
-  #                                 c <- c + epsilon
-  #                                 return(c)
-  #                               } )
   
   return(obj)
 }
