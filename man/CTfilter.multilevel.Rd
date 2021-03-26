@@ -14,7 +14,7 @@ CTfilter.multilevel(
   min.gene.frac = 0.5,
   sd.in = 3,
   sd.out = 7,
-  seed = 1234,
+  seed = 123,
   quiet = FALSE,
   ...
 )

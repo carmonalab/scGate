@@ -24,7 +24,7 @@ check_CTmarkers <- function(obj, markers.list, min.gene.frac=0.5, verbose=TRUE) 
 }
 
 #Calculate CTfilter scores
-get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, raw.score=FALSE, 
+get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, raw.score=FALSE, seed=123,
                          method=c("UCell","AUCell","ModuleScore"), chunk.size=1000, ncores=1) {
   
   method.use <- method[1]
@@ -37,9 +37,9 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, raw.score
   }
   
   if (method.use == "UCell") {
-     obj <- AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores)
+     obj <- AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, seed=seed)
   } else if (method.use == "AUCell") {
-     obj <- AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores)
+     obj <- AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, seed=seed)
   } else if (method.use == "ModuleScore") {
      obj <- suppressWarnings(AddModuleScore(obj, features = markers.list, name="CTfilterScore"))
   } else {
@@ -96,7 +96,7 @@ data_to_ranks_data_table <- function(data) {
   return(rnaDT.ranks.dt.rn)
 }
 
-AddModuleScore_UCell <- function(obj, features, chunk.size=1000, ncores=1) {
+AddModuleScore_UCell <- function(obj, features, chunk.size=1000, ncores=1, seed=123) {
   
   if (ncores>1) {
     require(future.apply)
@@ -124,7 +124,7 @@ AddModuleScore_UCell <- function(obj, features, chunk.size=1000, ncores=1) {
         return(cells_AUC)
         
       },
-      future.seed = 123
+      future.seed = seed
     )
     plan(strategy = "sequential")
     
@@ -169,7 +169,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
   assay <- DefaultAssay(obj)
   
   #Split into manageable chunks
-  split.data <- split_data.matrix(matrix=obj@assays[[assay]]@data, chunk.size=chunk.size)
+  split.data <- split_data.matrix(matrix=obj@assays[[assay]]@data, chunk.size=chunk.size, seed=123)
   
   #Parallelize?
   if (ncores>1) {
@@ -186,7 +186,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
         colnames(new.meta) <- paste0(colnames(new.meta),"_CTfilter")
         return(new.meta)
       },
-      future.seed = 123
+      future.seed = seed
     )
     plan(strategy = "sequential")
     

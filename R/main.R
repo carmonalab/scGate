@@ -28,7 +28,7 @@
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
 CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
-                     assay="RNA", min.gene.frac=0.5, sd.in=3, sd.out=7, seed=1234, quiet=FALSE, ...) {
+                     assay="RNA", min.gene.frac=0.5, sd.in=3, sd.out=7, seed=123, quiet=FALSE, ...) {
 
   set.seed(seed)
   def.assay <- DefaultAssay(query)
@@ -72,10 +72,10 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
   }
   pure.cells <- colnames(sub)
   query@meta.data[pure.cells, "is.pure"] <- "Pure"
+
   Idents(query) <- query$is.pure
   
   return(query)
-
 }  
 #' Filter single-cell data by cell type
 #'
@@ -123,7 +123,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
                      method=c("UCell","AUCell","ModuleScore"),
                      chunk.size=1000, ncores=1,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
-                     seed=1234, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
+                     seed=123, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
   set.seed(seed)
   def.assay <- DefaultAssay(query)
@@ -214,7 +214,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   #Get Zscores
   query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing,
                         method=method, chunk.size=chunk.size, ncores=ncores,
-                        bg=CT.thresholds, raw.score=F)
+                        bg=CT.thresholds, seed=seed, raw.score=F)
   
   sign.names <- names(markers.list.pass)
   
@@ -235,6 +235,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   labs <- rep("Pure", dim(query)[2])
   names(labs) <- colnames(query)
   q <- query
+  tot.cells <- length(labs)
   
   #Start iterations
   for (iter in 1:max.iterations) {
@@ -261,8 +262,8 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   
     filterCluster <- names(impure.freq)[impure.freq > imp.thr]
     n_rem <- sum(q$clusterCT %in% filterCluster)
-    frac.to.rem <- n_rem/ncol(q)
-    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for signature %s (%.2f%% of remaining cells)",
+    frac.to.rem <- n_rem/tot.cells
+    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for signature %s (%.2f%% of total cells)",
                      iter, imp.thr, n_rem, celltype, 100*frac.to.rem)
     if (verbose) {
         message(mess)
@@ -275,7 +276,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     if (frac.to.rem < stop.iterations | iter>=max.iterations | ncol(q)<min.cells) {
       #Return clusters and active idents for easy filtering
       n_rem <- sum(labs=="Impure")
-      frac.to.rem <- n_rem/length(labs)
+      frac.to.rem <- n_rem/tot.cells
       mess <- sprintf("CTfilter: Detected %i non-pure cells for signature %s - %.2f%% cells marked for removal (active.ident)",
                          n_rem, celltype, 100*frac.to.rem)
       if (!quiet) {
@@ -329,8 +330,8 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   } 
   markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
   
-  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, raw.score=TRUE,
-                      method=method, chunk.size=chunk.size, ncores=ncores)
+  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing,
+                      method=method, chunk.size=chunk.size, ncores=ncores, seed=seed, raw.score=TRUE)
   
   
   sign.names <- paste0(names(markers.list.pass),"_CTfilter")

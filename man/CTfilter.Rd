@@ -24,7 +24,7 @@ CTfilter(
   max.iterations = 10,
   stop.iterations = 0.01,
   min.cells = 100,
-  seed = 1234,
+  seed = 123,
   skip.normalize = FALSE,
   verbose = FALSE,
   quiet = FALSE
