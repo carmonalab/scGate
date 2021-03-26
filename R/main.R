@@ -227,7 +227,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   meta <- query@meta.data
   filterCells <- c()
   for (sig in sign.names){
-    sig.meta <- paste0(sig,"_CTfilter")
+    sig.meta <- paste0(sig,"_Zscore")
     if( sig.meta == celltype_CT ) {
       filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell type
     } else {
@@ -402,12 +402,12 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
 
 CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cells=50) {
     
-    celltype_CT <- paste0(celltype,"_CTfilter")
+    celltype_CT <- paste0(celltype,"_Zscore")
     query$top.zscore <- celltype_CT
     
     imp <- subset(query, is.pure=="Impure")
     
-    cols <- grep("_CTfilter$", colnames(imp@meta.data),  perl=T, value=T)
+    cols <- grep("_Zscore$", colnames(imp@meta.data),  perl=T, value=T)
     meta <- imp@meta.data[,cols]
     this.i <- which(colnames(meta) == celltype_CT)
     if (length(this.i) == 0) {
@@ -429,7 +429,7 @@ CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cell
     
     ind <- which(rownames(counts) == celltype_CT)
     if (length(ind) > 0) {
-       rownames(counts)[ind] <- paste0("NON_",celltype_CT)
+       rownames(counts)[ind] <- paste0("NON_",celltype)
     }
     rownames(counts) = substr(rownames(counts), 1, nchar(rownames(counts))-9)
     
