@@ -80,18 +80,18 @@ u_stat <- function(rank_value, maxRank=1000){
 }
 
 #Calculate AUC for a list of signatures, from a ranks matrix
-u_stat_signature_list <- function(sig_list, ranks_matrix, maxRank=1000) {
-  
-  u_matrix <- sapply(sig_list, function(sig) { 
-    ranks_matrix_sig <- ranks_matrix[sig,-1]
-    ranks_matrix_sig[, lapply(.SD, function(x) u_stat(x,maxRank = maxRank))] 
+u_stat_signature_list = function(sig_list, ranks_matrix, maxRank=1000) {
+  u_matrix <- sapply(sig_list, function(sig) {
+    as.numeric(ranks_matrix[sig, lapply(.SD, function(x) u_stat(x,maxRank = maxRank)),.SDcols=-1])
   })
+  rownames(u_matrix) <- colnames(ranks_matrix)[-1]
   return (u_matrix)
 }
 
+
 data_to_ranks_data_table <- function(data) {
   
-  dt <- as.data.table(data) #TODO check if data exists
+  dt <- as.data.table(data)
   rnaDT.ranks.dt <- dt[, lapply(.SD, function(x) frankv(x,ties.method="random",order=c(-1L)))]
   rnaDT.ranks.rownames <- rownames(data)
   rnaDT.ranks.dt.rn <- cbind(rn=rnaDT.ranks.rownames, rnaDT.ranks.dt)
@@ -141,19 +141,19 @@ AddModuleScore_UCell <- function(obj, features, chunk.size=1000, ncores=1) {
   }
   
   meta.merge <- Reduce(rbind, meta.list)
-  cols <- colnames(meta.merge)
+  # cols <- colnames(meta.merge)
   
-  obj <- AddMetaData(obj, meta.merge)
+  obj <- Seurat::AddMetaData(obj, as.data.frame(meta.merge))
   
   #Add small amount of noise to avoid draws
-  obj@meta.data[,cols] <- sapply(obj@meta.data[,cols],
-                                 FUN = function(c) {
-                                    c <- as.numeric(c)
-                                    epsilon <- rnorm(length(c))/10^8
-                                    c <- c + epsilon
-                                    return(c)
-                                 } )
-    
+  #obj@meta.data[,cols] <- sapply(obj@meta.data[,cols],
+  #                               FUN = function(c) {
+  #                                 c <- as.numeric(c)
+  #                                 epsilon <- rnorm(length(c))/10^8
+  #                                 c <- c + epsilon
+  #                                 return(c)
+  #                               } )
+  
   return(obj)
 }
 
@@ -197,18 +197,18 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
   }
   
   meta.merge <- Reduce(rbind, meta.list)
-  cols <- colnames(meta.merge)
+ # cols <- colnames(meta.merge)
   
-  obj <- AddMetaData(obj, meta.merge)
+  obj <- Seurat::AddMetaData(obj, as.data.frame(meta.merge))
   
   #Add small amount of noise to avoid draws
-  obj@meta.data[,cols] <- sapply(obj@meta.data[,cols],
-                                 FUN = function(c) {
-                                   c <- as.numeric(c)
-                                   epsilon <- rnorm(length(c))/10^8
-                                   c <- c + epsilon
-                                   return(c)
-                                 } )
+  #obj@meta.data[,cols] <- sapply(obj@meta.data[,cols],
+  #                               FUN = function(c) {
+  #                                 c <- as.numeric(c)
+  #                                 epsilon <- rnorm(length(c))/10^8
+  #                                 c <- c + epsilon
+  #                                 return(c)
+  #                               } )
   
   return(obj)
 }
