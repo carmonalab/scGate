@@ -16,7 +16,7 @@
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param assay Seurat assay to use
-#' @param seed Random seed for cluster analysis
+#' @param seed Integer seed for random number generator
 #' @param quiet Suppress all output
 #' @param ... Additional parameters for \code{\link{CTfilter}}
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
@@ -106,7 +106,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{CTfilter::genes.blacklist.Mm};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
 #' @param skip.normalize Skip data normalization
-#' @param seed Random seed for cluster analysis
+#' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
 #' @param quiet Suppress all output
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
@@ -126,6 +126,12 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
                      seed=123, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
   set.seed(seed)
+  if (ncores>1) {
+     require(future.apply)
+     future_param_seed <<- seed
+     future_param_ncores <<- ncores
+  }
+  
   def.assay <- DefaultAssay(query)
   DefaultAssay(query) <- assay
   method=method[1]
@@ -214,7 +220,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   #Get Zscores
   query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing,
                         method=method, chunk.size=chunk.size, ncores=ncores,
-                        bg=CT.thresholds, seed=seed, raw.score=F)
+                        bg=CT.thresholds, raw.score=F)
   
   sign.names <- names(markers.list.pass)
   
@@ -307,6 +313,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @param rm.existing Overwrite existing CTfilter scores in query object
 #' @param chunk.size Number of cells per batch to be scored by the method
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
+#' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
 #' @return Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@@misc$CTfilter}. Scores for individual signatures are
 #'     returned as metadata in the Seurat object
@@ -319,8 +326,14 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
                                           min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
-                                          chunk.size=1000, ncores=1, verbose=TRUE) {
+                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE) {
   
+  set.seed(seed)
+  if (ncores>1) {
+    require(future.apply)
+    future_param_seed <<- seed
+    future_param_ncores <<- ncores
+  }
   def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
   method <- method[1]
@@ -330,8 +343,8 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   } 
   markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
   
-  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing,
-                      method=method, chunk.size=chunk.size, ncores=ncores, seed=seed, raw.score=TRUE)
+  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, raw.score=TRUE,
+                      method=method, chunk.size=chunk.size, ncores=ncores)
   
   
   sign.names <- paste0(names(markers.list.pass),"_CTfilter")

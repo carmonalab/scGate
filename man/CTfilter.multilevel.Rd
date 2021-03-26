@@ -39,7 +39,7 @@ provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")
 
 \item{sd.out}{Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures}
 
-\item{seed}{Random seed for cluster analysis}
+\item{seed}{Integer seed for random number generator}
 
 \item{quiet}{Suppress all output}
 

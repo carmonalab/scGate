@@ -16,6 +16,7 @@ calculate_thresholds_CTfilter(
   method = c("UCell", "AUCell", "ModuleScore"),
   chunk.size = 1000,
   ncores = 1,
+  seed = 123,
   verbose = TRUE
 )
 }
@@ -41,6 +42,8 @@ calculate_thresholds_CTfilter(
 \item{chunk.size}{Number of cells per batch to be scored by the method}
 
 \item{ncores}{Number of processors for parallel processing (requires \code{future.apply})}
+
+\item{seed}{Integer seed for random number generator}
 
 \item{verbose}{Verbose output}
 }

@@ -74,7 +74,7 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{min.cells}{Stop iterating if fewer than this number of cells is left}
 
-\item{seed}{Random seed for cluster analysis}
+\item{seed}{Integer seed for random number generator}
 
 \item{skip.normalize}{Skip data normalization}
 
