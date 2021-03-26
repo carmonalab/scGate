@@ -402,13 +402,16 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
 CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cells=50) {
     
     celltype_CT <- paste0(celltype,"_Zscore")
-    query$top.zscore <- celltype_CT
+    query$top.zscore <- celltype
     
     imp <- subset(query, is.pure=="Impure")
     
-    cols <- grep("_Zscore$", colnames(imp@meta.data),  perl=T, value=T)
-    meta <- imp@meta.data[,cols]
-    this.i <- which(colnames(meta) == celltype_CT)
+    cols.ct <- grep("_Zscore$", colnames(imp@meta.data),  perl=T, value=T)
+    cols = substr(cols.ct, 1, nchar(cols.ct)-7)
+    
+    meta <- imp@meta.data[,cols.ct]
+    colnames(meta) <- cols
+    this.i <- which(colnames(meta) == celltype)
     if (length(this.i) == 0) {
       stop(paste0("Celltype %s not found in query object",celltype))
     }  
@@ -417,7 +420,7 @@ CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cell
     counts <- rep(0, length(cols))
     names(counts) <- cols
     for (type in cols) {
-       if (type==celltype_CT) {
+       if (type==celltype) {
           counts[type] <- sum(meta[,type] < -sd.in)
        } else {
           counts[type] <- sum(meta[,type] > sd.out)
@@ -426,12 +429,10 @@ CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cell
     counts <- sort(counts[counts>0], decreasing = T)
     counts <- as.data.frame(counts)
     
-    ind <- which(rownames(counts) == celltype_CT)
+    ind <- which(rownames(counts) == celltype)
     if (length(ind) > 0) {
-       rownames(counts)[ind] <- paste0("NON_",celltype)
+       rownames(counts)[ind] <- "Unknown"
     }
-    rownames(counts) = substr(rownames(counts), 1, nchar(rownames(counts))-9)
-    
     
     top.imp <- vector(length=nrow(meta))
     names(top.imp) <- rownames(meta)
@@ -447,14 +448,12 @@ CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cell
        if (max.sd[i] > sd.out) {
           top.imp[i] <- max.type[i]
        } else if (meta.in[i] < -sd.in) {
-          top.imp[i] <- paste0("NON_",celltype_CT)
+          top.imp[i] <- "Unknown"
        } else {
-          top.imp[i] <- celltype_CT
+          top.imp[i] <- celltype
        }
     }
     query$top.zscore[names(top.imp)] <- top.imp
-    
-    query$top.zscore = substr(query$top.zscore, 1, nchar(query$top.zscore)-9)
     
     #Group cell types with few cells
     tab <- table(query$top.zscore)
