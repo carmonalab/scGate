@@ -356,9 +356,8 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   for(sig in sign.names){
     
     bulk <- ref@meta.data[,sig]
-    bulk <- bulk + rnorm(length(c))/10^8  #add small noise to prevent ties (especially at zero)
-    
-    bulk <- bulk[bulk < quantile(bulk,p=quant)]
+  #  bulk <- bulk + rnorm(length(bulk))/10^8  #add small noise to prevent ties (especially at zero)
+    bulk <- bulk[bulk >= quantile(bulk,p=1-quant) & bulk <= quantile(bulk,p=quant)]
     ref_thr[sig,1] <- mean(bulk)
     ref_thr[sig,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
  }
