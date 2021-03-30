@@ -15,7 +15,7 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
   if (method.use == "UCell") {
      obj <- UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank, name="_CTfilter")
   } else if (method.use == "AUCell") {
-     obj <- AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores)
+     obj <- AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank)
   } else if (method.use == "ModuleScore") {
      obj <- suppressWarnings(AddModuleScore(obj, features = markers.list, name="CTfilterScore"))
   } else {
@@ -41,7 +41,7 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
 
 
 
-AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
+AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxRank=1500) {
   
   require(AUCell)
   assay <- DefaultAssay(obj)
@@ -57,7 +57,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
       X = split.data,
       FUN = function(x) {
         cells_rankings <- AUCell_buildRankings(x, plotStats=F, verbose=F)
-        cells_AUC <- AUCell_calcAUC(features, cells_rankings)
+        cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
         
         new.meta <- as.data.frame(t(getAUC(cells_AUC)))
         colnames(new.meta) <- paste0(colnames(new.meta),"_CTfilter")
@@ -72,7 +72,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
       X = split.data,
       FUN = function(x) {
         cells_rankings <- AUCell_buildRankings(x, plotStats=F, verbose=F)
-        cells_AUC <- AUCell_calcAUC(features, cells_rankings)
+        cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
         
         new.meta <- as.data.frame(t(getAUC(cells_AUC)))
         colnames(new.meta) <- paste0(colnames(new.meta),"_CTfilter")

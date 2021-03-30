@@ -313,6 +313,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
+#' @param maxRank Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')
 #' @return Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@@misc$CTfilter}. Scores for individual signatures are
 #'     returned as metadata in the Seurat object
 #' @examples
@@ -323,7 +324,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
-                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE) {
+                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE, maxRank=1500) {
   
   set.seed(seed)
   if (ncores>1) {
@@ -340,7 +341,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   } 
   
   ref <- get_CTscores(obj=ref, markers.list=markers, rm.existing=rm.existing, z.score=FALSE,
-                      method=method, chunk.size=chunk.size, ncores=ncores)
+                      method=method, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank)
   
   
   sign.names <- paste0(names(markers),"_CTfilter")
