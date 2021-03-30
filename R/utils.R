@@ -25,7 +25,7 @@ check_CTmarkers <- function(obj, markers.list, min.gene.frac=0.5, verbose=TRUE) 
 
 #Calculate CTfilter scores
 get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=FALSE,
-                         method=c("UCell","AUCell","ModuleScore"), chunk.size=1000, ncores=1) {
+                         method=c("UCell","AUCell","ModuleScore"), chunk.size=1000, ncores=1, maxRank=1500) {
   
   method.use <- method[1]
   
@@ -37,7 +37,7 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
   }
   
   if (method.use == "UCell") {
-     obj <- AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores)
+     obj <- UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank, name="_CTfilter")
   } else if (method.use == "AUCell") {
      obj <- AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores)
   } else if (method.use == "ModuleScore") {
@@ -104,52 +104,6 @@ data_to_ranks_data_table = function(data) {
   return(rnaDT.ranks.dt.rn)
 }
 
-AddModuleScore_UCell <- function(obj, features, chunk.size=1000, ncores=1) {
-  
-  assay <- DefaultAssay(obj)
-  
-  #Split into manageable chunks
-  split.data <- split_data.matrix(matrix=obj@assays[[assay]]@data, chunk.size=chunk.size)
-  
-  #Parallelize?
-  if (ncores>1) {
-    plan(future::multisession(workers=future_param_ncores))
-    
-    meta.list <- future_lapply(
-      X = split.data,
-      FUN = function(x) {
-        cells_rankings <- data_to_ranks_data_table(x)
-        cells_AUC <- u_stat_signature_list(features, cells_rankings, maxRank=1000)
-        
-        colnames(cells_AUC) <- paste0(colnames(cells_AUC),"_CTfilter")
-        cells_AUC <- as.data.frame(cells_AUC)
-
-        return(cells_AUC)
-        
-      },
-      future.seed = future_param_seed
-    )
-    plan(strategy = "sequential")
-    
-  } else {
-    meta.list <- lapply(
-      X = split.data,
-      FUN = function(x) {
-        cells_rankings <- data_to_ranks_data_table(x)
-        cells_AUC <- u_stat_signature_list(features, cells_rankings, maxRank=1000)
-        
-        colnames(cells_AUC) <- paste0(colnames(cells_AUC),"_CTfilter")
-        cells_AUC <- as.data.frame(cells_AUC)
-        
-        return(cells_AUC)
-      } )
-  }
-  
-  meta.merge <- Reduce(rbind, meta.list)
-  obj <- Seurat::AddMetaData(obj, as.data.frame(meta.merge))
-  
-  return(obj)
-}
 
 AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1) {
   
