@@ -201,8 +201,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     mess <- "Error. Could not match markers with threshold file"
     stop(mess)
   }
-  markers.list.pass <- markers[names(marker.cols.pass)]
-  markers.list.pass <- check_CTmarkers(obj=query, markers.list=markers.list.pass, min.gene.frac=min.gene.frac, verbose=verbose)
+  markers <- markers[names(marker.cols.pass)]
   
   if (!celltype %in% names(markers)) {
     mess <- sprintf("Cell type provided (%s) not found in marker list", celltype)
@@ -212,17 +211,17 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     mess <- sprintf("Cell type provided (%s) not found in thresholds file", celltype)
     stop(mess)
   } 
-  if (!celltype %in% names(markers.list.pass)) {
+  if (!celltype %in% names(markers)) {
     mess <- sprintf("Fewer than %.1f%% of genes from selected signature %s in query data", 100*min.gene.frac, celltype)
     stop(mess)
   }
   
   #Get Zscores
-  query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing,
+  query <- get_CTscores(obj=query, markers.list=markers, rm.existing=rm.existing,
                         method=method, chunk.size=chunk.size, ncores=ncores,
                         bg=CT.thresholds, z.score=TRUE)
   
-  sign.names <- names(markers.list.pass)
+  sign.names <- names(markers)
   
   meta <- query@meta.data
   filterCells <- c()
@@ -307,7 +306,6 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' @param quant Quantile cutoff for score distribution
 #' @param assay Seurat assay to use
 #' @param method Scoring method for cell signatures (default \code{UCell})
-#' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param min.sd Minimum value for standard deviation - set to this value if calculated standard deviation is lower 
 #' @param level Annotation level - thresholds are saved in list element \code{ref@@misc$CTfilter[[level]]}
 #' @param rm.existing Overwrite existing CTfilter scores in query object
@@ -324,8 +322,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 #' ref@@misc$CTfilter
 #' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
-calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
+calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
                                           chunk.size=1000, ncores=1, seed=123, verbose=TRUE) {
   
   set.seed(seed)
@@ -341,13 +338,12 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   if (is.null(markers)) {
      markers <- MCA.markers.Mm   #Default
   } 
-  markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
   
-  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, z.score=FALSE,
+  ref <- get_CTscores(obj=ref, markers.list=markers, rm.existing=rm.existing, z.score=FALSE,
                       method=method, chunk.size=chunk.size, ncores=ncores)
   
   
-  sign.names <- paste0(names(markers.list.pass),"_CTfilter")
+  sign.names <- paste0(names(markers),"_CTfilter")
   
   ref_thr <- matrix(nrow=length(sign.names), ncol=2)
   rownames(ref_thr) <- sign.names
@@ -370,7 +366,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   if (!is.list(ref@misc$CTfilter.markers)) {
     ref@misc$CTfilter.markers <- list()
   } 
-  ref@misc$CTfilter.markers[[level]] <- markers.list.pass
+  ref@misc$CTfilter.markers[[level]] <- markers
   
   DefaultAssay(ref) <- def.assay
   message("Cell type thresholds available in ref@misc$CTfilter")
