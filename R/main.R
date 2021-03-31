@@ -60,7 +60,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
      sub <- CTfilter(query=sub, celltype=celltype[lev],
                       CT.thresholds=CT.thresholds[[lev]],
                       markers=markers[[lev]],
-                      max.impurity=parameters$max.impurity[lev],
+                      max.impurity=parameters$max.impurity[[lev]],
                       sd.in=parameters$sd.in[lev],
                       sd.out=parameters$sd.out[lev],
                       assay = assay, seed=seed, quiet=quiet, ...)
