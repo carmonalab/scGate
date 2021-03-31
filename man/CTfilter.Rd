@@ -14,7 +14,6 @@ CTfilter(
   resol = 3,
   assay = "RNA",
   genes.blacklist = "Tcell.blacklist",
-  min.gene.frac = 0.5,
   sd.in = 3,
   sd.out = 7,
   rm.existing = TRUE,
@@ -53,8 +52,6 @@ CTfilter(
 
 \item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{CTfilter::genes.blacklist.Mm};
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
-
-\item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
 
 \item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signature}
 

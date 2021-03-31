@@ -14,7 +14,6 @@
 #' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure"
 #' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
-#' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param assay Seurat assay to use
 #' @param seed Integer seed for random number generator
 #' @param quiet Suppress all output
@@ -28,7 +27,7 @@
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
 CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
-                     assay="RNA", min.gene.frac=0.5, sd.in=3, sd.out=7, seed=123, quiet=FALSE, ...) {
+                     assay="RNA", sd.in=3, sd.out=7, seed=123, quiet=FALSE, ...) {
 
   set.seed(seed)
   def.assay <- DefaultAssay(query)
@@ -39,7 +38,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
   #Single-level run
   if (n.levels==1) {
      query <- CTfilter(query=query, celltype=celltype, CT.thresholds=CT.thresholds, markers=markers, max.impurity=max.impurity,
-                       min.gene.frac=min.gene.frac, sd.in=sd.in, sd.out=sd.out, assay = assay, seed=seed, quiet=quiet, ...)
+                        sd.in=sd.in, sd.out=sd.out, assay = assay, seed=seed, quiet=quiet, ...)
      return(query)
   }
   
@@ -49,7 +48,6 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
   }
   
   parameters <- list("max.impurity"=max.impurity,
-                     "min.gene.frac"=min.gene.frac,
                      "sd.in"=sd.in,
                      "sd.out"=sd.out)
   parameters <- lapply(parameters, vectorize.parameters, lgt=n.levels)
@@ -63,7 +61,6 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
                       CT.thresholds=CT.thresholds[[lev]],
                       markers=markers[[lev]],
                       max.impurity=parameters$max.impurity[lev],
-                      min.gene.frac=parameters$min.gene.frac[lev],
                       sd.in=parameters$sd.in[lev],
                       sd.out=parameters$sd.out[lev],
                       assay = assay, seed=seed, quiet=quiet, ...)
@@ -98,7 +95,6 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @param method Scoring method for cell signatures (default \code{UCell})
 #' @param chunk.size Number of cells per batch to be scored by the method
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
-#' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param max.iterations Maximum number of iterations
 #' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
 #' @param min.cells Stop iterating if fewer than this number of cells is left
@@ -118,7 +114,7 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
 #' @export
 CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
-                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", min.gene.frac=0.5, 
+                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist",  
                      sd.in=3, sd.out=7, rm.existing=TRUE,
                      method=c("UCell","AUCell","ModuleScore"),
                      chunk.size=1000, ncores=1,
@@ -211,10 +207,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     mess <- sprintf("Cell type provided (%s) not found in thresholds file", celltype)
     stop(mess)
   } 
-  if (!celltype %in% names(markers)) {
-    mess <- sprintf("Fewer than %.1f%% of genes from selected signature %s in query data", 100*min.gene.frac, celltype)
-    stop(mess)
-  }
+
   
   #Get Zscores
   query <- get_CTscores(obj=query, markers.list=markers, rm.existing=rm.existing,
