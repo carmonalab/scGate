@@ -221,6 +221,8 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   for (sig in sign.names){
     sig.meta <- paste0(sig,"_Zscore")
     if( sig.meta == celltype_CT ) {
+      sd.in <- min(sd.in,CT.thresholds[celltype_CT,"mean"]/CT.thresholds[sig,"sd"]+1e-3) #avoid overlap with zero
+      print("Readjusting sd.in to avoid score overlap with 0",sd.in)
       filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell type
     } else {
       filterCells <- c(filterCells, which(meta[,sig.meta] > sd.out))   # Z.score threshold for contaminants
