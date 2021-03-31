@@ -221,7 +221,7 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   for (sig in sign.names){
     sig.meta <- paste0(sig,"_Zscore")
     if( sig == celltype ) {
-      min.sd.in <- CT.thresholds[celltype_CT,"mean"]/CT.thresholds[sig,"sd"]+1e-3 # minimum z-score for  positive scores
+      min.sd.in <- CT.thresholds[celltype_CT,"mean"]/CT.thresholds[celltype_CT,"sd"]+1e-3 # minimum z-score for  positive scores
       if (sd.in > min.sd.in) {
         sd.in <- min.sd.in
         if(verbose) message(sprintf("Readjusting sd.in to %.4f to avoid negative thresholds",sd.in)) 
