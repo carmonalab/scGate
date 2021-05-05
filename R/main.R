@@ -1,6 +1,6 @@
 #' Filter single-cell data by cell type
 #'
-#' Apply CTfilter for a specific cell type to a query dataset. This function expands \code{\link{CTfilter}} to allow multi-level signatures to be used
+#' Apply scGate for a specific cell type to a query dataset. This function expands \code{\link{scGate}} to allow multi-level signatures to be used
 #' for filtering; e.g. Tcells at level 1, and CD8.Tcells at level 2. To prepare markers and signatures in the correct format, store them in a list where
 #' the list index corresponds to the signature level. Then select the desired cell at each level with the celltype parameter
 #' (e.g. \code{celltype=c("T.cell","Tcell.CD8")}). Note that for the parameters listed below, you can also specify different values for different levels, by
@@ -9,8 +9,8 @@
 #' @param query Seurat object containing a query data set - filtering will be applied to this object
 #' @param celltype Cell type to preserve from the query data set (should be one of cell types in \code{names(markers)}). For multi-level filtering,
 #'     provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")})
-#' @param CT.thresholds A named list with thresholds for each cell type - see function \code{\link{calculate_thresholds_CTfilter}}
-#' @param markers List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}
+#' @param bg.model The background expected mean and SD for each cell type - see function \code{\link{calculate_thresholds_scGate}}
+#' @param markers List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}
 #' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure"
 #' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
@@ -18,16 +18,16 @@
 #' @param assay Seurat assay to use
 #' @param seed Integer seed for random number generator
 #' @param quiet Suppress all output
-#' @param ... Additional parameters for \code{\link{CTfilter}}
+#' @param ... Additional parameters for \code{\link{scGate}}
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
 #'     The \code{active.ident} is also set to this variable.
 #' @examples
-#' query <- CTfilter.multilevel(query, celltype=c("T.cell","Tcell.CD4"))
+#' query <- scGate.multilevel(query, celltype=c("T.cell","Tcell.CD4"))
 #' DimPlot(query)
 #' query <- subset(query, subset=is.pure=="Pure")
-#' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
+#' @seealso \code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
 #' @export
-CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
+scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
                      assay="RNA", min.gene.frac=0.5, sd.in=3, sd.out=7, seed=123, quiet=FALSE, ...) {
 
   set.seed(seed)
@@ -38,14 +38,16 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
   
   #Single-level run
   if (n.levels==1) {
-     query <- CTfilter(query=query, celltype=celltype, CT.thresholds=CT.thresholds, markers=markers, max.impurity=max.impurity,
-                       min.gene.frac=min.gene.frac, sd.in=sd.in, sd.out=sd.out, assay = assay, seed=seed, quiet=quiet, ...)
+     query <- scGate(query=query, celltype=celltype, bg.model=bg.model,
+                     markers=markers, max.impurity=max.impurity,
+                     min.gene.frac=min.gene.frac, sd.in=sd.in, sd.out=sd.out,
+                     assay = assay, seed=seed, quiet=quiet, ...)
      return(query)
   }
   
   #Multi-level run
-  if (!is.list(CT.thresholds) || length(CT.thresholds) < length(celltype)) {
-     stop(sprintf("Please provide a list of thresholds (CT.thresholds) for each desidered celltype level (%s levels)", n.levels))
+  if (!is.list(bg.model) || length(bg.model) < length(celltype)) {
+     stop(sprintf("Please provide a list of thresholds (bg.model) for each desidered celltype level (%s levels)", n.levels))
   }
   
   parameters <- list("max.impurity"=max.impurity,
@@ -57,10 +59,10 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
   query$is.pure <- "Impure"
   sub <- query
   for (lev in 1:n.levels) {
-     message(sprintf("--- Running CTfilter for level %i: %s celltype...",lev, celltype[lev]))
+     message(sprintf("--- Running scGate for level %i: %s celltype...",lev, celltype[lev]))
      
-     sub <- CTfilter(query=sub, celltype=celltype[lev],
-                      CT.thresholds=CT.thresholds[[lev]],
+     sub <- scGate(query=sub, celltype=celltype[lev],
+                      bg.model=bg.model[[lev]],
                       markers=markers[[lev]],
                       max.impurity=parameters$max.impurity[lev],
                       min.gene.frac=parameters$min.gene.frac[lev],
@@ -79,12 +81,12 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 }  
 #' Filter single-cell data by cell type
 #'
-#' Apply CTfilter for a specific cell type to a query dataset
+#' Apply scGate to filter specific cell types in a query dataset
 #'
 #' @param query Seurat object containing a query data set - filtering will be applied to this object
-#' @param celltype Cell type to preserve from the query data set (should be one of cell types in \code{names(markers)})
-#' @param CT.thresholds A named list with thresholds for each cell type - see function \code{\link{calculate_thresholds_CTfilter}}
-#' @param markers List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}
+#' @param celltype One or more cell types to gate for (among cell types in \code{names(markers)})
+#' @param bg.model The background expected mean and SD for each cell type - see function \code{\link{calculate_thresholds_scGate}}
+#' @param markers List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}
 #' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure". Can be either:
 #' \itemize{
 #'   \item{Single number between 0 and 1 - the same impurity threshold is applied to all iterations}
@@ -102,26 +104,27 @@ CTfilter.multilevel <- function(query, celltype="T.cell", CT.thresholds=NULL, ma
 #' @param max.iterations Maximum number of iterations
 #' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
 #' @param min.cells Stop iterating if fewer than this number of cells is left
-#' @param rm.existing Overwrite existing CTfilter scores in query object
-#' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{CTfilter::genes.blacklist.Mm};
+#' @param rm.existing Overwrite existing scGate scores in query object
+#' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
+#' @param autocomplete Include all cell types that start with same prefix given by `celltype` (e.g. B.cell gates for B.cell.1, B.cell.2 and B.cell.Plasmocyte signatures) 
 #' @param skip.normalize Skip data normalization
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
 #' @param quiet Suppress all output
-#' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
+#' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
 #'     The \code{active.ident} is also set to this variable. Additionally, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
 #' @examples
-#' query <- CTfilter(query, celltype="T.cell")
+#' query <- scGate(query, celltype="T.cell")
 #' DimPlot(query)
 #' query <- subset(query, subset=is.pure=="Pure")
-#' @seealso \code{\link{calculate_thresholds_CTfilter()}} to calculate celltype-specific thresholds
+#' @seealso \code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
 #' @export
-CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL, max.impurity=0.5, 
+scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
                      ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", min.gene.frac=0.5, 
                      sd.in=3, sd.out=7, rm.existing=TRUE,
-                     method=c("UCell","AUCell","ModuleScore"),
-                     chunk.size=1000, ncores=1,
+                     method=c("UCell","ModuleScore"),
+                     chunk.size=1000, ncores=1, autocomplete=T,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
                      seed=123, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
@@ -135,8 +138,6 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   def.assay <- DefaultAssay(query)
   DefaultAssay(query) <- assay
   method=method[1]
-  
-  celltype_CT <- paste0(celltype, "_CTfilter")
   
   #First guess the species from the gene names of the query
   mm.genes <- unique(unlist(MCA.markers.Mm))
@@ -161,11 +162,11 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     }
   }
   
-  if (is.null(CT.thresholds)) { #Default
+  if (is.null(bg.model)) { #Default
     if (species=="Human") {
-      CT.thresholds <- Tcell.Hs.thr
+      bg.model <- Tcell.Hs.thr
     } else {
-      CT.thresholds <- Tcell.TIL.thr 
+      bg.model <- Tcell.TIL.thr 
     }
   }  
 
@@ -194,9 +195,9 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   }
   
   #Check that markers and threshold names correspond
-  marker.cols <- paste0(names(markers), "_CTfilter")
+  marker.cols <- paste0(names(markers), "_scGate")
   names(marker.cols) <- names(markers)
-  marker.cols.pass <- marker.cols[marker.cols %in% rownames(CT.thresholds)]
+  marker.cols.pass <- marker.cols[marker.cols %in% rownames(bg.model)]
   if (length(marker.cols.pass) ==0) {
     mess <- "Error. Could not match markers with threshold file"
     stop(mess)
@@ -204,32 +205,31 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
   markers.list.pass <- markers[names(marker.cols.pass)]
   markers.list.pass <- check_CTmarkers(obj=query, markers.list=markers.list.pass, min.gene.frac=min.gene.frac, verbose=verbose)
   
-  if (!celltype %in% names(markers)) {
-    mess <- sprintf("Cell type provided (%s) not found in marker list", celltype)
+  #Check selected cell type(s), and autoexpand if required
+  sign.names <- names(markers.list.pass)
+  celltype.pass <- check_selected_celltypes(celltype, db=sign.names, autocomplete=autocomplete)
+  
+  if (length(celltype.pass)<1) {
+    mess <- sprintf("Could not find selected cell types in marker list. Check your input to 'celltype' option")
     stop(mess)
   }  
-  if (!celltype_CT %in% rownames(CT.thresholds)) {
-    mess <- sprintf("Cell type provided (%s) not found in thresholds file", celltype)
-    stop(mess)
-  } 
-  if (!celltype %in% names(markers.list.pass)) {
-    mess <- sprintf("Fewer than %.1f%% of genes from selected signature %s in query data", 100*min.gene.frac, celltype)
-    stop(mess)
+  if (!quiet) {
+    mess <- paste(celltype.pass, collapse=", ")
+    message(sprintf("Running scGate for selected signatures: %s", mess))
   }
   
   #Get Zscores
   query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing,
                         method=method, chunk.size=chunk.size, ncores=ncores,
-                        bg=CT.thresholds, z.score=TRUE)
+                        bg=bg.model, z.score=TRUE)
   
-  sign.names <- names(markers.list.pass)
-  
+  celltype_CT <- paste0(celltype, "_scGate")
   meta <- query@meta.data
   filterCells <- c()
   for (sig in sign.names){
     sig.meta <- paste0(sig,"_Zscore")
-    if( sig.meta == celltype_CT ) {
-      filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell type
+    if( sig.meta %in% celltype_CT ) {
+      filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell type(s)
     } else {
       filterCells <- c(filterCells, which(meta[,sig.meta] > sd.out))   # Z.score threshold for contaminants
     }
@@ -269,8 +269,8 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
     filterCluster <- names(impure.freq)[impure.freq > imp.thr]
     n_rem <- sum(q$clusterCT %in% filterCluster)
     frac.to.rem <- n_rem/tot.cells
-    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for signature %s (%.2f%% of total cells)",
-                     iter, imp.thr, n_rem, celltype, 100*frac.to.rem)
+    mess <- sprintf("---- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for selected signatures (%.2f%% of total cells)",
+                     iter, imp.thr, n_rem, 100*frac.to.rem)
     if (verbose) {
         message(mess)
     }
@@ -283,8 +283,8 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
       #Return clusters and active idents for easy filtering
       n_rem <- sum(labs=="Impure")
       frac.to.rem <- n_rem/tot.cells
-      mess <- sprintf("CTfilter: Detected %i non-pure cells for signature %s - %.2f%% cells marked for removal (active.ident)",
-                         n_rem, celltype, 100*frac.to.rem)
+      mess <- sprintf("scGate: Detected %i non-pure cells for selected signatures - %.2f%% cells marked for removal (active.ident)",
+                         n_rem, 100*frac.to.rem)
       if (!quiet) {
         message(mess)
       }
@@ -298,34 +298,35 @@ CTfilter <- function(query, celltype="T.cell", CT.thresholds=NULL, markers=NULL,
 }
 
 
-#' Calculate thresholds for CTfilter
+#' Calculate thresholds for scGate
 #'
-#' Given a reference set, calculate thresholds that identify outliers from the reference
+#' Given a reference set, calculate expected mean and SD for all cell types in the reference set. Deviations from this expected distribution (Z-score)
+#' can be used to identify outliers
 #'
 #' @param ref Seurat object containing the reference data set
-#' @param markers List of markers for each cell type, for example \code{CTfilter::MCA.markers.Mm}
+#' @param markers List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}
 #' @param quant Quantile cutoff for score distribution
 #' @param assay Seurat assay to use
 #' @param method Scoring method for cell signatures (default \code{UCell})
 #' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
-#' @param min.sd Minimum value for standard deviation - set to this value if calculated standard deviation is lower 
-#' @param level Annotation level - thresholds are saved in list element \code{ref@@misc$CTfilter[[level]]}
-#' @param rm.existing Overwrite existing CTfilter scores in query object
+#' @param min.sd Minimum value for standard deviation - if calculated standard deviation is lower than min.sd, it is set to min.sd
+#' @param level Annotation level - thresholds are saved in list element \code{ref@@misc$scGate[[level]]}
+#' @param rm.existing Overwrite existing scGate scores in query object
 #' @param chunk.size Number of cells per batch to be scored by the method
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
-#' @return Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@@misc$CTfilter}. Scores for individual signatures are
+#' @return Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@@misc$scGate}. Scores for individual signatures are
 #'     returned as metadata in the Seurat object
 #' @examples
 #' library(ProjecTILs)
 #' ref <- load.reference.map()
-#' ref <- calculate_thresholds_CTfilter(ref)
-#' ref@@misc$CTfilter
-#' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
+#' ref <- calculate_thresholds_scGate(ref)
+#' ref@@misc$scGate[[1]]
+#' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
-calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
+calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
+                                          min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","ModuleScore"),
                                           chunk.size=1000, ncores=1, seed=123, verbose=TRUE) {
   
   set.seed(seed)
@@ -347,7 +348,7 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
                       method=method, chunk.size=chunk.size, ncores=ncores)
   
   
-  sign.names <- paste0(names(markers.list.pass),"_CTfilter")
+  sign.names <- paste0(names(markers.list.pass),"_scGate")
   
   ref_thr <- matrix(nrow=length(sign.names), ncol=2)
   rownames(ref_thr) <- sign.names
@@ -356,50 +357,50 @@ calculate_thresholds_CTfilter <- function(ref, markers=NULL, quant=0.995, assay=
   for(sig in sign.names){
     
     bulk <- ref@meta.data[,sig]
-  #  bulk <- bulk + rnorm(length(bulk))/10^8  #add small noise to prevent ties (especially at zero)
-    bulk <- bulk[bulk >= quantile(bulk,p=1-quant) & bulk <= quantile(bulk,p=quant)]
+    
+    bulk <- bulk[bulk >= quantile(bulk, p=1-quant) & bulk <= quantile(bulk,p=quant)]
     ref_thr[sig,1] <- mean(bulk)
     ref_thr[sig,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
  }
 
-  if (!is.list(ref@misc$CTfilter)) {
-     ref@misc$CTfilter <- list()
+  if (!is.list(ref@misc$scGate)) {
+     ref@misc$scGate <- list()
   } 
-  ref@misc$CTfilter[[level]] <- ref_thr
+  ref@misc$scGate[[level]] <- ref_thr
   
-  if (!is.list(ref@misc$CTfilter.markers)) {
-    ref@misc$CTfilter.markers <- list()
+  if (!is.list(ref@misc$scGate.markers)) {
+    ref@misc$scGate.markers <- list()
   } 
-  ref@misc$CTfilter.markers[[level]] <- markers.list.pass
+  ref@misc$scGate.markers[[level]] <- markers.list.pass
   
   DefaultAssay(ref) <- def.assay
-  message("Cell type thresholds available in ref@misc$CTfilter")
-  message("Marker list available in ref@misc$CTfilter.markers")
+  message(sprintf("Cell type thresholds available in ref@misc$scGate[[%i]]",level))
+  message(sprintf("Marker list available in ref@misc$scGate.markers[[%i]]",level))
   return(ref)
 }
 
-#' Calculate thresholds for CTfilter
+#' Calculate statistics after a scGate run
 #'
-#' Calculate some stats after a CTfilter run.
+#' Computes counts for selected and filtered cell types, based on maximum Z-score deviation from the background
 #'
-#' @param query A query object in Seurat format returned by CTfilter
-#' @param celltype The desidered cell type used in CTfilter
+#' @param query A query object in Seurat format returned by scGate
+#' @param celltype The desidered cell type used in scGate
 #' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
 #' @param min.cells Minimum number of cells to report a specific cell type. Everything else will be grouped in 'Others'
 #' @return Returns the query object with an additional column, reporting the cell type with the highest Z-score compared to the reference
-#'     thresholds. In the slot \code{query@@misc$CTfilter.counts}, a dataframe reports the number of cells for each signature that exceed the Z-score threshold. Note that individual
+#'     thresholds. In the slot \code{query@@misc$scGate.counts}, a dataframe reports the number of cells for each signature that exceed the Z-score threshold. Note that individual
 #'     cells can be outliers for several signatures, so the total count does not correspond to the number of removed cells.
 #' @examples
-#' query <- CTfilter(query, celltype="Tcell")
-#' query <- CTfilter.stats(query, celltype="Tcell")
+#' query <- scGate(query, celltype="Tcell")
+#' query <- scGate.stats(query, celltype="Tcell")
 #' Dimplot(query, group.by="top.zscore")
-#' head(query@@misc$CTfilter.counts)
-#' @seealso \code{\link{CTfilter()}} to apply signatures on a query dataset and filter on a specific cell type
+#' head(query@@misc$scGate.counts)
+#' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
 
 
-CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cells=50) {
+scGate.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cells=50) {
     
     celltype_CT <- paste0(celltype,"_Zscore")
     query$top.zscore <- celltype
@@ -460,7 +461,7 @@ CTfilter.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cell
     join <- names(tab[tab<min.cells])
     query$top.zscore[query$top.zscore %in% join] <- "Others"
     
-    query@misc$CTfilter.counts <- counts
+    query@misc$scGate.counts <- counts
     return(query)
 }
   

@@ -1,4 +1,4 @@
-Package: CTfilter
+Package: scGate
 Type: Package
 Title: Cell-type filter for single-cell sequencing data
 Version: 0.3.0
@@ -6,8 +6,8 @@ Authors@R: c(
   person(given = 'Massimo', family = 'Andreatta', email = 'massimo.andreatta@unil.ch', role = c('aut','cre'), comment = c(ORCID = '0000-0002-8036-2647')),
   person(given = 'Santiago', family = 'Carmona', email = 'santiago.carmona@unil.ch', role = c('aut'), comment = c(ORCID = '0000-0002-2495-0671'))
   )
-Description: CTfilter allows the selection of specific cell types from sigle-cell data. Given a query single-cell data set, the package evaluates a panel of gene signatures, and returns only the cells enriched for the desired cell type, while removing cells with high signature scores for other cell types.
-Depends: R (>= 3.6.1),Seurat(>= 3.2.1),data.table(>= 1.13.6)
+Description: scGate allows filtering of specific cell types from sigle-cell data. Given a query single-cell data set, the package evaluates a panel of gene signatures, and returns only the cells enriched for the desired cell type, while removing cells with high signature scores for other cell types.
+Depends: R (>= 3.6.1),Seurat(>= 3.2.1),data.table(>= 1.13.6), UCell
 Suggests: future.apply
 Imports: 
 License: GPL-3
