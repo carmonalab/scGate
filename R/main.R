@@ -14,7 +14,6 @@
 #' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure"
 #' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
-#' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param assay Seurat assay to use
 #' @param seed Integer seed for random number generator
 #' @param quiet Suppress all output
@@ -28,7 +27,7 @@
 #' @seealso \code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
 #' @export
 scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
-                     assay="RNA", min.gene.frac=0.5, sd.in=3, sd.out=7, seed=123, quiet=FALSE, ...) {
+                     assay="RNA", sd.in=3, sd.out=5, seed=123, quiet=FALSE, ...) {
 
   set.seed(seed)
   def.assay <- DefaultAssay(query)
@@ -40,7 +39,7 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
   if (n.levels==1) {
      query <- scGate(query=query, celltype=celltype, bg.model=bg.model,
                      markers=markers, max.impurity=max.impurity,
-                     min.gene.frac=min.gene.frac, sd.in=sd.in, sd.out=sd.out,
+                     sd.in=sd.in, sd.out=sd.out,
                      assay = assay, seed=seed, quiet=quiet, ...)
      return(query)
   }
@@ -51,7 +50,6 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
   }
   
   parameters <- list("max.impurity"=max.impurity,
-                     "min.gene.frac"=min.gene.frac,
                      "sd.in"=sd.in,
                      "sd.out"=sd.out)
   parameters <- lapply(parameters, vectorize.parameters, lgt=n.levels)
@@ -64,8 +62,7 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
      sub <- scGate(query=sub, celltype=celltype[lev],
                       bg.model=bg.model[[lev]],
                       markers=markers[[lev]],
-                      max.impurity=parameters$max.impurity[lev],
-                      min.gene.frac=parameters$min.gene.frac[lev],
+                      max.impurity=parameters$max.impurity[[lev]],
                       sd.in=parameters$sd.in[lev],
                       sd.out=parameters$sd.out[lev],
                       assay = assay, seed=seed, quiet=quiet, ...)
@@ -99,8 +96,8 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
 #' @param assay Seurat assay to use
 #' @param method Scoring method for cell signatures (default \code{UCell})
 #' @param chunk.size Number of cells per batch to be scored by the method
+#' @param maxRank Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
-#' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param max.iterations Maximum number of iterations
 #' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
 #' @param min.cells Stop iterating if fewer than this number of cells is left
@@ -120,11 +117,12 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
 #' query <- subset(query, subset=is.pure=="Pure")
 #' @seealso \code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
 #' @export
+
 scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
-                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", min.gene.frac=0.5, 
-                     sd.in=3, sd.out=7, rm.existing=TRUE,
-                     method=c("UCell","ModuleScore"),
-                     chunk.size=1000, ncores=1, autocomplete=T,
+                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", 
+                     sd.in=3, sd.out=5, rm.existing=TRUE, autocomplete=T,
+                     method=c("UCell","AUCell","ModuleScore"),
+                     chunk.size=1000, ncores=1, maxRank=1500,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
                      seed=123, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
   
@@ -202,11 +200,10 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
     mess <- "Error. Could not match markers with threshold file"
     stop(mess)
   }
-  markers.list.pass <- markers[names(marker.cols.pass)]
-  markers.list.pass <- check_CTmarkers(obj=query, markers.list=markers.list.pass, min.gene.frac=min.gene.frac, verbose=verbose)
+  markers <- markers[names(marker.cols.pass)]
   
   #Check selected cell type(s), and autoexpand if required
-  sign.names <- names(markers.list.pass)
+  sign.names <- names(markers)
   celltype.pass <- check_selected_celltypes(celltype, db=sign.names, autocomplete=autocomplete)
   
   if (length(celltype.pass)<1) {
@@ -219,9 +216,9 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
   }
   
   #Get Zscores
-  query <- get_CTscores(obj=query, markers.list=markers.list.pass, rm.existing=rm.existing,
+  query <- get_CTscores(obj=query, markers.list=markers, rm.existing=rm.existing,
                         method=method, chunk.size=chunk.size, ncores=ncores,
-                        bg=bg.model, z.score=TRUE)
+                        bg=bg.model, z.score=TRUE, maxRank=maxRank)
   
   celltype_CT <- paste0(celltype, "_scGate")
   meta <- query@meta.data
@@ -229,7 +226,12 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
   for (sig in sign.names){
     sig.meta <- paste0(sig,"_Zscore")
     if( sig.meta %in% celltype_CT ) {
-      filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell type(s)
+      min.sd.in <- bg.model[sig.meta,"mean"]/bg.model[sig.meta,"sd"]+1e-3 # minimum z-score for positive scores
+      if (sd.in > min.sd.in) {
+        sd.in <- min.sd.in
+        if(verbose) message(sprintf("Readjusting sd.in to %.4f to avoid negative thresholds",sd.in)) 
+      }
+      filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell types
     } else {
       filterCells <- c(filterCells, which(meta[,sig.meta] > sd.out))   # Z.score threshold for contaminants
     }
@@ -308,11 +310,11 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
 #' @param quant Quantile cutoff for score distribution
 #' @param assay Seurat assay to use
 #' @param method Scoring method for cell signatures (default \code{UCell})
-#' @param min.gene.frac Only consider signatures covered by this fraction of genes in query set
 #' @param min.sd Minimum value for standard deviation - if calculated standard deviation is lower than min.sd, it is set to min.sd
 #' @param level Annotation level - thresholds are saved in list element \code{ref@@misc$scGate[[level]]}
 #' @param rm.existing Overwrite existing scGate scores in query object
 #' @param chunk.size Number of cells per batch to be scored by the method
+#' @param maxRank Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
@@ -325,9 +327,9 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
 #' ref@@misc$scGate[[1]]
 #' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
-calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="RNA", min.gene.frac=0.5,
-                                          min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","ModuleScore"),
-                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE) {
+calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="RNA",
+                                          min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
+                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE, maxRank=1500) {
   
   set.seed(seed)
   if (ncores>1) {
@@ -342,14 +344,13 @@ calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="R
   if (is.null(markers)) {
      markers <- MCA.markers.Mm   #Default
   } 
-  markers.list.pass <- check_CTmarkers(obj=ref, markers.list=markers, min.gene.frac=min.gene.frac, verbose=verbose)
   
-  ref <- get_CTscores(obj=ref, markers.list=markers.list.pass, rm.existing=rm.existing, z.score=FALSE,
-                      method=method, chunk.size=chunk.size, ncores=ncores)
+  ref <- get_CTscores(obj=ref, markers.list=markers, rm.existing=rm.existing, z.score=FALSE,
+                      method=method, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank)
   
   
-  sign.names <- paste0(names(markers.list.pass),"_scGate")
-  
+  sign.names <- paste0(names(markers),"_scGate")
+
   ref_thr <- matrix(nrow=length(sign.names), ncol=2)
   rownames(ref_thr) <- sign.names
   colnames(ref_thr) <- c("mean","sd")
@@ -357,7 +358,6 @@ calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="R
   for(sig in sign.names){
     
     bulk <- ref@meta.data[,sig]
-    
     bulk <- bulk[bulk >= quantile(bulk, p=1-quant) & bulk <= quantile(bulk,p=quant)]
     ref_thr[sig,1] <- mean(bulk)
     ref_thr[sig,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
@@ -371,8 +371,8 @@ calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="R
   if (!is.list(ref@misc$scGate.markers)) {
     ref@misc$scGate.markers <- list()
   } 
-  ref@misc$scGate.markers[[level]] <- markers.list.pass
-  
+  ref@misc$scGate.markers[[level]] <- markers
+
   DefaultAssay(ref) <- def.assay
   message(sprintf("Cell type thresholds available in ref@misc$scGate[[%i]]",level))
   message(sprintf("Marker list available in ref@misc$scGate.markers[[%i]]",level))
@@ -398,9 +398,7 @@ calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="R
 #' head(query@@misc$scGate.counts)
 #' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on a specific cell type
 #' @export
-
-
-scGate.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=7, min.cells=50) {
+scGate.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=5, min.cells=50) {
     
     celltype_CT <- paste0(celltype,"_Zscore")
     query$top.zscore <- celltype

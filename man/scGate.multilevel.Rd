@@ -11,7 +11,6 @@ scGate.multilevel(
   markers = NULL,
   max.impurity = 0.5,
   assay = "RNA",
-  min.gene.frac = 0.5,
   sd.in = 3,
   sd.out = 7,
   seed = 123,
@@ -32,8 +31,6 @@ provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")
 \item{max.impurity}{Maximum fraction of impurity allowed in clusters to flag cells as "pure"}
 
 \item{assay}{Seurat assay to use}
-
-\item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
 
 \item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signature}
 

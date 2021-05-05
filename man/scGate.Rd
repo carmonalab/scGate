@@ -14,14 +14,14 @@ scGate(
   resol = 3,
   assay = "RNA",
   genes.blacklist = "Tcell.blacklist",
-  min.gene.frac = 0.5,
   sd.in = 3,
   sd.out = 7,
   rm.existing = TRUE,
-  method = c("UCell", "ModuleScore"),
+  autocomplete = T,
+  method = c("UCell", "AUCell", "ModuleScore"),
   chunk.size = 1000,
   ncores = 1,
-  autocomplete = T,
+  maxRank = 1500,
   max.iterations = 10,
   stop.iterations = 0.01,
   min.cells = 100,
@@ -55,13 +55,13 @@ scGate(
 \item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
-\item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
-
 \item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signature}
 
 \item{sd.out}{Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures}
 
 \item{rm.existing}{Overwrite existing scGate scores in query object}
+
+\item{autocomplete}{Include all cell types that start with same prefix given by `celltype` (e.g. B.cell gates for B.cell.1, B.cell.2 and B.cell.Plasmocyte signatures)}
 
 \item{method}{Scoring method for cell signatures (default \code{UCell})}
 
@@ -69,7 +69,7 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{ncores}{Number of processors for parallel processing (requires \code{future.apply})}
 
-\item{autocomplete}{Include all cell types that start with same prefix given by `celltype` (e.g. B.cell gates for B.cell.1, B.cell.2 and B.cell.Plasmocyte signatures)}
+\item{maxRank}{Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')}
 
 \item{max.iterations}{Maximum number of iterations}
 

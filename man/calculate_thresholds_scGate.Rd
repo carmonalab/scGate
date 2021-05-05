@@ -9,15 +9,15 @@ calculate_thresholds_scGate(
   markers = NULL,
   quant = 0.995,
   assay = "RNA",
-  min.gene.frac = 0.5,
   min.sd = 0.02,
   level = 1,
   rm.existing = TRUE,
-  method = c("UCell", "ModuleScore"),
+  method = c("UCell", "AUCell", "ModuleScore"),
   chunk.size = 1000,
   ncores = 1,
   seed = 123,
-  verbose = TRUE
+  verbose = TRUE,
+  maxRank = 1500
 )
 }
 \arguments{
@@ -28,8 +28,6 @@ calculate_thresholds_scGate(
 \item{quant}{Quantile cutoff for score distribution}
 
 \item{assay}{Seurat assay to use}
-
-\item{min.gene.frac}{Only consider signatures covered by this fraction of genes in query set}
 
 \item{min.sd}{Minimum value for standard deviation - if calculated standard deviation is lower than min.sd, it is set to min.sd}
 
@@ -46,6 +44,8 @@ calculate_thresholds_scGate(
 \item{seed}{Integer seed for random number generator}
 
 \item{verbose}{Verbose output}
+
+\item{maxRank}{Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')}
 }
 \value{
 Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@misc$scGate}. Scores for individual signatures are

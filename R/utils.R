@@ -1,27 +1,3 @@
-#Helper function to subset signatures on genes observed in the query set
-check_CTmarkers <- function(obj, markers.list, min.gene.frac=0.5, verbose=TRUE) {
-  
-  markers.list.exp <- unlist(lapply(markers.list,function(x){mean(x %in% rownames(obj))}))
-  
-  markers.list.pass <- markers.list[markers.list.exp >= min.gene.frac]
-  markers.list.pass <- lapply(markers.list.pass,function(x){x[x %in% rownames(obj)]})
-  
-  skip <- names(markers.list.exp)[markers.list.exp < min.gene.frac]
-  
-  missing <- 100*length(skip)/length(markers.list)
-  if (missing > 50) {
-     warning(sprintf("Warning: %s %% of signatures could not be evaluated, too many genes are missing from your data"))
-  } 
-  
-  if (verbose==TRUE & length(skip) > 0) {
-    skip <- paste(skip, collapse=", ")
-    message <- paste0("Not enough genes to evaluate the following signatures:\n",skip,"\n")
-    message <- paste0(message, "Probably this just means that these cells are not present in your dataset")
-    warning(message)
-  }
-  
-  return(markers.list.pass)
-}
 
 check_selected_celltypes <- function(celltype, db, autocomplete=T) {
   match <- vector()
@@ -40,7 +16,7 @@ check_selected_celltypes <- function(celltype, db, autocomplete=T) {
 
 #Calculate scGate scores
 get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=FALSE,
-                         method=c("UCell","ModuleScore"), chunk.size=1000, ncores=1) {
+                         method=c("UCell","ModuleScore"), chunk.size=1000, ncores=1, maxRank=1500) {
   
   method.use <- method[1]
   
@@ -52,7 +28,9 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
   }
   
   if (method.use == "UCell") {
-     obj <- UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, name = "_scGate")
+     obj <- suppressWarnings(UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank, name="_scGate"))
+  } else if (method.use == "AUCell") {
+     obj <- suppressWarnings(AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank))
   } else if (method.use == "ModuleScore") {
      obj <- suppressWarnings(AddModuleScore(obj, features = markers.list, name="scGateScore"))
   } else {
@@ -73,6 +51,64 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
     obj@meta.data[,zsig] <- (obj@meta.data[,sig] - bg[sig,"mean"])/bg[sig,"sd"]
   }
   return(obj)
+}
+
+AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxRank=1500) {
+  
+  require(AUCell)
+  assay <- DefaultAssay(obj)
+  
+  #Split into manageable chunks
+  split.data <- split_data.matrix(matrix=obj@assays[[assay]]@data, chunk.size=chunk.size)
+  
+  #Parallelize?
+  if (ncores>1) {
+    plan(future::multisession(workers=future_param_ncores))
+    
+    meta.list <- future_lapply(
+      X = split.data,
+      FUN = function(x) {
+        cells_rankings <- AUCell_buildRankings(x, plotStats=F, verbose=F)
+        cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
+        
+        new.meta <- as.data.frame(t(getAUC(cells_AUC)))
+        colnames(new.meta) <- paste0(colnames(new.meta),"_CTfilter")
+        return(new.meta)
+      },
+      future.seed = future_param_seed
+    )
+    plan(strategy = "sequential")
+    
+  } else {
+    meta.list <- lapply(
+      X = split.data,
+      FUN = function(x) {
+        cells_rankings <- AUCell_buildRankings(x, plotStats=F, verbose=F)
+        cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
+        
+        new.meta <- as.data.frame(t(getAUC(cells_AUC)))
+        colnames(new.meta) <- paste0(colnames(new.meta),"_CTfilter")
+        return(new.meta)
+      } )
+  }
+  
+  meta.merge <- Reduce(rbind, meta.list)
+  obj <- Seurat::AddMetaData(obj, as.data.frame(meta.merge))
+  
+  return(obj)
+}
+
+split_data.matrix <- function(matrix, chunk.size=1000) {
+   ncols <- dim(matrix)[2]
+   nchunks <- (ncols-1) %/% chunk.size + 1
+   
+   split.data <- list()
+   for (i in 1:nchunks) {
+      min <- 1 + (i-1)*chunk.size
+      max <- min(i*chunk.size, ncols)
+      split.data[[i]] <- matrix[,min:max]
+   }
+   return(split.data)
 }
 
 vectorize.parameters <- function(par, lgt=1) {
