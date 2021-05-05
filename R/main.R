@@ -193,14 +193,13 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
   }
   
   #Check that markers and threshold names correspond
-  marker.cols <- paste0(names(markers), "_scGate")
-  names(marker.cols) <- names(markers)
-  marker.cols.pass <- marker.cols[marker.cols %in% rownames(bg.model)]
-  if (length(marker.cols.pass) ==0) {
+  marker.names.pass <- intersect(names(markers), rownames(bg.model))
+  
+  if (length(marker.names.pass) ==0) {
     mess <- "Error. Could not match markers with threshold file"
     stop(mess)
   }
-  markers <- markers[names(marker.cols.pass)]
+  markers <- markers[marker.names.pass]
   
   #Check selected cell type(s), and autoexpand if required
   sign.names <- names(markers)
@@ -220,35 +219,50 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
                         method=method, chunk.size=chunk.size, ncores=ncores,
                         bg=bg.model, z.score=TRUE, maxRank=maxRank)
   
-  celltype_CT <- paste0(celltype, "_scGate")
   meta <- query@meta.data
-  filterCells <- c()
+  
+  #First filter on cells with minimum levels of selected signature(s)
+  positive_select <- c()
+  for (sig in celltype.pass) {
+     sig.zscore <- paste0(sig,"_Zscore")
+     
+     sd.use <- sd.in
+     min.sd.in <- bg.model[sig,"mean"]/bg.model[sig,"sd"]-1e-3 # minimum z-score for positive scores
+     if (sd.use > min.sd.in) {
+       sd.use <- min.sd.in
+       if(verbose) message(sprintf("Readjusting sd.in for %s to %.4f to avoid negative thresholds", sig, sd.use)) 
+     }
+     positive_select <- c(positive_select, which(meta[,sig.zscore] >= -sd.use))  # Z.score threshold for desired cell types
+  }
+  positive_select <- unique(positive_select)
+
+  if (length(positive_select)<1) {
+    stop("All cells were removed by scGate. Check filtering thresholds or input data")
+  }
+  
+  #Second, filter on cells with eccessive levels on undesired signatures
+  negative_select <- seq_along(Cells(query))[-positive_select]
+
   for (sig in sign.names){
-    sig.meta <- paste0(sig,"_Zscore")
-    if( sig.meta %in% celltype_CT ) {
-      min.sd.in <- bg.model[sig.meta,"mean"]/bg.model[sig.meta,"sd"]+1e-3 # minimum z-score for positive scores
-      if (sd.in > min.sd.in) {
-        sd.in <- min.sd.in
-        if(verbose) message(sprintf("Readjusting sd.in to %.4f to avoid negative thresholds",sd.in)) 
-      }
-      filterCells <- c(filterCells, which(meta[,sig.meta] < -sd.in))  # Z.score threshold for desired cell types
-    } else {
-      filterCells <- c(filterCells, which(meta[,sig.meta] > sd.out))   # Z.score threshold for contaminants
+    sig.zscore <- paste0(sig,"_Zscore")
+    
+    if(! sig %in% celltype.pass) {
+      negative_select <- c(negative_select, which(meta[,sig.zscore] > sd.out))   # Z.score threshold for contaminants
     }
   }
-  filterCells <- unique(filterCells)
-  filterCells.ID <- colnames(query)[filterCells]
+  negative_select <- unique(negative_select)
+  negative_select.ID <- Cells(query)[negative_select]
   
   #The vector labs will hold the global cells status to return
   labs <- rep("Pure", dim(query)[2])
-  names(labs) <- colnames(query)
-  q <- query
+  names(labs) <- Cells(query)
   tot.cells <- length(labs)
+  q <- query
   
   #Start iterations
   for (iter in 1:max.iterations) {
     
-    filterCells.this <- filterCells.ID[filterCells.ID %in% colnames(q)]
+    filterCells.this <- negative_select.ID[negative_select.ID %in% Cells(q)]
     imp.thr <- max.impurity.vec[iter]
     
     ndim.use <- ifelse(ncol(q)<300, 5, ndim)  #with very few cells, reduce dimensionality
@@ -264,7 +278,7 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
     q <- FindNeighbors(q, reduction = "pca", dims = 1:ndim.use, k.param = 5, verbose=FALSE)
     q  <- FindClusters(q, resolution = resol, verbose = FALSE)
     q$clusterCT <- q@active.ident
-  
+    
     m <- q@meta.data
     impure.freq <- tapply(row.names(m), m$clusterCT,function(x) {mean(x %in% filterCells.this)})
   
@@ -348,19 +362,21 @@ calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="R
   ref <- get_CTscores(obj=ref, markers.list=markers, rm.existing=rm.existing, z.score=FALSE,
                       method=method, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank)
   
+  sign <- names(markers) 
+  sign.names <- paste0(sign,"_scGate")
+  names(sign.names) <- sign
   
-  sign.names <- paste0(names(markers),"_scGate")
-
-  ref_thr <- matrix(nrow=length(sign.names), ncol=2)
-  rownames(ref_thr) <- sign.names
+  ref_thr <- matrix(nrow=length(sign), ncol=2)
+  rownames(ref_thr) <- sign
   colnames(ref_thr) <- c("mean","sd")
   
-  for(sig in sign.names){
+  for(s in sign){
     
-    bulk <- ref@meta.data[,sig]
+    s.score <- sign.names[s]
+    bulk <- ref@meta.data[,s.score]
     bulk <- bulk[bulk >= quantile(bulk, p=1-quant) & bulk <= quantile(bulk,p=quant)]
-    ref_thr[sig,1] <- mean(bulk)
-    ref_thr[sig,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
+    ref_thr[s,1] <- mean(bulk)
+    ref_thr[s,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
  }
 
   if (!is.list(ref@misc$scGate)) {

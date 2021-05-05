@@ -31,7 +31,7 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
      obj <- suppressWarnings(UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank, name="_scGate"))
   } else if (method.use == "AUCell") {
      obj <- suppressWarnings(AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank))
-  } else if (method.use == "ModuleScore") {
+  } else if (method.use == "ModuleScore") { ##TO DO: Rename output to make it compatible with other methods
      obj <- suppressWarnings(AddModuleScore(obj, features = markers.list, name="scGateScore"))
   } else {
      stop("Please give a valid method for signature scoring (see 'method' parameter)")
@@ -42,18 +42,17 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
   }
   
   #Convert to Z-score
-  cols <- paste0(names(markers.list),"_scGate")
-  zcols <- paste0(names(markers.list),"_Zscore")
+  celltypes <- names(markers.list)
   
-  for (i in seq_along(cols)) {
-    sig <- cols[i]
-    zsig <- zcols[i]
-    obj@meta.data[,zsig] <- (obj@meta.data[,sig] - bg[sig,"mean"])/bg[sig,"sd"]
+  for (ct in celltypes) {
+    ct_z <- paste0(ct,"_Zscore")
+    ct_s <- paste0(ct,"_scGate")
+    obj@meta.data[,ct_z] <- (obj@meta.data[,ct_s] - bg[ct,"mean"])/bg[ct,"sd"]
   }
   return(obj)
 }
 
-AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxRank=1500) {
+AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxRank=1500, name="_scGate") {
   
   require(AUCell)
   assay <- DefaultAssay(obj)
@@ -72,7 +71,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxR
         cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
         
         new.meta <- as.data.frame(t(getAUC(cells_AUC)))
-        colnames(new.meta) <- paste0(colnames(new.meta),"_CTfilter")
+        colnames(new.meta) <- paste0(colnames(new.meta), name)
         return(new.meta)
       },
       future.seed = future_param_seed
@@ -87,7 +86,7 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxR
         cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
         
         new.meta <- as.data.frame(t(getAUC(cells_AUC)))
-        colnames(new.meta) <- paste0(colnames(new.meta),"_CTfilter")
+        colnames(new.meta) <- paste0(colnames(new.meta), name)
         return(new.meta)
       } )
   }
