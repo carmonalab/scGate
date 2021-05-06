@@ -3,4 +3,3 @@
 export(calculate_thresholds_scGate)
 export(scGate)
 export(scGate.multilevel)
-export(scGate.stats)

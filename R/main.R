@@ -1,9 +1,10 @@
-#' Filter single-cell data by cell type
+#' Filter single-cell data by cell type (multi-level)
 #'
 #' Apply scGate for a specific cell type to a query dataset. This function expands \code{\link{scGate}} to allow multi-level signatures to be used
 #' for filtering; e.g. Tcells at level 1, and CD8.Tcells at level 2. To prepare markers and signatures in the correct format, store them in a list where
-#' the list index corresponds to the signature level. Then select the desired cell at each level with the celltype parameter
-#' (e.g. \code{celltype=c("T.cell","Tcell.CD8")}). Note that for the parameters listed below, you can also specify different values for different levels, by
+#' the list index corresponds to the signature level. Then select the desired cell at each level with the `celltype` parameter, separating nested subtypes 
+#' using the underscore: e.g. \code{celltype="T.cell_Tcell.CD8"}.
+#' Note that for the parameters listed below, you can also specify different values for different levels, by
 #' setting them as vectors (e.g. sd.out=c(7,4)).
 #'
 #' @param query Seurat object containing a query data set - filtering will be applied to this object
@@ -21,19 +22,32 @@
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
 #'     The \code{active.ident} is also set to this variable.
 #' @examples
-#' query <- scGate.multilevel(query, celltype=c("T.cell","Tcell.CD4"))
+#' query <- scGate.multilevel(query, celltype="T.cell_CD4Tcell")
 #' DimPlot(query)
 #' query <- subset(query, subset=is.pure=="Pure")
 #' @seealso \code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
 #' @export
 scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
-                     assay="RNA", sd.in=3, sd.out=5, seed=123, quiet=FALSE, ...) {
+                     assay="RNA", sd.in=3, sd.out=7, seed=123, quiet=FALSE, ...) {
 
   set.seed(seed)
   def.assay <- DefaultAssay(query)
   DefaultAssay(query) <- assay
   
-  n.levels <- length(celltype)
+  #Determine multi-level subtypes (underscore-separated)
+  celltype.vec <- strsplit(celltype, split="_", fixed=T)
+  celltype.list <- list()
+  #Sanity check
+  dpth <- unlist(lapply(celltype.vec, length))
+  if (length(unique(dpth))>1) {
+    stop("All celltypes must have same signature depth (i.e. same number of underscores)")
+  }
+  
+  celltype.vec <- as.data.frame(celltype.vec)
+  n.levels <- nrow(celltype.vec)
+  for (i in 1:nrow(celltype.vec)) {
+     celltype.list[[i]] <- unique(celltype.vec[i,])
+  }
   
   #Single-level run
   if (n.levels==1) {
@@ -45,7 +59,7 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
   }
   
   #Multi-level run
-  if (!is.list(bg.model) || length(bg.model) < length(celltype)) {
+  if (!is.list(bg.model) || length(bg.model) < n.levels) {
      stop(sprintf("Please provide a list of thresholds (bg.model) for each desidered celltype level (%s levels)", n.levels))
   }
   
@@ -57,16 +71,20 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
   query$is.pure <- "Impure"
   sub <- query
   for (lev in 1:n.levels) {
-     message(sprintf("--- Running scGate for level %i: %s celltype...",lev, celltype[lev]))
-     
-     sub <- scGate(query=sub, celltype=celltype[lev],
+     message(sprintf("--- Running scGate for level %i: ",lev))
+    
+     sub <- scGate(query=sub, celltype=celltype.list[[lev]],
                       bg.model=bg.model[[lev]],
                       markers=markers[[lev]],
                       max.impurity=parameters$max.impurity[[lev]],
                       sd.in=parameters$sd.in[lev],
                       sd.out=parameters$sd.out[lev],
-                      assay = assay, seed=seed, quiet=quiet, ...)
-    
+                      rm.existing = TRUE, assay = assay, 
+                      seed=seed, quiet=quiet, ...)
+     
+     meta.cols <- grep("_scGate|_Zscore",colnames(sub@meta.data), perl=T, value = T)
+     query <- AddMetaData(query, metadata = sub@meta.data[,meta.cols])  #NB: this will generated NAs for 2nd level signatures
+     
      sub <- subset(sub, subset=is.pure=="Pure")
   }
   pure.cells <- colnames(sub)
@@ -120,7 +138,7 @@ scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=N
 
 scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
                      ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", 
-                     sd.in=3, sd.out=5, rm.existing=TRUE, autocomplete=T,
+                     sd.in=3, sd.out=7, rm.existing=TRUE, autocomplete=T,
                      method=c("UCell","AUCell","ModuleScore"),
                      chunk.size=1000, ncores=1, maxRank=1500,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
@@ -394,90 +412,3 @@ calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="R
   message(sprintf("Marker list available in ref@misc$scGate.markers[[%i]]",level))
   return(ref)
 }
-
-#' Calculate statistics after a scGate run
-#'
-#' Computes counts for selected and filtered cell types, based on maximum Z-score deviation from the background
-#'
-#' @param query A query object in Seurat format returned by scGate
-#' @param celltype The desidered cell type used in scGate
-#' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
-#' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
-#' @param min.cells Minimum number of cells to report a specific cell type. Everything else will be grouped in 'Others'
-#' @return Returns the query object with an additional column, reporting the cell type with the highest Z-score compared to the reference
-#'     thresholds. In the slot \code{query@@misc$scGate.counts}, a dataframe reports the number of cells for each signature that exceed the Z-score threshold. Note that individual
-#'     cells can be outliers for several signatures, so the total count does not correspond to the number of removed cells.
-#' @examples
-#' query <- scGate(query, celltype="Tcell")
-#' query <- scGate.stats(query, celltype="Tcell")
-#' Dimplot(query, group.by="top.zscore")
-#' head(query@@misc$scGate.counts)
-#' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on a specific cell type
-#' @export
-scGate.stats <- function(query, celltype="T.cell", sd.in=3, sd.out=5, min.cells=50) {
-    
-    celltype_CT <- paste0(celltype,"_Zscore")
-    query$top.zscore <- celltype
-    
-    imp <- subset(query, is.pure=="Impure")
-    
-    cols.ct <- grep("_Zscore$", colnames(imp@meta.data),  perl=T, value=T)
-    cols = substr(cols.ct, 1, nchar(cols.ct)-7)
-    
-    meta <- imp@meta.data[,cols.ct]
-    colnames(meta) <- cols
-    this.i <- which(colnames(meta) == celltype)
-    if (length(this.i) == 0) {
-      stop(sprintf("Celltype %s not found in query object",celltype))
-    }  
-    
-    #Get raw counts of outlier from background distribution
-    counts <- rep(0, length(cols))
-    names(counts) <- cols
-    for (type in cols) {
-       if (type==celltype) {
-          counts[type] <- sum(meta[,type] < -sd.in)
-       } else {
-          counts[type] <- sum(meta[,type] > sd.out)
-       }
-    }
-    counts <- sort(counts[counts>0], decreasing = T)
-    counts <- as.data.frame(counts)
-    
-    ind <- which(rownames(counts) == celltype)
-    if (length(ind) > 0) {
-       rownames(counts)[ind] <- "Unknown"
-    }
-    
-    top.imp <- vector(length=nrow(meta))
-    names(top.imp) <- rownames(meta)
-    #Now assign cell type with top z-score
-    meta.out <- meta[,-this.i]
-    max.sd <- apply(meta.out, 1, max)
-    max.which <- apply(meta.out, 1, which.max)
-    max.type <- colnames(meta.out)[max.which]
-    
-    meta.in <- meta[,this.i]
-    
-    for (i in 1:length(top.imp)) {
-       if (max.sd[i] > sd.out) {
-          top.imp[i] <- max.type[i]
-       } else if (meta.in[i] < -sd.in) {
-          top.imp[i] <- "Unknown"
-       } else {
-          top.imp[i] <- celltype
-       }
-    }
-    query$top.zscore[names(top.imp)] <- top.imp
-    
-    #Group cell types with few cells
-    tab <- table(query$top.zscore)
-    join <- names(tab[tab<min.cells])
-    query$top.zscore[query$top.zscore %in% join] <- "Others"
-    
-    query@misc$scGate.counts <- counts
-    return(query)
-}
-  
-  
-  

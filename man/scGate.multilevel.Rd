@@ -2,7 +2,7 @@
 % Please edit documentation in R/main.R
 \name{scGate.multilevel}
 \alias{scGate.multilevel}
-\title{Filter single-cell data by cell type}
+\title{Filter single-cell data by cell type (multi-level)}
 \usage{
 scGate.multilevel(
   query,
@@ -15,6 +15,7 @@ scGate.multilevel(
   sd.out = 7,
   seed = 123,
   quiet = FALSE,
+  rm.existing = TRUE,
   ...
 )
 }
@@ -40,6 +41,8 @@ provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")
 
 \item{quiet}{Suppress all output}
 
+\item{rm.existing}{Overwrite existing scGate scores in query object}
+
 \item{...}{Additional parameters for \code{\link{scGate}}}
 }
 \value{
@@ -49,12 +52,13 @@ A new metadata column \code{is.pure} is added to the query Seurat object, indica
 \description{
 Apply scGate for a specific cell type to a query dataset. This function expands \code{\link{scGate}} to allow multi-level signatures to be used
 for filtering; e.g. Tcells at level 1, and CD8.Tcells at level 2. To prepare markers and signatures in the correct format, store them in a list where
-the list index corresponds to the signature level. Then select the desired cell at each level with the celltype parameter
-(e.g. \code{celltype=c("T.cell","Tcell.CD8")}). Note that for the parameters listed below, you can also specify different values for different levels, by
+the list index corresponds to the signature level. Then select the desired cell at each level with the `celltype` parameter, separating nested subtypes 
+using the underscore: e.g. \code{celltype="T.cell_Tcell.CD8"}.
+Note that for the parameters listed below, you can also specify different values for different levels, by
 setting them as vectors (e.g. sd.out=c(7,4)).
 }
 \examples{
-query <- scGate.multilevel(query, celltype=c("T.cell","Tcell.CD4"))
+query <- scGate.multilevel(query, celltype="T.cell_CD4Tcell")
 DimPlot(query)
 query <- subset(query, subset=is.pure=="Pure")
 }
