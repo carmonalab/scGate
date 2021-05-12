@@ -5,29 +5,21 @@
 \title{Filter single-cell data by cell type (multi-level)}
 \usage{
 scGate.multilevel(
-  query,
-  celltype = "T.cell",
-  bg.model = NULL,
-  markers = NULL,
+  data,
+  gating.model = NULL,
   max.impurity = 0.5,
   assay = "RNA",
   sd.in = 3,
   sd.out = 7,
   seed = 123,
   quiet = FALSE,
-  rm.existing = TRUE,
   ...
 )
 }
 \arguments{
-\item{query}{Seurat object containing a query data set - filtering will be applied to this object}
+\item{data}{Seurat object containing a query data set - filtering will be applied to this object}
 
-\item{celltype}{Cell type to preserve from the query data set (should be one of cell types in \code{names(markers)}). For multi-level filtering,
-provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")})}
-
-\item{bg.model}{The background expected mean and SD for each cell type - see function \code{\link{calculate_thresholds_scGate}}}
-
-\item{markers}{List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}}
+\item{gating.model}{The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}}
 
 \item{max.impurity}{Maximum fraction of impurity allowed in clusters to flag cells as "pure"}
 
@@ -40,8 +32,6 @@ provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")
 \item{seed}{Integer seed for random number generator}
 
 \item{quiet}{Suppress all output}
-
-\item{rm.existing}{Overwrite existing scGate scores in query object}
 
 \item{...}{Additional parameters for \code{\link{scGate}}}
 }
@@ -58,10 +48,10 @@ Note that for the parameters listed below, you can also specify different values
 setting them as vectors (e.g. sd.out=c(7,4)).
 }
 \examples{
-query <- scGate.multilevel(query, celltype="T.cell_CD4Tcell")
+query <- scGate.multilevel(query)
 DimPlot(query)
 query <- subset(query, subset=is.pure=="Pure")
 }
 \seealso{
-\code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
+\code{\link{train_scGate()}} to generate celltype-specific models
 }

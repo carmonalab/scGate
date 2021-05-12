@@ -7,11 +7,10 @@
 #' Note that for the parameters listed below, you can also specify different values for different levels, by
 #' setting them as vectors (e.g. sd.out=c(7,4)).
 #'
-#' @param query Seurat object containing a query data set - filtering will be applied to this object
-#' @param celltype Cell type to preserve from the query data set (should be one of cell types in \code{names(markers)}). For multi-level filtering,
+#' @param data Seurat object containing a query data set - filtering will be applied to this object
+#' @param gating.model The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}
 #'     provide nested subtypes as a vector (e.g. \code{celltype=c("T.cell","Tcell.CD8")})
-#' @param bg.model The background expected mean and SD for each cell type - see function \code{\link{calculate_thresholds_scGate}}
-#' @param markers List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}
+#' @param gating.model The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}
 #' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure"
 #' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
@@ -22,127 +21,120 @@
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type.
 #'     The \code{active.ident} is also set to this variable.
 #' @examples
-#' query <- scGate.multilevel(query, celltype="T.cell_CD4Tcell")
+#' query <- scGate.multilevel(query)
 #' DimPlot(query)
 #' query <- subset(query, subset=is.pure=="Pure")
-#' @seealso \code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
+#' @seealso \code{\link{train_scGate()}} to generate celltype-specific models
 #' @export
-scGate.multilevel <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
+scGate.multilevel <- function(data, gating.model=NULL, max.impurity=0.5, 
                      assay="RNA", sd.in=3, sd.out=7, seed=123, quiet=FALSE, ...) {
 
+  
   set.seed(seed)
-  def.assay <- DefaultAssay(query)
-  DefaultAssay(query) <- assay
+  def.assay <- DefaultAssay(data)
+  DefaultAssay(data) <- assay
   
-  #Determine multi-level subtypes (underscore-separated)
-  celltype.vec <- strsplit(celltype, split="_", fixed=T)
-  celltype.list <- list()
-  #Sanity check
-  dpth <- unlist(lapply(celltype.vec, length))
-  if (length(unique(dpth))>1) {
-    stop("All celltypes must have same signature depth (i.e. same number of underscores)")
-  }
+  species <- detect_species(data)
   
-  celltype.vec <- as.data.frame(celltype.vec)
-  n.levels <- nrow(celltype.vec)
-  for (i in 1:nrow(celltype.vec)) {
-     celltype.list[[i]] <- unique(celltype.vec[i,])
+  if (is.null(gating.model)) { #Default
+    if (species=="human") {
+      gating.model <- scGate_human_TIL_model
+    } else {
+      gating.model <- scGate_mouse_TIL_model 
+    }
   }
+
+  if (!is.list(gating.model)) {
+     gating.model[[1]] <- gating.model 
+  }
+  n.levels <- length(gating.model)
   
   #Single-level run
   if (n.levels==1) {
-     query <- scGate(query=query, celltype=celltype, bg.model=bg.model,
-                     markers=markers, max.impurity=max.impurity,
+     data <- scGate(data, gating.model=gating.model[[1]],
+                     max.impurity=max.impurity,
                      sd.in=sd.in, sd.out=sd.out,
                      assay = assay, seed=seed, quiet=quiet, ...)
-     return(query)
+     return(data)
   }
   
   #Multi-level run
-  if (!is.list(bg.model) || length(bg.model) < n.levels) {
-     stop(sprintf("Please provide a list of thresholds (bg.model) for each desidered celltype level (%s levels)", n.levels))
-  }
-  
   parameters <- list("max.impurity"=max.impurity,
                      "sd.in"=sd.in,
                      "sd.out"=sd.out)
   parameters <- lapply(parameters, vectorize.parameters, lgt=n.levels)
   
-  query$is.pure <- "Impure"
-  sub <- query
+  data$is.pure <- "Impure"
+  sub <- data
   for (lev in 1:n.levels) {
      message(sprintf("--- Running scGate for level %i: ",lev))
     
-     sub <- scGate(query=sub, celltype=celltype.list[[lev]],
-                      bg.model=bg.model[[lev]],
-                      markers=markers[[lev]],
+     sub <- scGate(data=sub,
+                      gating.model=gating.model[[lev]],
                       max.impurity=parameters$max.impurity[[lev]],
                       sd.in=parameters$sd.in[lev],
                       sd.out=parameters$sd.out[lev],
-                      rm.existing = TRUE, assay = assay, 
+                      assay = assay, 
                       seed=seed, quiet=quiet, ...)
      
      meta.cols <- grep("_scGate|_Zscore",colnames(sub@meta.data), perl=T, value = T)
-     query <- AddMetaData(query, metadata = sub@meta.data[,meta.cols])  #NB: this will generated NAs for 2nd level signatures
+     data <- AddMetaData(data, metadata = sub@meta.data[,meta.cols])  #NB: this will generated NAs for 2nd+ level signatures
      
      sub <- subset(sub, subset=is.pure=="Pure")
   }
   pure.cells <- colnames(sub)
-  query@meta.data[pure.cells, "is.pure"] <- "Pure"
+  data@meta.data[pure.cells, "is.pure"] <- "Pure"
 
-  Idents(query) <- query$is.pure
+  Idents(data) <- data$is.pure
   
-  return(query)
+  return(data)
 }  
 #' Filter single-cell data by cell type
 #'
 #' Apply scGate to filter specific cell types in a query dataset
 #'
-#' @param query Seurat object containing a query data set - filtering will be applied to this object
-#' @param celltype One or more cell types to gate for (among cell types in \code{names(markers)})
-#' @param bg.model The background expected mean and SD for each cell type - see function \code{\link{calculate_thresholds_scGate}}
-#' @param markers List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}
+#' @param data Seurat object containing a query data set - filtering will be applied to this object
+#' @param gating.model The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}
 #' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure". Can be either:
 #' \itemize{
 #'   \item{Single number between 0 and 1 - the same impurity threshold is applied to all iterations}
 #'   \item{Vector of numbers between 0 and 1 - specific impurity thresholds for successive iterations e.g. \code{max.impurity=c(0.7,0.5,0.3)}}
 #' }
-#' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signature
+#' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signatures
 #' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
 #' @param ndim Number of dimensions for cluster analysis
 #' @param resol Resolution for cluster analysis
 #' @param assay Seurat assay to use
-#' @param method Scoring method for cell signatures (default \code{UCell})
 #' @param chunk.size Number of cells per batch to be scored by the method
 #' @param maxRank Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
 #' @param max.iterations Maximum number of iterations
 #' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
 #' @param min.cells Stop iterating if fewer than this number of cells is left
-#' @param rm.existing Overwrite existing scGate scores in query object
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
-#' @param autocomplete Include all cell types that start with same prefix given by `celltype` (e.g. B.cell gates for B.cell.1, B.cell.2 and B.cell.Plasmocyte signatures) 
 #' @param skip.normalize Skip data normalization
+#' @param return_signature_scores Add signature scores and Z-scores to object metadata
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
 #' @param quiet Suppress all output
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
 #'     The \code{active.ident} is also set to this variable. Additionally, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
 #' @examples
-#' query <- scGate(query, celltype="T.cell")
+#' query <- scGate(query)
 #' DimPlot(query)
 #' query <- subset(query, subset=is.pure=="Pure")
-#' @seealso \code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
+#' @seealso \code{\link{train_scGate()}} to generate celltype-specific models
 #' @export
 
-scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.impurity=0.5, 
-                     ndim=30, resol=3, assay="RNA", genes.blacklist="Tcell.blacklist", 
-                     sd.in=3, sd.out=7, rm.existing=TRUE, autocomplete=T,
-                     method=c("UCell","AUCell","ModuleScore"),
+scGate <- function(data, gating.model=NULL, max.impurity=0.5, 
+                     ndim=30, resol=3, assay="RNA", 
+                     sd.in=3, sd.out=7,
                      chunk.size=1000, ncores=1, maxRank=1500,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
-                     seed=123, skip.normalize=FALSE, verbose=FALSE, quiet=FALSE) {
+                     genes.blacklist="Tcell.blacklist", 
+                     seed=123, skip.normalize=FALSE, 
+                     return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE) {
   
   set.seed(seed)
   if (ncores>1) {
@@ -151,44 +143,30 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
      future_param_ncores <<- ncores
   }
   
-  def.assay <- DefaultAssay(query)
-  DefaultAssay(query) <- assay
-  method=method[1]
+  def.assay <- DefaultAssay(data)
+  DefaultAssay(data) <- assay
   
-  #First guess the species from the gene names of the query
-  mm.genes <- unique(unlist(MCA.markers.Mm))
-  hs.genes <- unique(unlist(HCA.markers.Hs))
+  species <- detect_species(data)
   
-  mm.intersect <- length(intersect(mm.genes, rownames(query)))/length(mm.genes)
-  hs.intersect <- length(intersect(hs.genes, rownames(query)))/length(hs.genes)
-  if (max(mm.intersect, hs.intersect)<0.2) {
-    warning("More than 80% of genes not found in reference signatures...did you remove genes from the query data?")
-  }
-  if (mm.intersect>hs.intersect) {
-    species <- "Mouse"
-  } else {
-    species <- "Human"
-  }
-  
-  if (is.null(markers)) { #Default
-    if (species=="Human") {
-      markers <- HCA.markers.Hs
+  if (is.null(gating.model)) { #Default
+    if (species=="human") {
+      gating.model <- scGate_human_TIL_model
     } else {
-      markers <-  MCA.markers.Mm
+      gating.model <- scGate_mouse_TIL_model 
     }
   }
+  #Get data stored in trained model
+  if (! class(gating.model) == "scGate_Model") {
+     stop("Background model must be a scGate_Model object")
+  }
+  markers <- gating.model@markers
+  pos.celltypes <- gating.model@positive_celltypes
+  model <- gating.model@bg_model
+  method <- gating.model@scoring_method
   
-  if (is.null(bg.model)) { #Default
-    if (species=="Human") {
-      bg.model <- Tcell.Hs.thr
-    } else {
-      bg.model <- Tcell.TIL.thr 
-    }
-  }  
-
   if (!is.null(genes.blacklist)) {
     if (length(genes.blacklist)==1 && genes.blacklist == "Tcell.blacklist") {  #Default
-      if (species=="Human") {
+      if (species=="human") {
          genes.blacklist <- genes.blacklist.Hs
       } else {
          genes.blacklist <- genes.blacklist.Mm 
@@ -211,7 +189,7 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
   }
   
   #Check that markers and threshold names correspond
-  marker.names.pass <- intersect(names(markers), rownames(bg.model))
+  marker.names.pass <- intersect(names(markers), rownames(model))
   
   if (length(marker.names.pass) ==0) {
     mess <- "Error. Could not match markers with threshold file"
@@ -221,10 +199,10 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
   
   #Check selected cell type(s), and autoexpand if required
   sign.names <- names(markers)
-  celltype.pass <- check_selected_celltypes(celltype, db=sign.names, autocomplete=autocomplete)
+  celltype.pass <- check_selected_celltypes(pos.celltypes, db=sign.names, autocomplete=F)
   
   if (length(celltype.pass)<1) {
-    mess <- sprintf("Could not find selected cell types in marker list. Check your input to 'celltype' option")
+    mess <- sprintf("Could not find selected cell types in marker list")
     stop(mess)
   }  
   if (!quiet) {
@@ -233,11 +211,9 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
   }
   
   #Get Zscores
-  query <- get_CTscores(obj=query, markers.list=markers, rm.existing=rm.existing,
+  scores <- get_CTscores(obj=data, markers.list=markers,
                         method=method, chunk.size=chunk.size, ncores=ncores,
-                        bg=bg.model, z.score=TRUE, maxRank=maxRank)
-  
-  meta <- query@meta.data
+                        bg=model, z.score=TRUE, maxRank=maxRank)
   
   #First filter on cells with minimum levels of selected signature(s)
   positive_select <- c()
@@ -245,12 +221,12 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
      sig.zscore <- paste0(sig,"_Zscore")
      
      sd.use <- sd.in
-     min.sd.in <- bg.model[sig,"mean"]/bg.model[sig,"sd"]-1e-3 # minimum z-score for positive scores
+     min.sd.in <- model[sig,"mean"]/model[sig,"sd"]-1e-3 # minimum z-score for positive scores
      if (sd.use > min.sd.in) {
        sd.use <- min.sd.in
        if(verbose) message(sprintf("Readjusting sd.in for %s to %.4f to avoid negative thresholds", sig, sd.use)) 
      }
-     positive_select <- c(positive_select, which(meta[,sig.zscore] >= -sd.use))  # Z.score threshold for desired cell types
+     positive_select <- c(positive_select, which(scores[,sig.zscore] >= -sd.use))  # Z.score threshold for desired cell types
   }
   positive_select <- unique(positive_select)
 
@@ -259,23 +235,23 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
   }
   
   #Second, filter on cells with eccessive levels on undesired signatures
-  negative_select <- seq_along(Cells(query))[-positive_select]
+  negative_select <- seq_along(rownames(scores))[-positive_select]
 
   for (sig in sign.names){
     sig.zscore <- paste0(sig,"_Zscore")
     
     if(! sig %in% celltype.pass) {
-      negative_select <- c(negative_select, which(meta[,sig.zscore] > sd.out))   # Z.score threshold for contaminants
+      negative_select <- c(negative_select, which(scores[,sig.zscore] > sd.out))   # Z.score threshold for contaminants
     }
   }
   negative_select <- unique(negative_select)
-  negative_select.ID <- Cells(query)[negative_select]
+  negative_select.ID <- rownames(scores)[negative_select]
   
   #The vector labs will hold the global cells status to return
-  labs <- rep("Pure", dim(query)[2])
-  names(labs) <- Cells(query)
+  labs <- rep("Pure", dim(data)[2])
+  names(labs) <- Cells(data)
   tot.cells <- length(labs)
-  q <- query
+  q <- data
   
   #Start iterations
   for (iter in 1:max.iterations) {
@@ -322,46 +298,53 @@ scGate <- function(query, celltype="T.cell", bg.model=NULL, markers=NULL, max.im
       if (!quiet) {
         message(mess)
       }
-      query$is.pure <- labs
-      Idents(query) <- query$is.pure
-      DefaultAssay(query) <- def.assay
-      return(query)
+      if (return_signature_scores) {
+         data <- AddMetaData(data, scores)
+      }
+      
+      data$is.pure <- labs
+      Idents(data) <- data$is.pure
+      DefaultAssay(data) <- def.assay
+      return(data)
     }
   }  
   return()
 }
 
 
-#' Calculate thresholds for scGate
+#' Generate a scGate model
 #'
 #' Given a reference set, calculate expected mean and SD for all cell types in the reference set. Deviations from this expected distribution (Z-score)
-#' can be used to identify outliers
+#' can then be used to gate for specific cell types in any query dataset (see function \code{scGate})
 #'
 #' @param ref Seurat object containing the reference data set
 #' @param markers List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}
+#' @param positive_celltypes List of celltypes included in the reference set. These must be one or more from the list of markers (`\code{markers} parameter).
+#'     Only the `positive_celltypes` will be gated when the model is applied to a new query dataset
+#' @param autocomplete Automatically autocomplete cell types in \code{positive_celltypes} that start with same prefix
+#'     (e.g. B.cell gates for B.cell.1, B.cell.2 and B.cell.Plasmocyte signatures) 
 #' @param quant Quantile cutoff for score distribution
 #' @param assay Seurat assay to use
 #' @param method Scoring method for cell signatures (default \code{UCell})
 #' @param min.sd Minimum value for standard deviation - if calculated standard deviation is lower than min.sd, it is set to min.sd
-#' @param level Annotation level - thresholds are saved in list element \code{ref@@misc$scGate[[level]]}
-#' @param rm.existing Overwrite existing scGate scores in query object
 #' @param chunk.size Number of cells per batch to be scored by the method
 #' @param maxRank Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
-#' @return Return the \code{ref} reference object, with celltype-specific thresholds in the field \code{ref@@misc$scGate}. Scores for individual signatures are
-#'     returned as metadata in the Seurat object
+#' @param quiet Suppress all STDOUT output
+#' @return Returns a \code{scGate_Model} object, containing the expected signature score distribution (background model) for all evaluated signatures.
 #' @examples
 #' library(ProjecTILs)
 #' ref <- load.reference.map()
-#' ref <- calculate_thresholds_scGate(ref)
-#' ref@@misc$scGate[[1]]
-#' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on a specific cell type
+#' scGate.model <- train_scGate(ref, positive_celltypes='T.cell')
+#' head(scGate.model@@bg_model)
+#' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on specific cell type(s)
 #' @export
-calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="RNA",
-                                          min.sd=0.02, level=1, rm.existing=TRUE, method=c("UCell","AUCell","ModuleScore"),
-                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE, maxRank=1500) {
+train_scGate <- function(ref, markers=NULL, positive_celltypes=NULL, autocomplete=T,
+                                          maxRank=1500, min.sd=0.02,
+                                          method=c("UCell","AUCell","ModuleScore"), quant=0.995, assay="RNA",
+                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE, quiet=FALSE) {
   
   set.seed(seed)
   if (ncores>1) {
@@ -369,46 +352,84 @@ calculate_thresholds_scGate <- function(ref, markers=NULL, quant=0.995, assay="R
     future_param_seed <<- seed
     future_param_ncores <<- ncores
   }
-  def.assay <- DefaultAssay(ref) 
   DefaultAssay(ref) <- assay
   method <- method[1]
   
-  if (is.null(markers)) {
-     markers <- MCA.markers.Mm   #Default
-  } 
+  species <- detect_species(ref)
   
-  ref <- get_CTscores(obj=ref, markers.list=markers, rm.existing=rm.existing, z.score=FALSE,
-                      method=method, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank)
+  if (is.null(markers)) { #Default
+    if (species=="human") {
+      markers <- scGate_human_TIL_model@markers
+    } else {
+      markers <-  scGate_mouse_TIL_model@markers
+    }
+  }
   
-  sign <- names(markers) 
+  #Check selected cell type(s), and autoexpand if required
+  sign <- names(markers)
   sign.names <- paste0(sign,"_scGate")
   names(sign.names) <- sign
+  celltype.pass <- check_selected_celltypes(positive_celltypes, db=sign, autocomplete=autocomplete)
   
+  if (length(celltype.pass)<1) {
+    mess <- sprintf("Could not find selected cell types in marker list. Check your input to 'positive_celltypes' option")
+    stop(mess)
+  }  
+  if (!quiet) {
+    mess <- paste(celltype.pass, collapse=", ")
+    message(sprintf("Training %s scGate model - positive set of signatures: %s", species, mess))
+  }
+  
+  scores <- get_CTscores(obj=ref, markers.list=markers, z.score=FALSE,
+                      method=method, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank)
+  
+
   ref_thr <- matrix(nrow=length(sign), ncol=2)
   rownames(ref_thr) <- sign
   colnames(ref_thr) <- c("mean","sd")
   
   for(s in sign){
-    
     s.score <- sign.names[s]
-    bulk <- ref@meta.data[,s.score]
+    bulk <- scores[,s.score]
     bulk <- bulk[bulk >= quantile(bulk, p=1-quant) & bulk <= quantile(bulk,p=quant)]
     ref_thr[s,1] <- mean(bulk)
     ref_thr[s,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
- }
-
-  if (!is.list(ref@misc$scGate)) {
-     ref@misc$scGate <- list()
-  } 
-  ref@misc$scGate[[level]] <- ref_thr
+  }
   
-  if (!is.list(ref@misc$scGate.markers)) {
-    ref@misc$scGate.markers <- list()
-  } 
-  ref@misc$scGate.markers[[level]] <- markers
-
-  DefaultAssay(ref) <- def.assay
-  message(sprintf("Cell type thresholds available in ref@misc$scGate[[%i]]",level))
-  message(sprintf("Marker list available in ref@misc$scGate.markers[[%i]]",level))
-  return(ref)
+  obj <- new("scGate_Model",
+             species=species,
+             positive_celltypes=celltype.pass,
+             markers=markers,
+             bg_model=as.data.frame(ref_thr),
+             scoring_method=method)
+  
+  return(obj)
 }
+
+
+#' scGate_Model Class
+#'
+#' The scGate_Model class is use to store background models generated with the `scGate` package. It contains all the information needed
+#' to apply the model to a query dataset and filter on the cell type(s) of interest stored in the `positive_celltypes` slot.
+#'
+#' @slot species The species of the training data
+#' @slot positive_celltypes List of celltypes included in the reference set. These must be one or more from the list of markers (`markers` parameter).
+#'     Only the `positive_celltypes` will be gated when the model is applied to a new query dataset
+#' @slot markers List of markers for all celltypes included in the model
+#' @slot bg_model A dataframe containing mean and SD calculated on training set for all cell types in `markers` list
+#' @slot scoring_method The algorithm used to calculate signature scores     
+#' @name scGate_Model-class
+#' @rdname scGate_Model-class
+#' @concept objects
+#' @exportClass scGate_Model
+#'
+scGate_Model <- setClass(
+  Class = "scGate_Model",
+  slots = list(
+    species = "character",
+    positive_celltypes = "vector",
+    markers = "list",
+    bg_model = "data.frame",
+    scoring_method = "character"
+  )
+)

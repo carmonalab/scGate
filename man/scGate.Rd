@@ -5,40 +5,32 @@
 \title{Filter single-cell data by cell type}
 \usage{
 scGate(
-  query,
-  celltype = "T.cell",
-  bg.model = NULL,
-  markers = NULL,
+  data,
+  gating.model = NULL,
   max.impurity = 0.5,
   ndim = 30,
   resol = 3,
   assay = "RNA",
-  genes.blacklist = "Tcell.blacklist",
   sd.in = 3,
   sd.out = 7,
-  rm.existing = TRUE,
-  autocomplete = T,
-  method = c("UCell", "AUCell", "ModuleScore"),
   chunk.size = 1000,
   ncores = 1,
   maxRank = 1500,
   max.iterations = 10,
   stop.iterations = 0.01,
   min.cells = 100,
+  genes.blacklist = "Tcell.blacklist",
   seed = 123,
   skip.normalize = FALSE,
+  return_signature_scores = TRUE,
   verbose = FALSE,
   quiet = FALSE
 )
 }
 \arguments{
-\item{query}{Seurat object containing a query data set - filtering will be applied to this object}
+\item{data}{Seurat object containing a query data set - filtering will be applied to this object}
 
-\item{celltype}{One or more cell types to gate for (among cell types in \code{names(markers)})}
-
-\item{bg.model}{The background expected mean and SD for each cell type - see function \code{\link{calculate_thresholds_scGate}}}
-
-\item{markers}{List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}}
+\item{gating.model}{The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}}
 
 \item{max.impurity}{Maximum fraction of impurity allowed in clusters to flag cells as "pure". Can be either:
 \itemize{
@@ -52,18 +44,9 @@ scGate(
 
 \item{assay}{Seurat assay to use}
 
-\item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
-you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
-
-\item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signature}
+\item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signatures}
 
 \item{sd.out}{Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures}
-
-\item{rm.existing}{Overwrite existing scGate scores in query object}
-
-\item{autocomplete}{Include all cell types that start with same prefix given by `celltype` (e.g. B.cell gates for B.cell.1, B.cell.2 and B.cell.Plasmocyte signatures)}
-
-\item{method}{Scoring method for cell signatures (default \code{UCell})}
 
 \item{chunk.size}{Number of cells per batch to be scored by the method}
 
@@ -77,9 +60,14 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{min.cells}{Stop iterating if fewer than this number of cells is left}
 
+\item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
+you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
+
 \item{seed}{Integer seed for random number generator}
 
 \item{skip.normalize}{Skip data normalization}
+
+\item{return_signature_scores}{Add signature scores and Z-scores to object metadata}
 
 \item{verbose}{Verbose output}
 
@@ -93,10 +81,10 @@ A new metadata column \code{is.pure} is added to the query Seurat object, indica
 Apply scGate to filter specific cell types in a query dataset
 }
 \examples{
-query <- scGate(query, celltype="T.cell")
+query <- scGate(query)
 DimPlot(query)
 query <- subset(query, subset=is.pure=="Pure")
 }
 \seealso{
-\code{\link{calculate_thresholds_scGate()}} to calculate celltype-specific thresholds
+\code{\link{train_scGate()}} to generate celltype-specific models
 }

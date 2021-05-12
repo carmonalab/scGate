@@ -1,4 +1,4 @@
-
+#Match selected cell types with the DB of cell types
 check_selected_celltypes <- function(celltype, db, autocomplete=T) {
   match <- vector()
   
@@ -14,18 +14,37 @@ check_selected_celltypes <- function(celltype, db, autocomplete=T) {
   return(unique(match))
 }
 
+#Guess the species from the gene names of the query
+detect_species <- function(query) {
+  mm.genes <- unique(unlist(scGate_mouse_TIL_model@markers))
+  hs.genes <- unique(unlist(scGate_human_TIL_model@markers))
+  
+  mm.intersect <- length(intersect(mm.genes, rownames(query)))/length(mm.genes)
+  hs.intersect <- length(intersect(hs.genes, rownames(query)))/length(hs.genes)
+  if (max(mm.intersect, hs.intersect)<0.2) {
+    warning("More than 80% of genes not found in reference signatures...did you remove genes from the query data?")
+  }
+  if (mm.intersect>hs.intersect) {
+    species <- "mouse"
+  } else {
+    species <- "human"
+  }
+  return(species)
+}
+
 #Calculate scGate scores
-get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=FALSE,
-                         method=c("UCell","ModuleScore"), chunk.size=1000, ncores=1, maxRank=1500) {
+get_CTscores <- function(obj, markers.list, bg=NULL, z.score=FALSE,
+                         method=c("UCell","AUCell","ModuleScore"), chunk.size=1000, ncores=1, maxRank=1500) {
   
   method.use <- method[1]
+  celltypes <- names(markers.list)
   
-  if (rm.existing) {  #remove existing scGate scores
-    index.rm <- grep("_scGate|_Zscore",colnames(obj@meta.data), perl=T)
-    if (length(index.rm)>0) {
-      obj@meta.data <- subset(obj@meta.data, select = -index.rm)
-    }
+  #remove existing scGate scores
+  index.rm <- grep("_scGate|_Zscore",colnames(obj@meta.data), perl=T)
+  if (length(index.rm)>0) {
+    obj@meta.data <- subset(obj@meta.data, select = -index.rm)
   }
+
   
   if (method.use == "UCell") {
      obj <- suppressWarnings(UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank, name="_scGate"))
@@ -36,20 +55,21 @@ get_CTscores <- function(obj, markers.list, rm.existing=TRUE, bg=NULL, z.score=F
   } else {
      stop("Please give a valid method for signature scoring (see 'method' parameter)")
   }
-
+  #We only keep the new signature scores
+  ct_s <- paste0(celltypes,"_scGate")
+  scores <- obj@meta.data[,ct_s]
+  
   if (!z.score) {
-    return(obj) 
+    return(scores) 
   }
   
   #Convert to Z-score
-  celltypes <- names(markers.list)
-  
   for (ct in celltypes) {
     ct_z <- paste0(ct,"_Zscore")
     ct_s <- paste0(ct,"_scGate")
-    obj@meta.data[,ct_z] <- (obj@meta.data[,ct_s] - bg[ct,"mean"])/bg[ct,"sd"]
+    scores[,ct_z] <- (scores[,ct_s] - bg[ct,"mean"])/bg[ct,"sd"]
   }
-  return(obj)
+  return(scores)
 }
 
 AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxRank=1500, name="_scGate") {
