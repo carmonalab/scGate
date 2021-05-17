@@ -19,6 +19,7 @@ scGate(
   max.iterations = 10,
   stop.iterations = 0.01,
   min.cells = 100,
+  additional.signatures = NULL,
   genes.blacklist = "Tcell.blacklist",
   seed = 123,
   skip.normalize = FALSE,
@@ -59,6 +60,9 @@ scGate(
 \item{stop.iterations}{Stop iterating if fewer than this fraction of cells were removed in the last iteration}
 
 \item{min.cells}{Stop iterating if fewer than this number of cells is left}
+
+\item{additional.signatures}{A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
+list of signatures will be returned but not used for filtering.}
 
 \item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}

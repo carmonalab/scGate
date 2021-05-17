@@ -111,6 +111,8 @@ scGate.multilevel <- function(data, gating.model=NULL, max.impurity=0.5,
 #' @param max.iterations Maximum number of iterations
 #' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
 #' @param min.cells Stop iterating if fewer than this number of cells is left
+#' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
+#'     list of signatures will be returned but not used for filtering.
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
 #' @param skip.normalize Skip data normalization
@@ -132,6 +134,7 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
                      sd.in=3, sd.out=7,
                      chunk.size=1000, ncores=1, maxRank=1500,
                      max.iterations=10, stop.iterations=0.01, min.cells=100,
+                     additional.signatures=NULL,
                      genes.blacklist="Tcell.blacklist", 
                      seed=123, skip.normalize=FALSE, 
                      return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE) {
@@ -211,9 +214,8 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
   }
   
   #Get Zscores
-  scores <- get_CTscores(obj=data, markers.list=markers,
-                        method=method, chunk.size=chunk.size, ncores=ncores,
-                        bg=model, z.score=TRUE, maxRank=maxRank)
+  scores <- get_CTscores(obj=data, markers.list=markers, method=method, chunk.size=chunk.size, ncores=ncores,
+                        bg=model, z.score=TRUE, maxRank=maxRank, additional.signatures=additional.signatures)
   
   #First filter on cells with minimum levels of selected signature(s)
   positive_select <- c()

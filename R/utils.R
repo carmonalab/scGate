@@ -33,11 +33,16 @@ detect_species <- function(query) {
 }
 
 #Calculate scGate scores
-get_CTscores <- function(obj, markers.list, bg=NULL, z.score=FALSE,
+get_CTscores <- function(obj, markers.list, bg=NULL, z.score=FALSE, additional.signatures=NULL,
                          method=c("UCell","AUCell","ModuleScore"), chunk.size=1000, ncores=1, maxRank=1500) {
   
   method.use <- method[1]
   celltypes <- names(markers.list)
+  
+  if (is.list(additional.signatures) & length(additional.signatures)>0) {
+     markers.list <- append(markers.list, additional.signatures)
+  } 
+  celltypes.add <- names(markers.list)
   
   #remove existing scGate scores
   index.rm <- grep("_scGate|_Zscore",colnames(obj@meta.data), perl=T)
@@ -45,7 +50,6 @@ get_CTscores <- function(obj, markers.list, bg=NULL, z.score=FALSE,
     obj@meta.data <- subset(obj@meta.data, select = -index.rm)
   }
 
-  
   if (method.use == "UCell") {
      obj <- suppressWarnings(UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank, name="_scGate"))
   } else if (method.use == "AUCell") {
@@ -56,7 +60,7 @@ get_CTscores <- function(obj, markers.list, bg=NULL, z.score=FALSE,
      stop("Please give a valid method for signature scoring (see 'method' parameter)")
   }
   #We only keep the new signature scores
-  ct_s <- paste0(celltypes,"_scGate")
+  ct_s <- paste0(celltypes.add,"_scGate")
   scores <- obj@meta.data[,ct_s]
   
   if (!z.score) {
