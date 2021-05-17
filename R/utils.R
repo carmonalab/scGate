@@ -140,8 +140,164 @@ vectorize.parameters <- function(par, lgt=1) {
     if (i <= length(par)) {
       vec[i] <- par[i]
     } else {
-      vec[i] <- par[i-1]
+      vec[i] <- vec[i-1]
     }
   }
   return(vec)
 }
+
+scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
+                   max.impurity.decay=0,        
+                   ndim=30, resol=3, assay="RNA",
+                   sd.in=3, sd.out=7, species="mouse",
+                   chunk.size=1000, maxRank=1500,
+                   max.iterations=10, min.cells=100, stop.iterations=0.01,
+                   additional.signatures=NULL,
+                   genes.blacklist="Tcell.blacklist", 
+                   skip.normalize=FALSE, ncores=1,
+                   return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE) {
+  
+  #Get data stored in trained model
+  if (! class(gating.model) == "scGate_Model") {
+    stop("Background model must be a scGate_Model object")
+  }
+  markers <- gating.model@markers
+  pos.celltypes <- gating.model@positive_celltypes
+  model <- gating.model@bg_model
+  method <- gating.model@scoring_method
+  
+  if (!is.null(genes.blacklist)) {
+    if (length(genes.blacklist)==1 && genes.blacklist == "Tcell.blacklist") {  #Default
+      if (species=="human") {
+        genes.blacklist <- genes.blacklist.Hs
+      } else {
+        genes.blacklist <- genes.blacklist.Mm 
+      }
+    }  
+    if (is.list(genes.blacklist)) {
+      genes.blacklist <- unlist(genes.blacklist)
+    }
+    genes.blacklist <- unique(genes.blacklist)
+  }
+  
+  #Check that markers and threshold names correspond
+  marker.names.pass <- intersect(names(markers), rownames(model))
+  
+  if (length(marker.names.pass) ==0) {
+    mess <- "Error. Could not match markers with threshold file"
+    stop(mess)
+  }
+  markers <- markers[marker.names.pass]
+  
+  #Check selected cell type(s), and autoexpand if required
+  sign.names <- names(markers)
+  celltype.pass <- check_selected_celltypes(pos.celltypes, db=sign.names, autocomplete=F)
+  
+  if (length(celltype.pass)<1) {
+    mess <- sprintf("Could not find selected cell types in marker list")
+    stop(mess)
+  }  
+  if (!quiet) {
+    mess <- paste(celltype.pass, collapse=", ")
+    message(sprintf("--- Filtering for positive signatures: %s", mess))
+  }
+  
+  #Get Zscores
+  scores <- get_CTscores(obj=data, markers.list=markers, method=method, chunk.size=chunk.size, ncores=ncores,
+                         bg=model, z.score=TRUE, maxRank=maxRank, additional.signatures=additional.signatures)
+  
+  #First filter on cells with minimum levels of selected signature(s)
+  positive_select <- c()
+  for (sig in celltype.pass) {
+    sig.zscore <- paste0(sig,"_Zscore")
+    
+    sd.use <- sd.in
+    min.sd.in <- model[sig,"mean"]/model[sig,"sd"]-1e-3 # minimum z-score for positive scores
+    if (sd.use > min.sd.in) {
+      sd.use <- min.sd.in
+      if(verbose) message(sprintf("Readjusting sd.in for %s to %.4f to avoid negative thresholds", sig, sd.use)) 
+    }
+    positive_select <- c(positive_select, which(scores[,sig.zscore] >= -sd.use))  # Z.score threshold for desired cell types
+  }
+  positive_select <- unique(positive_select)
+  
+  if (length(positive_select)<1) {
+    stop("All cells were removed by scGate. Check filtering thresholds or input data")
+  }
+  
+  #Second, filter on cells with eccessive levels on undesired signatures
+  negative_select <- seq_along(rownames(scores))[-positive_select]
+  
+  for (sig in sign.names){
+    sig.zscore <- paste0(sig,"_Zscore")
+    
+    if(! sig %in% celltype.pass) {
+      negative_select <- c(negative_select, which(scores[,sig.zscore] > sd.out))   # Z.score threshold for contaminants
+    }
+  }
+  negative_select <- unique(negative_select)
+  negative_select.ID <- rownames(scores)[negative_select]
+  
+  #The vector labs will hold the global cells status to return
+  labs <- rep("Pure", dim(data)[2])
+  names(labs) <- Cells(data)
+  tot.cells <- length(labs)
+  q <- data
+  
+  #Start iterations
+  for (iter in 1:max.iterations) {
+    
+    filterCells.this <- negative_select.ID[negative_select.ID %in% Cells(q)]
+    imp.thr <- max.impurity - (iter-1)*max.impurity.decay
+    
+    ndim.use <- ifelse(ncol(q)<300, 5, ndim)  #with very few cells, reduce dimensionality
+    
+    ##High resolution clustering to detect dense regions of undesired cell types
+    if (!skip.normalize) {
+      q <- NormalizeData(q, verbose = FALSE)
+    }
+    q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = 500, verbose = FALSE)
+    q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
+    q <- ScaleData(q, verbose=FALSE)
+    q <- RunPCA(q, features = q@assays[[assay]]@var.features, verbose = FALSE)
+    q <- FindNeighbors(q, reduction = "pca", dims = 1:ndim.use, k.param = 5, verbose=FALSE)
+    q  <- FindClusters(q, resolution = resol, verbose = FALSE)
+    q$clusterCT <- q@active.ident
+    
+    m <- q@meta.data
+    impure.freq <- tapply(row.names(m), m$clusterCT,function(x) {mean(x %in% filterCells.this)})
+    
+    filterCluster <- names(impure.freq)[impure.freq > imp.thr]
+    n_rem <- sum(q$clusterCT %in% filterCluster)
+    frac.to.rem <- n_rem/tot.cells
+    mess <- sprintf("----- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for selected signatures (%.2f%% of total cells)",
+                    iter, imp.thr, n_rem, 100*frac.to.rem)
+    if (verbose) {
+      message(mess)
+    }
+    
+    q$is.pure <- ifelse(q$clusterCT %in% filterCluster,"Impure","Pure")
+    labs[colnames(q)] <- q$is.pure
+    q <- subset(q, subset=is.pure=="Pure")
+    
+    if (frac.to.rem < stop.iterations | iter>=max.iterations | ncol(q)<min.cells) {
+      #Return clusters and active idents for easy filtering
+      n_rem <- sum(labs=="Impure")
+      frac.to.rem <- n_rem/tot.cells
+      mess <- sprintf("scGate: Detected %i non-pure cells for selected signatures - %.2f%% cells marked for removal (active.ident)",
+                      n_rem, 100*frac.to.rem)
+      if (!quiet) {
+        message(mess)
+      }
+      if (return_signature_scores) {
+        data <- AddMetaData(data, scores)
+      }
+      
+      data$is.pure <- labs
+      Idents(data) <- data$is.pure
+      return(data)
+    }
+  }  
+  return()
+}
+

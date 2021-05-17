@@ -8,6 +8,7 @@ scGate(
   data,
   gating.model = NULL,
   max.impurity = 0.5,
+  max.impurity.decay = 0,
   ndim = 30,
   resol = 3,
   assay = "RNA",
@@ -17,7 +18,6 @@ scGate(
   ncores = 1,
   maxRank = 1500,
   max.iterations = 10,
-  stop.iterations = 0.01,
   min.cells = 100,
   additional.signatures = NULL,
   genes.blacklist = "Tcell.blacklist",
@@ -33,11 +33,9 @@ scGate(
 
 \item{gating.model}{The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}}
 
-\item{max.impurity}{Maximum fraction of impurity allowed in clusters to flag cells as "pure". Can be either:
-\itemize{
-  \item{Single number between 0 and 1 - the same impurity threshold is applied to all iterations}
-  \item{Vector of numbers between 0 and 1 - specific impurity thresholds for successive iterations e.g. \code{max.impurity=c(0.7,0.5,0.3)}}
-}}
+\item{max.impurity}{Maximum fraction of impurity allowed in clusters to flag cells as "pure".}
+
+\item{max.impurity.decay}{Decrease by this fraction the max.impurity allowed at each iteration.}
 
 \item{ndim}{Number of dimensions for cluster analysis}
 
@@ -56,8 +54,6 @@ scGate(
 \item{maxRank}{Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')}
 
 \item{max.iterations}{Maximum number of iterations}
-
-\item{stop.iterations}{Stop iterating if fewer than this fraction of cells were removed in the last iteration}
 
 \item{min.cells}{Stop iterating if fewer than this number of cells is left}
 
@@ -83,6 +79,10 @@ A new metadata column \code{is.pure} is added to the query Seurat object, indica
 }
 \description{
 Apply scGate to filter specific cell types in a query dataset
+}
+\note{
+The parameters \code{max.impurity}, \code{sd.in} and \code{sd.out} also accept a vector of values. This allows specifying different values for this
+    parameters for signatures of different levels
 }
 \examples{
 query <- scGate(query)
