@@ -16,8 +16,8 @@ check_selected_celltypes <- function(celltype, db, autocomplete=T) {
 
 #Guess the species from the gene names of the query
 detect_species <- function(query) {
-  mm.genes <- unique(unlist(scGate_mouse_TIL_model@markers))
-  hs.genes <- unique(unlist(scGate_human_TIL_model@markers))
+  mm.genes <- unique(unlist(scGate_DB$mouse$Tcell@markers))
+  hs.genes <- unique(unlist(scGate_DB$human$Tcell@markers))
   
   mm.intersect <- length(intersect(mm.genes, rownames(query)))/length(mm.genes)
   hs.intersect <- length(intersect(hs.genes, rownames(query)))/length(hs.genes)

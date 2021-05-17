@@ -24,7 +24,7 @@ train_scGate(
 \arguments{
 \item{ref}{Seurat object containing the reference data set}
 
-\item{markers}{List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}}
+\item{markers}{List of markers for each cell type, for example \code{scGate_DB$human$Tcell@markers}}
 
 \item{positive_celltypes}{List of celltypes included in the reference set. These must be one or more from the list of markers (`\code{markers} parameter).
 Only the `positive_celltypes` will be gated when the model is applied to a new query dataset}

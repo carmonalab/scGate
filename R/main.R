@@ -61,11 +61,7 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
   species <- detect_species(data)
   
   if (is.null(gating.model)) { #Default
-    if (species=="human") {
-      gating.model <- scGate_human_TIL_model
-    } else {
-      gating.model <- scGate_mouse_TIL_model 
-    }
+    gating.model <- scGate_DB[[species]]$Tcell
   }
   
   gating.model.list <- list()
@@ -123,7 +119,7 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
 #' can then be used to gate for specific cell types in any query dataset (see function \code{scGate})
 #'
 #' @param ref Seurat object containing the reference data set
-#' @param markers List of markers for each cell type, for example \code{scGate::MCA.markers.Mm}
+#' @param markers List of markers for each cell type, for example \code{scGate_DB$human$Tcell@@markers}
 #' @param positive_celltypes List of celltypes included in the reference set. These must be one or more from the list of markers (`\code{markers} parameter).
 #'     Only the `positive_celltypes` will be gated when the model is applied to a new query dataset
 #' @param autocomplete Automatically autocomplete cell types in \code{positive_celltypes} that start with same prefix
@@ -163,11 +159,7 @@ train_scGate <- function(ref, markers=NULL, positive_celltypes=NULL, autocomplet
   species <- detect_species(ref)
   
   if (is.null(markers)) { #Default
-    if (species=="human") {
-      markers <- scGate_human_TIL_model@markers
-    } else {
-      markers <-  scGate_mouse_TIL_model@markers
-    }
+      markers <- scGate_DB[[species]]$Tcell@markers
   }
   
   #Check selected cell type(s), and autoexpand if required

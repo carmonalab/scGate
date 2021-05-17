@@ -18,6 +18,7 @@ scGate(
   ncores = 1,
   maxRank = 1500,
   max.iterations = 10,
+  stop.iterations = 0.01,
   min.cells = 100,
   additional.signatures = NULL,
   genes.blacklist = "Tcell.blacklist",
@@ -54,6 +55,8 @@ scGate(
 \item{maxRank}{Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')}
 
 \item{max.iterations}{Maximum number of iterations}
+
+\item{stop.iterations}{Stop iterating if fewer than this fraction of cells were removed in the last iteration}
 
 \item{min.cells}{Stop iterating if fewer than this number of cells is left}
 
