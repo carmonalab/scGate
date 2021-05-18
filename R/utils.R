@@ -192,6 +192,7 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
   #Check selected cell type(s), and autoexpand if required
   sign.names <- names(markers)
   celltype.pass <- check_selected_celltypes(pos.celltypes, db=sign.names, autocomplete=F)
+  celltype.nopass <- setdiff(sign.names, celltype.pass)
   
   if (length(celltype.pass)<1) {
     mess <- sprintf("Could not find selected cell types in marker list")
@@ -199,14 +200,19 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
   }  
   if (!quiet) {
     mess <- paste(celltype.pass, collapse=", ")
-    message(sprintf("--- Filtering for positive signatures: %s", mess))
+    message(sprintf("--- Filtering for selected cell types: %s", mess))
   }
   
   #Get Zscores
   scores <- get_CTscores(obj=data, markers.list=markers, method=method, chunk.size=chunk.size, ncores=ncores,
                          bg=model, z.score=TRUE, maxRank=maxRank, additional.signatures=additional.signatures)
   
-  #First filter on cells with minimum levels of selected signature(s)
+  #START FILTERING
+  all_ind <- seq_along(rownames(scores))
+  tags <- rep("pass", nrow(scores))
+  names(tags) <- rownames(scores)
+  
+  #First, only keep cells with minimum expression levels for selected signature(s)
   positive_select <- c()
   for (sig in celltype.pass) {
     sig.zscore <- paste0(sig,"_Zscore")
@@ -220,34 +226,44 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
     positive_select <- c(positive_select, which(scores[,sig.zscore] >= -sd.use))  # Z.score threshold for desired cell types
   }
   positive_select <- unique(positive_select)
+  to.filter <- setdiff(all_ind, positive_select)
   
-  if (length(positive_select)<1) {
-    stop("All cells were removed by scGate. Check filtering thresholds or input data")
-  }
+  #Then, filter out cells with eccessive levels on undesired signatures
+  negative_select <- c()
   
-  #Second, filter on cells with eccessive levels on undesired signatures
-  negative_select <- seq_along(rownames(scores))[-positive_select]
-  
-  for (sig in sign.names){
+  for (sig in celltype.nopass){
     sig.zscore <- paste0(sig,"_Zscore")
-    
     if(! sig %in% celltype.pass) {
       negative_select <- c(negative_select, which(scores[,sig.zscore] > sd.out))   # Z.score threshold for contaminants
     }
   }
   negative_select <- unique(negative_select)
-  negative_select.ID <- rownames(scores)[negative_select]
   
-  #The vector labs will hold the global cells status to return
-  labs <- rep("Pure", dim(data)[2])
-  names(labs) <- Cells(data)
+  sig.zscores.out <- paste0(celltype.nopass,"_Zscore") 
+  if (length(negative_select)>0) {
+    max.index <- apply(scores[negative_select, sig.zscores.out], MARGIN = 1, which.max)
+    tags[negative_select] <- sig.zscores.out[max.index]
+  }
+  
+  unknown <- setdiff(to.filter, negative_select)
+  tags[unknown] <- "Unknown"
+  
+  if (sum(tags=="pass")==0) {
+    stop("All cells were removed by scGate. Check filtering thresholds or input data")
+  }
+  to.filter.ID <- names(tags[!tags=="pass"])
+
+  #The vector 'labs' will contain the identification as "Pure" or "Impure" cell
+  labs <- rep("Pure", nrow(scores))
+  names(labs) <- rownames(scores)
+  labs.ann <- labs
   tot.cells <- length(labs)
   q <- data
   
   #Start iterations
   for (iter in 1:max.iterations) {
     
-    filterCells.this <- negative_select.ID[negative_select.ID %in% Cells(q)]
+    filterCells.this <- to.filter.ID[to.filter.ID %in% Cells(q)]
     imp.thr <- max.impurity - (iter-1)*max.impurity.decay
     
     ndim.use <- ifelse(ncol(q)<300, 5, ndim)  #with very few cells, reduce dimensionality
@@ -276,8 +292,18 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
       message(mess)
     }
     
+    for (cl in filterCluster) {
+       ids <- Cells(q)[which(m$clusterCT == cl)]
+       tab <- table(tags[ids])
+       tab <- tab[names(tab) != "pass"]
+       ctype.out <- names(sort((tab), decreasing = T))[1]
+       labs.ann[ids] <- gsub("_Zscore",replacement="", ctype.out)
+    }
     q$is.pure <- ifelse(q$clusterCT %in% filterCluster,"Impure","Pure")
+    
     labs[colnames(q)] <- q$is.pure
+    
+    #Subset on pure cells
     q <- subset(q, subset=is.pure=="Pure")
     
     if (frac.to.rem < stop.iterations | iter>=max.iterations | ncol(q)<min.cells) {
@@ -294,6 +320,8 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
       }
       
       data$is.pure <- labs
+      data$scGate.annotation <- labs.ann
+      
       Idents(data) <- data$is.pure
       return(data)
     }

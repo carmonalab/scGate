@@ -78,7 +78,9 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 }
 \value{
 A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
-    The \code{active.ident} is also set to this variable. Additionally, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
+    The \code{active.ident} is also set to this variable. \cr
+    The metadata field \code{scGate.annotation} will report the suggested identity of filtered cells based on the consensus maximum Zscores within clusters.
+    If \code{return_signature_scores=TRUE}, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
 }
 \description{
 Apply scGate to filter specific cell types in a query dataset
@@ -90,6 +92,7 @@ The parameters \code{max.impurity}, \code{sd.in} and \code{sd.out} also accept a
 \examples{
 query <- scGate(query)
 DimPlot(query)
+DimPlot(query, group.by="scGate.annotation", label=T)
 query <- subset(query, subset=is.pure=="Pure")
 }
 \seealso{

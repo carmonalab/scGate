@@ -27,12 +27,15 @@
 #' @param verbose Verbose output
 #' @param quiet Suppress all output
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
-#'     The \code{active.ident} is also set to this variable. Additionally, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
+#'     The \code{active.ident} is also set to this variable. \cr
+#'     The metadata field \code{scGate.annotation} will report the suggested identity of filtered cells based on the consensus maximum Zscores within clusters.
+#'     If \code{return_signature_scores=TRUE}, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
 #' @note The parameters \code{max.impurity}, \code{sd.in} and \code{sd.out} also accept a vector of values. This allows specifying different values for this
 #'     parameters for signatures of different levels
 #' @examples
 #' query <- scGate(query)
 #' DimPlot(query)
+#' DimPlot(query, group.by="scGate.annotation", label=T)
 #' query <- subset(query, subset=is.pure=="Pure")
 #' @seealso \code{\link{train_scGate()}} to generate celltype-specific models
 #' @export
@@ -79,6 +82,7 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
   parameters <- lapply(parameters, vectorize.parameters, lgt=n.levels)
   
   data$is.pure <- "Impure"
+  data$scGate.annotation <- NA
   sub <- data
   for (lev in 1:n.levels) {
      message(sprintf("- Running scGate for level %i: ", lev))
@@ -102,11 +106,12 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
         meta.cols <- grep("_scGate|_Zscore",colnames(sub@meta.data), perl=T, value = T)
         data <- AddMetaData(data, metadata = sub@meta.data[,meta.cols])  #NB: this will generate NAs for 2nd+ level signatures
      }
+     data$scGate.annotation[colnames(sub)] <- sub$scGate.annotation
      sub <- subset(sub, subset=is.pure=="Pure")
   }
   pure.cells <- colnames(sub)
   data@meta.data[pure.cells, "is.pure"] <- "Pure"
-
+  
   Idents(data) <- data$is.pure
   DefaultAssay(data) <- def.assay
   
@@ -174,7 +179,7 @@ train_scGate <- function(ref, markers=NULL, positive_celltypes=NULL, autocomplet
   }  
   if (!quiet) {
     mess <- paste(celltype.pass, collapse=", ")
-    message(sprintf("Training %s scGate model - positive set of signatures: %s", species, mess))
+    message(sprintf("Training %s scGate model - selected cell types: %s", species, mess))
   }
   
   scores <- get_CTscores(obj=ref, markers.list=markers, z.score=FALSE,
