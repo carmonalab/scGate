@@ -103,6 +103,10 @@ AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxR
     plan(strategy = "sequential")
     
   } else {
+    if (verbose) {
+      message("NB: You can accelerate computation by increasing number of cores with 'ncores' parameter")
+    }
+    
     meta.list <- lapply(
       X = split.data,
       FUN = function(x) {
@@ -199,7 +203,7 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
   }  
   if (!quiet) {
     mess <- paste(celltype.pass, collapse=", ")
-    message(sprintf("--- Filtering for positive signatures: %s", mess))
+    message(sprintf("--- Filtering for target cell type(s): %s", mess))
   }
   
   #Get Zscores
