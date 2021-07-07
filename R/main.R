@@ -43,7 +43,7 @@
 scGate <- function(data, gating.model=NULL, max.impurity=0.5,
                    max.impurity.decay=0,
                    ndim=30, resol=3, assay="RNA", 
-                   sd.in=3, sd.out=7,
+                   sd.in=4, sd.out=7,
                    chunk.size=1000, ncores=1, maxRank=1500,
                    max.iterations=10, stop.iterations=0.01, min.cells=100,
                    additional.signatures=NULL,
