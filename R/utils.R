@@ -233,7 +233,7 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
   positive_select <- unique(positive_select)
   to.filter <- setdiff(all_ind, positive_select)
   
-  #Then, filter out cells with eccessive levels on undesired signatures
+  #Then, filter out cells with excessive levels on undesired signatures
   negative_select <- c()
   
   for (sig in celltype.nopass){
@@ -253,9 +253,6 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
   unknown <- setdiff(to.filter, negative_select)
   tags[unknown] <- "Unknown"
   
-  if (sum(tags=="pass")==0) {
-    stop("All cells were removed by scGate. Check filtering thresholds or input data")
-  }
   to.filter.ID <- names(tags[!tags=="pass"])
 
   #The vector 'labs' will contain the identification as "Pure" or "Impure" cell
@@ -291,6 +288,7 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
     filterCluster <- names(impure.freq)[impure.freq > imp.thr]
     n_rem <- sum(q$clusterCT %in% filterCluster)
     frac.to.rem <- n_rem/tot.cells
+    
     mess <- sprintf("----- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for selected signatures (%.2f%% of total cells)",
                     iter, imp.thr, n_rem, 100*frac.to.rem)
     if (verbose) {
@@ -309,9 +307,10 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
     labs[colnames(q)] <- q$is.pure
     
     #Subset on pure cells
-    q <- subset(q, subset=is.pure=="Pure")
-    
-    if (frac.to.rem < stop.iterations | iter>=max.iterations | ncol(q)<min.cells) {
+    if (frac.to.rem < 1) {
+       q <- subset(q, subset=is.pure=="Pure")
+    }
+    if (frac.to.rem < stop.iterations | iter>=max.iterations | ncol(q)<min.cells | frac.to.rem==1) {
       #Return clusters and active idents for easy filtering
       n_rem <- sum(labs=="Impure")
       frac.to.rem <- n_rem/tot.cells
@@ -320,6 +319,10 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
       if (!quiet) {
         message(mess)
       }
+      if (n_rem == tot.cells) {
+        message("Warning: all cells were removed by scGate. Check filtering thresholds or input data")
+      }
+      
       if (return_signature_scores) {
         data <- AddMetaData(data, scores)
       }
