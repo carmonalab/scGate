@@ -107,7 +107,12 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
         data <- AddMetaData(data, metadata = sub@meta.data[,meta.cols])  #NB: this will generate NAs for 2nd+ level signatures
      }
      data$scGate.annotation[colnames(sub)] <- sub$scGate.annotation
-     sub <- subset(sub, subset=is.pure=="Pure")
+     if (sum(sub$is.pure=="Pure")==0) {
+        sub <- NULL
+        break   #all cells were removed
+     } else {
+        sub <- subset(sub, subset=is.pure=="Pure")
+     }
   }
   pure.cells <- colnames(sub)
   data@meta.data[pure.cells, "is.pure"] <- "Pure"

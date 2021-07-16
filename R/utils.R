@@ -306,12 +306,9 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
     
     labs[colnames(q)] <- q$is.pure
     
-    #Subset on pure cells
-    if (frac.to.rem < 1) {
-       q <- subset(q, subset=is.pure=="Pure")
-    }
-    if (frac.to.rem < stop.iterations | iter>=max.iterations | ncol(q)<min.cells | frac.to.rem==1) {
-      #Return clusters and active idents for easy filtering
+    #End iterations?
+    if (frac.to.rem < stop.iterations | iter>=max.iterations | sum(labs=="Pure")<min.cells) {
+      
       n_rem <- sum(labs=="Impure")
       frac.to.rem <- n_rem/tot.cells
       mess <- sprintf("scGate: Detected %i non-pure cells for selected signatures - %.2f%% cells marked for removal (active.ident)",
@@ -332,6 +329,9 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
       
       Idents(data) <- data$is.pure
       return(data)
+    } else {
+      #Subset on pure cells
+      q <- subset(q, subset=is.pure=="Pure")
     }
   }  
   return()
