@@ -10,7 +10,7 @@ Details of the algorithm (TO DO).
 ### Installation
 ```
 remotes::install_github("carmonalab/UCell")
-remotes::install_git("https://gitlab.unil.ch/carmona/scGate.git")
+remotes::install_github("carmonalab/scGate")
 ```
 
 ### Functions
