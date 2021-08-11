@@ -160,7 +160,7 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
                    additional.signatures=NULL,
                    genes.blacklist="Tcell.blacklist", 
                    skip.normalize=FALSE, ncores=1,
-                   return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE) {
+                   return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE,compute_scores =T) {
   
   #Get data stored in trained model
   if (! class(gating.model) == "scGate_Model") {
@@ -209,8 +209,12 @@ scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
   }
   
   #Get Zscores
-  scores <- get_CTscores(obj=data, markers.list=markers, method=method, chunk.size=chunk.size, ncores=ncores,
+  if(compute_scores){
+    scores <- get_CTscores(obj=data, markers.list=markers, method=method, chunk.size=chunk.size, ncores=ncores,
                          bg=model, z.score=TRUE, maxRank=maxRank, additional.signatures=additional.signatures)
+  }else{
+    scores <- data@meta.data[,paste0(sign.names,"_Zscore")]
+  }
   
   #START FILTERING
   all_ind <- seq_along(rownames(scores))
