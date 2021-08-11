@@ -49,7 +49,7 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
                    additional.signatures=NULL,
                    genes.blacklist="Tcell.blacklist", 
                    seed=123, skip.normalize=FALSE, 
-                   return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE) {
+                   return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE, compute_scores=T) {
   
   set.seed(seed)
   def.assay <- DefaultAssay(data)
@@ -100,7 +100,7 @@ scGate <- function(data, gating.model=NULL, max.impurity=0.5,
                       additional.signatures=additional.signatures,
                       genes.blacklist=genes.blacklist, skip.normalize=skip.normalize,
                       return_signature_scores=return_signature_scores,
-                      ncores=ncores, quiet=quiet, verbose=verbose)
+                      ncores=ncores, quiet=quiet, verbose=verbose,compute_scores=compute_scores)
      
      if (return_signature_scores) {
         meta.cols <- grep("_scGate|_Zscore",colnames(sub@meta.data), perl=T, value = T)
