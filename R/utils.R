@@ -1,343 +1,268 @@
-#Match selected cell types with the DB of cell types
-check_selected_celltypes <- function(celltype, db, autocomplete=T) {
-  match <- vector()
+find.nn <- function(q, assay = "RNA", npca=30, nfeatures=2000, k.param=10, min.cells=30, by.knn = F) {
   
-  for (i in seq_along(celltype)) {
-    regexp = paste0("^",celltype[i])
-    if (!autocomplete) {  #exact match
-      regexp = paste0(regexp, '$')   
+  DefaultAssay(q) <- assay
+  ncells <- length(Cells(q))
+  
+  if(ncells < min.cells){
+    q$clusterCT <- 0    #with very few cells, consider them as a single cluster
+    return(q)
+  }  
+  genes.blacklist <- scGate::genes.blacklist.Hs
+  
+  q <- NormalizeData(q, verbose = FALSE)
+  q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
+  q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
+  q <- ScaleData(q, verbose=FALSE)
+  q <- RunPCA(q, features = q@assays[[assay]]@var.features, npcs=npca, verbose = FALSE)
+  q <- suppressMessages(FindNeighbors(q, reduction = "pca", dims = 1:npca, k.param = k.param, verbose=FALSE,
+                                      return.neighbor = by.knn))
+  return(q)
+  
+}
+
+## Filter by mean
+filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.cells=30,
+                          assay="RNA", return_object = T, by.knn = F) {
+  
+  DefaultAssay(q) <- assay
+  ncells <- dim(q)[2]
+  notfound <- c(positive[!positive %in% colnames(q@meta.data)], negative[!negative %in% colnames(q@meta.data)])
+  
+  if (length(notfound)>0) {
+    message(paste0("Warning: signatures not found: ", notfound))
+  }
+  positive <- positive[positive %in% colnames(q@meta.data)]
+  negative <- negative[negative %in% colnames(q@meta.data)]
+  
+  cols <- c(positive, negative)
+  means <- list()
+  
+  if(!by.knn){
+    for (col in cols) {
+      means[[col]] <- sapply(levels(q$clusterCT), function(x) {
+        mean(q@meta.data[q$clusterCT == x, col])
+      })
+    }
+    meds <- Reduce(rbind, means)
+    rownames(meds) <- cols
+    
+    pos <- vector(length=dim(meds)[2])
+    neg <- vector(length=dim(meds)[2])
+    for (j in 1:dim(meds)[2]) {
+      pos[j] <- max(meds[positive,j])
+      neg[j] <- max(meds[negative,j])
     }
     
-    this <- grep(regexp, db, value=T, perl=T)
-    match <- c(match,this)
-  }
-  return(unique(match))
-}
-
-#Guess the species from the gene names of the query
-detect_species <- function(query) {
-  mm.genes <- unique(unlist(scGate_DB$mouse$Tcell@markers))
-  hs.genes <- unique(unlist(scGate_DB$human$Tcell@markers))
-  
-  mm.intersect <- length(intersect(mm.genes, rownames(query)))/length(mm.genes)
-  hs.intersect <- length(intersect(hs.genes, rownames(query)))/length(hs.genes)
-  if (max(mm.intersect, hs.intersect)<0.2) {
-    warning("More than 80% of genes not found in reference signatures...did you remove genes from the query data?")
-  }
-  if (mm.intersect>hs.intersect) {
-    species <- "mouse"
-  } else {
-    species <- "human"
-  }
-  return(species)
-}
-
-#Calculate scGate scores
-get_CTscores <- function(obj, markers.list, bg=NULL, z.score=FALSE, additional.signatures=NULL,
-                         method=c("UCell","AUCell","ModuleScore"), chunk.size=1000, ncores=1, maxRank=1500) {
-  
-  method.use <- method[1]
-  celltypes <- names(markers.list)
-  
-  if (is.list(additional.signatures) & length(additional.signatures)>0) {
-     markers.list <- append(markers.list, additional.signatures)
-  } 
-  celltypes.add <- names(markers.list)
-  
-  #remove existing scGate scores
-  index.rm <- grep("_scGate|_Zscore",colnames(obj@meta.data), perl=T)
-  if (length(index.rm)>0) {
-    obj@meta.data <- subset(obj@meta.data, select = -index.rm)
-  }
-
-  if (method.use == "UCell") {
-     obj <- suppressWarnings(UCell::AddModuleScore_UCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank, name="_scGate"))
-  } else if (method.use == "AUCell") {
-     obj <- suppressWarnings(AddModuleScore_AUCell(obj, features=markers.list, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank))
-  } else if (method.use == "ModuleScore") { ##TO DO: Rename output to make it compatible with other methods
-     obj <- suppressWarnings(AddModuleScore(obj, features = markers.list, name="scGateScore"))
-  } else {
-     stop("Please give a valid method for signature scoring (see 'method' parameter)")
-  }
-  #We only keep the new signature scores
-  ct_s <- paste0(celltypes.add,"_scGate")
-  scores <- obj@meta.data[,ct_s]
-  
-  if (!z.score) {
-    return(scores) 
-  }
-  
-  #Convert to Z-score
-  for (ct in celltypes) {
-    ct_z <- paste0(ct,"_Zscore")
-    ct_s <- paste0(ct,"_scGate")
-    scores[,ct_z] <- (scores[,ct_s] - bg[ct,"mean"])/bg[ct,"sd"]
-  }
-  return(scores)
-}
-
-AddModuleScore_AUCell <- function(obj, features, chunk.size=1000, ncores=1, maxRank=1500, name="_scGate") {
-  
-  require(AUCell)
-  assay <- DefaultAssay(obj)
-  
-  #Split into manageable chunks
-  split.data <- split_data.matrix(matrix=obj@assays[[assay]]@data, chunk.size=chunk.size)
-  
-  #Parallelize?
-  if (ncores>1) {
-    plan(future::multisession(workers=future_param_ncores))
+    indices <- intersect(which(pos > pos.thr), which(neg < neg.thr))
+    select.pures <- colnames(meds)[indices]
+    ispure <- ifelse(q$clusterCT %in% select.pures,"Pure","Impure")
     
-    meta.list <- future_lapply(
-      X = split.data,
-      FUN = function(x) {
-        cells_rankings <- AUCell_buildRankings(x, plotStats=F, verbose=F)
-        cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
-        
-        new.meta <- as.data.frame(t(getAUC(cells_AUC)))
-        colnames(new.meta) <- paste0(colnames(new.meta), name)
-        return(new.meta)
-      },
-      future.seed = future_param_seed
-    )
-    plan(strategy = "sequential")
     
-  } else {
-    if (verbose) {
-      mess <- "Running on single core... You can speed-up computation by increasing number of cores ('ncores' parameter)"
-      message(mess)
-    }
-    
-    meta.list <- lapply(
-      X = split.data,
-      FUN = function(x) {
-        cells_rankings <- AUCell_buildRankings(x, plotStats=F, verbose=F)
-        cells_AUC <- AUCell_calcAUC(features, cells_rankings, aucMaxRank=maxRank)
-        
-        new.meta <- as.data.frame(t(getAUC(cells_AUC)))
-        colnames(new.meta) <- paste0(colnames(new.meta), name)
-        return(new.meta)
-      } )
-  }
-  
-  meta.merge <- Reduce(rbind, meta.list)
-  obj <- Seurat::AddMetaData(obj, as.data.frame(meta.merge))
-  
-  return(obj)
-}
-
-split_data.matrix <- function(matrix, chunk.size=1000) {
-   ncols <- dim(matrix)[2]
-   nchunks <- (ncols-1) %/% chunk.size + 1
-   
-   split.data <- list()
-   for (i in 1:nchunks) {
-      min <- 1 + (i-1)*chunk.size
-      max <- min(i*chunk.size, ncols)
-      split.data[[i]] <- matrix[,min:max]
-   }
-   return(split.data)
-}
-
-vectorize.parameters <- function(par, lgt=1) {
-  vec <- vector(mode="numeric", lgt)
-  for (i in 1:length(vec)) {
-    if (i <= length(par)) {
-      vec[i] <- par[i]
-    } else {
-      vec[i] <- vec[i-1]
-    }
-  }
-  return(vec)
-}
-
-scGate_helper <- function(data, gating.model=NULL, max.impurity=0.5,
-                   max.impurity.decay=0,        
-                   ndim=30, resol=3, assay="RNA",
-                   sd.in=3, sd.out=7, species="mouse",
-                   chunk.size=1000, maxRank=1500,
-                   max.iterations=10, min.cells=100, stop.iterations=0.01,
-                   additional.signatures=NULL,
-                   genes.blacklist="Tcell.blacklist", 
-                   skip.normalize=FALSE, ncores=1,
-                   return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE,compute_scores =T) {
-  
-  #Get data stored in trained model
-  if (! class(gating.model) == "scGate_Model") {
-    stop("Background model must be a scGate_Model object")
-  }
-  markers <- gating.model@markers
-  pos.celltypes <- gating.model@positive_celltypes
-  model <- gating.model@bg_model
-  method <- gating.model@scoring_method
-  
-  if (!is.null(genes.blacklist)) {
-    if (length(genes.blacklist)==1 && genes.blacklist == "Tcell.blacklist") {  #Default
-      if (species=="human") {
-        genes.blacklist <- genes.blacklist.Hs
+  } else{
+    for (col in cols) {
+      meta.nn <- sprintf("%s.nn", assay)
+      if (ncells < min.cells) {   #very small dataset. Use all cells together
+        neigs <- t(matrix(data = rep(1:ncells,ncells), nrow = ncells, ncol = ncells))
       } else {
-        genes.blacklist <- genes.blacklist.Mm 
+        neigs <- q@neighbors[[meta.nn]]@nn.idx
       }
-    }  
-    if (is.list(genes.blacklist)) {
-      genes.blacklist <- unlist(genes.blacklist)
+      m <- q[[col]][[1]][neigs]
+      dim(m) <- dim(neigs)
+      means[[col]] <- apply(m,1,mean)
     }
-    genes.blacklist <- unique(genes.blacklist)
+    meds <- Reduce(rbind, means)
+    rownames(meds) <- cols
+    if(length(positive)>1){
+      pos <- meds[positive,]%>%apply(2,max)
+    }else{
+      pos <- meds[positive,]
+    }
+    if(length(negative)>1){
+      neg <- meds[negative,]%>%apply(2,max)
+    }else{
+      neg<- meds[negative,]
+    }
+    ispure <- rep("Impure",dim(q)[2])
+    ispure[(pos > pos.thr)&(neg < neg.thr)] <- "Pure"
   }
   
-  #Check that markers and threshold names correspond
-  marker.names.pass <- intersect(names(markers), rownames(model))
+  q$is.pure <- ispure
+  if(return_object) {return(q)}
   
-  if (length(marker.names.pass) ==0) {
-    mess <- "Error. Could not match markers with threshold file"
-    stop(mess)
-  }
-  markers <- markers[marker.names.pass]
+  return(ispure)
   
-  #Check selected cell type(s), and autoexpand if required
-  sign.names <- names(markers)
-  celltype.pass <- check_selected_celltypes(pos.celltypes, db=sign.names, autocomplete=F)
-  celltype.nopass <- setdiff(sign.names, celltype.pass)
-  
-  if (length(celltype.pass)<1) {
-    mess <- sprintf("Could not find selected cell types in marker list")
-    stop(mess)
-  }  
-  if (!quiet) {
-    mess <- paste(celltype.pass, collapse=", ")
-    message(sprintf("--- Filtering for target cell type(s): %s", mess))
-  }
-  
-  #Get Zscores
-  if(compute_scores){
-    scores <- get_CTscores(obj=data, markers.list=markers, method=method, chunk.size=chunk.size, ncores=ncores,
-                         bg=model, z.score=TRUE, maxRank=maxRank, additional.signatures=additional.signatures)
-  }else{
-    scores <- data@meta.data[,paste0(sign.names,"_Zscore")]
-  }
-  
-  #START FILTERING
-  all_ind <- seq_along(rownames(scores))
-  tags <- rep("pass", nrow(scores))
-  names(tags) <- rownames(scores)
-  
-  #First, only keep cells with minimum expression levels for selected signature(s)
-  positive_select <- c()
-  for (sig in celltype.pass) {
-    sig.zscore <- paste0(sig,"_Zscore")
-    
-    sd.use <- sd.in
-    min.sd.in <- model[sig,"mean"]/model[sig,"sd"]-1e-3 # minimum z-score for positive scores
-    if (sd.use > min.sd.in) {
-      sd.use <- min.sd.in
-      if(verbose) message(sprintf("Readjusting sd.in for %s to %.4f to avoid negative thresholds", sig, sd.use)) 
-    }
-    positive_select <- c(positive_select, which(scores[,sig.zscore] >= -sd.use))  # Z.score threshold for desired cell types
-  }
-  positive_select <- unique(positive_select)
-  to.filter <- setdiff(all_ind, positive_select)
-  
-  #Then, filter out cells with excessive levels on undesired signatures
-  negative_select <- c()
-  
-  for (sig in celltype.nopass){
-    sig.zscore <- paste0(sig,"_Zscore")
-    if(! sig %in% celltype.pass) {
-      negative_select <- c(negative_select, which(scores[,sig.zscore] > sd.out))   # Z.score threshold for contaminants
-    }
-  }
-  negative_select <- unique(negative_select)
-  
-  sig.zscores.out <- paste0(celltype.nopass,"_Zscore") 
-  if (length(negative_select)>0) {
-    max.index <- apply(scores[negative_select, sig.zscores.out], MARGIN = 1, which.max)
-    tags[negative_select] <- sig.zscores.out[max.index]
-  }
-  
-  unknown <- setdiff(to.filter, negative_select)
-  tags[unknown] <- "Unknown"
-  
-  to.filter.ID <- names(tags[!tags=="pass"])
-
-  #The vector 'labs' will contain the identification as "Pure" or "Impure" cell
-  labs <- rep("Pure", nrow(scores))
-  names(labs) <- rownames(scores)
-  labs.ann <- labs
-  tot.cells <- length(labs)
-  q <- data
-  
-  #Start iterations
-  for (iter in 1:max.iterations) {
-    
-    filterCells.this <- to.filter.ID[to.filter.ID %in% Cells(q)]
-    imp.thr <- max.impurity - (iter-1)*max.impurity.decay
-    
-    ndim.use <- ifelse(ncol(q)<300, 5, ndim)  #with very few cells, reduce dimensionality
-    
-    ##High resolution clustering to detect dense regions of undesired cell types
-    if (!skip.normalize) {
-      q <- NormalizeData(q, verbose = FALSE)
-    }
-    q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = 500, verbose = FALSE)
-    q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
-    q <- ScaleData(q, verbose=FALSE)
-    q <- RunPCA(q, features = q@assays[[assay]]@var.features, verbose = FALSE)
-    q <- FindNeighbors(q, reduction = "pca", dims = 1:ndim.use, k.param = 5, verbose=FALSE)
-    q  <- FindClusters(q, resolution = resol, verbose = FALSE)
-    q$clusterCT <- q@active.ident
-    
-    m <- q@meta.data
-    impure.freq <- tapply(row.names(m), m$clusterCT,function(x) {mean(x %in% filterCells.this)})
-    
-    filterCluster <- names(impure.freq)[impure.freq > imp.thr]
-    n_rem <- sum(q$clusterCT %in% filterCluster)
-    frac.to.rem <- n_rem/tot.cells
-    
-    mess <- sprintf("----- Iter %i - max.impurity=%.3f\n-- Detected %i non-pure cells for selected signatures (%.2f%% of total cells)",
-                    iter, imp.thr, n_rem, 100*frac.to.rem)
-    if (verbose) {
-      message(mess)
-    }
-    
-    for (cl in filterCluster) {
-       ids <- Cells(q)[which(m$clusterCT == cl)]
-       tab <- table(tags[ids])
-       tab <- tab[names(tab) != "pass"]
-       ctype.out <- names(sort((tab), decreasing = T))[1]
-       labs.ann[ids] <- gsub("_Zscore",replacement="", ctype.out)
-    }
-    q$is.pure <- ifelse(q$clusterCT %in% filterCluster,"Impure","Pure")
-    
-    labs[colnames(q)] <- q$is.pure
-    
-    #End iterations?
-    if (frac.to.rem < stop.iterations | iter>=max.iterations | sum(labs=="Pure")<min.cells) {
-      
-      n_rem <- sum(labs=="Impure")
-      frac.to.rem <- n_rem/tot.cells
-      mess <- sprintf("scGate: Detected %i non-pure cells for selected signatures - %.2f%% cells marked for removal (active.ident)",
-                      n_rem, 100*frac.to.rem)
-      if (!quiet) {
-        message(mess)
-      }
-      if (n_rem == tot.cells) {
-        message("Warning: all cells were removed by scGate. Check filtering thresholds or input data")
-      }
-      
-      if (return_signature_scores) {
-        data <- AddMetaData(data, scores)
-      }
-      
-      data$is.pure <- labs
-      data$scGate.annotation <- labs.ann
-      
-      Idents(data) <- data$is.pure
-      return(data)
-    } else {
-      #Subset on pure cells
-      q <- subset(q, subset=is.pure=="Pure")
-    }
-  }  
-  return()
 }
+
+sorted_signatures<- function(signatures){
+  signatures <- signatures %>% strsplit(";")%>%lapply(function(x){
+    unlist(x)%>%sort()%>%paste(collapse = ";")})%>%unlist() 
+  return(signatures)
+}
+
+identify_model_signatures <- function(model){
+  # Checking model format 
+  require(openssl)
+  if (class(model)=="list"){   #For now as a list. We can think of a more structured object 
+    df.model <- model.to.table(model)
+  }else if(class(model)=="data.frame"){
+    df.model <- model
+  }else{
+    stop("Please provide a list or a structured data.frame to 'model' parameters")
+  }
+  
+  ## Adding a hash to each signature   
+  df.model$signature <- sorted_signatures(df.model$signature)  ## This step makes md5 hash independent of the passed gene order.
+  df.model$hash <- md5(df.model$signature)
+  
+  # Adding a signature ID
+  # Extracting signature IDs  
+  reduced.hashes <- substr(df.model$hash,nchar(df.model$hash) - 3,nchar(df.model$hash))
+  df.model$signID <- paste0(df.model$name,".",reduced.hashes)
+  
+  return(df.model)
+}
+
+score.computing.for.scGate <- function(data, model, ncores=1, verbose =F) {
+  # analyze model signatures;
+  #hash each one by using md5sum, 
+  #create unique signature identifiers (signID); based on both signature name and its gene content.
+  df.model <- identify_model_signatures(model)
+  # deduplicate signatures to be used in the model  
+  df.model.unique <- df.model %>%distinct(signID,.keep_all = T)  ## signID was created by analyze_model_signature function
+  
+  ## generate list object to be used in computing stage
+  all.signatures <- df.model.unique$signature %>% strsplit(";") %>% lapply(unlist)
+  names(all.signatures) <- df.model.unique$signID
+  
+  ## checking for pre-existing signatures in the query dataset
+  ## Limite the computing stage to those unregistered signatures
+  if("scGate.signatures" %in% names(data@misc)){  
+    existing.signatures <- data@misc$scGate.signatures # list of scGate signatures 
+    to.compute <- all.signatures[!names(all.signatures)%in%names(existing.signatures)]
+  }else{
+    to.compute <- all.signatures
+  }
+  
+  ## Computing (if necessary)
+  ## save signature information in @misc slot for future rehutilization of the computed signatures
+  if(length(to.compute)>0){
+    if(verbose) {
+      message(sprintf("computing new UCell signature scores: %s",to.compute%>%names()%>%paste(collapse = " ; ")))
+    }
+    data <- AddModuleScore_UCell(data, features = to.compute, ncores=ncores)
+    data@misc$scGate.signatures <- c(data@misc$scGate.signatures,to.compute)  ## reserve the computed signature info.
+  }else if(verbose){
+    message("nothing to do; all needed scGate scores are already computed in the query object")
+  }
+  
+  return(data)
+}
+
+
+model.to.table <- function(scGate.model){
+  tab <- data.frame(levels=NULL,use_as = NULL,name = NULL,signature = NULL)
+  
+  ### Define first column: Levels
+  levels <- scGate.model%>%names()
+  lev <- rep(levels,rep(2,length(levels)))
+  
+  len_pos_neg <- lapply(scGate.model,function(x){ 
+    res = lapply(x,function(y){
+      length(y)
+    })
+    return(res)
+  })%>%unlist()
+  
+  extended.levels <- rep(lev,len_pos_neg)
+  
+  # second column: "use_as"
+  useas <- rep(c("positive","negative"),length(levels))
+  useas <- rep(useas , len_pos_neg)
+  
+  #third column: name
+  signature.names <- lapply(scGate.model,function(x){ 
+    res = lapply(x,function(y){
+      names(y)
+    })
+    return(res)
+  })%>%unlist()
+  
+  ## Four column: signature
+  signatures <- lapply(scGate.model,function(x){ 
+    res = lapply(x,function(y){
+      lapply(y, function(z){
+        paste(z,collapse = ";")
+      })
+    })
+    return(res)
+  })%>%unlist()
+  
+  tab <- data.frame("levels"=extended.levels,"use_as" = useas, "name" = signature.names,"signature" = signatures)
+  return(tab)
+}
+
+
+table.to.model <- function(scGate.table, pass_ids =F){
+  mod <- list()
+  for(i in 1:nrow(scGate.table)){ 
+    lev <-scGate.table$levels[i] 
+    useas <- tolower(scGate.table$use_as[i])
+    if(!useas %in% c("positive","negative")){
+      message(sprintf("Error: row %i do not contain neither, 'positive' or 'negative' strings in 'use_as' column",i))
+      return(NULL)
+    }
+    
+    sign <- scGate.table$signature[i]
+    if(pass_ids){
+      signID <- scGate.table$signID[i]
+      mod[[lev]][[useas]][[signID]] <- strsplit(sign,";")%>%unlist()
+    }else{
+      name <- scGate.table$name[i]
+      mod[[lev]][[useas]][[name]] <- strsplit(sign,";")%>%unlist()
+    }
+    
+  }
+  return(mod)
+}
+
+
+## This function allows to complete signatures in a table based model by using the name signature and a provided master.table of signatures
+# the master.table must be a two column data.frame with two columns : 1) name: contains the signature names and 
+# 2)signature: this column contain the genes present in each signature (separated with a semicolon) 
+impute_signatures_from_name <- function(df.model,master.table ,name = "name",descript = "signature"){
+  
+  ## First, check if descript field exists in input table
+  if(!descript %in% colnames(df.model)){
+    df.model[descript] <- ""
+  }
+  
+  ## second, check if there is something to do (or exit)
+  input.sign <- df.model[[descript]]
+  input.names <- df.model[[name]]
+  complete.from.master.table <- as.vector(is.null(input.sign)|input.sign == "" | is.na(input.sign))
+  
+  if(!any(complete.from.master.table)){
+    message("nothing to do, the model signatures are already provided")
+    return(df.model)
+  }
+  # sanity check:
+  warn <- setdiff(input.names[complete.from.master.table],master.table[[name]])
+  if(length(warn)>0){
+    stop(sprintf("signatures '%s' are not present in the provided master.signature table",paste(warn,collapse = " ; " )))
+  }
+  
+  merged <- merge(df.model[complete.from.master.table,],master.table,by = name,suffixes = c("","_from.master"),all.x = T)
+  vect <- merged[[paste0(descript,"_from.master")]]
+  names(vect) <- merged[[name]]
+  if(merged%>%nrow > sum(complete.from.master.table)){
+    stop("please, master.table must not contain duplicated signature names")
+  }
+  
+  # replace ensuring correct order (notice that the merge can change row order)
+  nms <- df.model[complete.from.master.table,name]
+  df.model[complete.from.master.table,descript] <- vect[nms]
+  #  df.model[descript] <- output.sign
+  return(df.model)
+}
+
 

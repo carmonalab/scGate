@@ -3,240 +3,216 @@
 #' Apply scGate to filter specific cell types in a query dataset
 #'
 #' @param data Seurat object containing a query data set - filtering will be applied to this object
-#' @param gating.model The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}
-#' @param max.impurity Maximum fraction of impurity allowed in clusters to flag cells as "pure".
-#' @param max.impurity.decay Decrease by this fraction the max.impurity allowed at each iteration.
-#' @param sd.in Maximum standard deviations from mean (Z-score) to identify outliers for selected signatures
-#' @param sd.out Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures
-#' @param ndim Number of dimensions for cluster analysis
-#' @param resol Resolution for cluster analysis
+#' @param gating.model A tabular model with scGate signatures. See description for this format
+#' @param pca.dim Number of dimensions for cluster analysis
 #' @param assay Seurat assay to use
-#' @param chunk.size Number of cells per batch to be scored by the method
-#' @param maxRank Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')
+#' @param pos.thr Minimum UCell score value for positive signatures
+#' @param neg.thr Maximum UCell score value for negative signatures
+#' @param nfeatures Number of variable genes for dimensionality reduction
+#' @param pca.dim Number of principal components for dimensionality reduction
+#' @param resol Resolution for cluster analysis (if \code{by.knn=FALSE})
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
-#' @param max.iterations Maximum number of iterations
-#' @param stop.iterations Stop iterating if fewer than this fraction of cells were removed in the last iteration
+#' @param output.col.name Column name with 'pure/impure' annotation
 #' @param min.cells Stop iterating if fewer than this number of cells is left
 #' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
 #'     list of signatures will be returned but not used for filtering.
+#' @param by.knn Perform k-nearest neighbor smoothing for UCell scores
+#' @param k.param Number of nearest neighbors for knn smoothing
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
-#' @param skip.normalize Skip data normalization
-#' @param return_signature_scores Add signature scores and Z-scores to object metadata
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
-#' @param quiet Suppress all output
+
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
-#'     The \code{active.ident} is also set to this variable. \cr
-#'     The metadata field \code{scGate.annotation} will report the suggested identity of filtered cells based on the consensus maximum Zscores within clusters.
-#'     If \code{return_signature_scores=TRUE}, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
-#' @note The parameters \code{max.impurity}, \code{sd.in} and \code{sd.out} also accept a vector of values. This allows specifying different values for this
-#'     parameters for signatures of different levels
+#'     The \code{active.ident} is also set to this variable.
 #' @examples
 #' query <- scGate(query)
 #' DimPlot(query)
-#' DimPlot(query, group.by="scGate.annotation", label=T)
 #' query <- subset(query, subset=is.pure=="Pure")
-#' @seealso \code{\link{train_scGate()}} to generate celltype-specific models
 #' @export
 
-scGate <- function(data, gating.model=NULL, max.impurity=0.5,
-                   max.impurity.decay=0,
-                   ndim=30, resol=3, assay="RNA", 
-                   sd.in=4, sd.out=7,
-                   chunk.size=1000, ncores=1, maxRank=1500,
-                   max.iterations=10, stop.iterations=0.01, min.cells=100,
-                   additional.signatures=NULL,
-                   genes.blacklist="Tcell.blacklist", 
-                   seed=123, skip.normalize=FALSE, 
-                   return_signature_scores=TRUE, verbose=FALSE, quiet=FALSE, compute_scores=T) {
+scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1, 
+                   min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
+                   by.knn = TRUE, k.param=10, genes.blacklist=NULL, additional.signatures=NULL, verbose=TRUE) {
   
-  set.seed(seed)
-  def.assay <- DefaultAssay(data)
-  DefaultAssay(data) <- assay
+  #NOTE: add additional.signatures option to evaluate UCell scores, without using them for filtering
+  ## add genes.blacklist (read from option or from default)
   
-  if (ncores>1) {
-    require(future.apply)
-    future_param_seed <<- seed
-    future_param_ncores <<- ncores
-  }
+  # analyze model signatures; hash it, and create unique signature identifiers (signID)
+  df.model <- identify_model_signatures(model)
+  list.model <- table.to.model(df.model,pass_ids = T)
   
-  species <- detect_species(data)
+  #compute signatures (if it were necessary) 
+  data <- score.computing.for.scGate(data, df.model, ncores=ncores)
   
-  if (is.null(gating.model)) { #Default
-    gating.model <- scGate_DB[[species]]$Tcell
-  }
+  #Iterate over levels
+  q <- data  #local copy to progressively remove cells
+  tot.cells <- dim(q)[2]
   
-  gating.model.list <- list()
-  if (is.list(gating.model)) {
-     gating.model.list <- gating.model
-  } else { 
-     gating.model.list[[1]] <- gating.model 
-  }
-  n.levels <- length(gating.model.list)
+  ## prepare output object (one pure/impure flag by level)
+  output_by_level <- rep("Impure",length(list.model)*tot.cells)
+  dim(output_by_level) <- c(tot.cells,length(list.model))
+  colnames(output_by_level) <- names(list.model)
+  output_by_level <- data.frame(output_by_level)
+  rownames(output_by_level) <- data@meta.data%>%rownames()
   
-  #Vectorize parameters, to be able to assign different values to different levels
-  parameters <- list("max.impurity"=max.impurity,
-                     "sd.in"=sd.in,
-                     "sd.out"=sd.out)
-  parameters <- lapply(parameters, vectorize.parameters, lgt=n.levels)
-  
-  data$is.pure <- "Impure"
-  data$scGate.annotation <- NA
-  sub <- data
-  for (lev in 1:n.levels) {
-     message(sprintf("- Running scGate for level %i: ", lev))
+  for (lev in 1:length(list.model)) {
+    if (verbose) {
+      message(sprintf("Running scGate on level %i...", lev))
+    }
+    #We can introduce iterations over same level until convergence (optional)
+    pos.names <- sprintf("%s_UCell", names(list.model[[lev]]$positive))
+    neg.names <- sprintf("%s_UCell", names(list.model[[lev]]$negative))
     
-     sub <- scGate_helper(data=sub,
-                      gating.model=gating.model.list[[lev]],
-                      max.impurity=parameters$max.impurity[lev],
-                      max.impurity.decay = max.impurity.decay,
-                      sd.in=parameters$sd.in[lev],
-                      sd.out=parameters$sd.out[lev],
-                      ndim=ndim, resol=resol, assay=assay,
-                      chunk.size=chunk.size, species=species,
-                      maxRank=maxRank, max.iterations=max.iterations,
-                      stop.iterations=stop.iterations, min.cells=min.cells,
-                      additional.signatures=additional.signatures,
-                      genes.blacklist=genes.blacklist, skip.normalize=skip.normalize,
-                      return_signature_scores=return_signature_scores,
-                      ncores=ncores, quiet=quiet, verbose=verbose,compute_scores=compute_scores)
-     
-     if (return_signature_scores) {
-        meta.cols <- grep("_scGate|_Zscore",colnames(sub@meta.data), perl=T, value = T)
-        data <- AddMetaData(data, metadata = sub@meta.data[,meta.cols])  #NB: this will generate NAs for 2nd+ level signatures
-     }
-     data$scGate.annotation[colnames(sub)] <- sub$scGate.annotation
-     if (sum(sub$is.pure=="Pure")==0) {
-        sub <- NULL
-        break   #all cells were removed
-     } else {
-        sub <- subset(sub, subset=is.pure=="Pure")
-     }
+    ##Reduce parameter complexity at each iteration
+    pca.use <- round((3/4)**(lev-1) * pca.dim)
+    nfeat.use <- round((3/4)**(lev-1) * nfeatures)
+    res.use <- round((3/4)**(lev-1) * resol)
+    
+    q <- find.nn(q, by.knn = by.knn, assay=assay, min.cells = min.cells, 
+                 nfeatures=nfeat.use, npca=pca.use, k.param=k.param)
+    
+    if(!by.knn){
+      q  <- FindClusters(q, resolution = res.use, verbose = FALSE)
+      q$clusterCT <- q@active.ident
+    }
+    
+    q <- filter_bymean(q, positive=pos.names, negative=neg.names, pos.thr=pos.thr, assay=assay,
+                       min.cells=min.cells, neg.thr=neg.thr, by.knn = by.knn)
+    
+    n_rem <- sum(q$is.pure=="Impure")
+    frac.to.rem <- n_rem/tot.cells
+    mess <- sprintf("scGate: Detected %i non-pure cells at level %i", n_rem, lev)
+    if (verbose) { message(mess) }
+    
+    ## retain pure cells will give us info in case of all cell where filtered
+    retain_pure_cells <- q$is.pure=="Pure"
+    
+    if(any(retain_pure_cells)){
+      output_by_level[names(retain_pure_cells[retain_pure_cells==T]),lev] <- "Pure"  # save layer output
+      q <- subset(q, is.pure=="Pure")
+    }else{
+      break  # in case of all cells became filtered, we do not continue with the next layer
+    }
   }
-  pure.cells <- colnames(sub)
-  data@meta.data[pure.cells, "is.pure"] <- "Pure"
+  if(any(retain_pure_cells)){  
+    pure.cells <- colnames(q)
+    data <- AddMetaData(data,col.name = output.col.name,metadata = rep("Impure",tot.cells))
+    data@meta.data[pure.cells, output.col.name] <- "Pure"
+    
+    # save output by level
+    for(name.lev in names(list.model)){
+      data <- AddMetaData(data,col.name = paste0(output.col.name,".",name.lev),metadata = output_by_level[[name.lev]])
+    }
+  }else{
+    message(sprintf("Warning, all cells were removed at level %i. Consider reviewing signatures or model layout...", lev))
+    data <- AddMetaData(data,col.name = output.col.name,metadata = rep("Impure",tot.cells))
+    # save output by level
+    for(name.lev in names(list.model)){
+      data <- AddMetaData(data,col.name = paste0(output.col.name,".",name.lev),metadata = output_by_level[[name.lev]])
+    }
+  }
   
-  Idents(data) <- data$is.pure
-  DefaultAssay(data) <- def.assay
+  Idents(data) <- output.col.name
+  
+  n_rem <- sum(data[[output.col.name]]=="Impure")
+  frac.to.rem <- n_rem/tot.cells
+  mess <- sprintf("\n### Detected a total of %i non-pure cells for selected signatures - %.2f%% cells marked for removal (active.ident)",
+                  n_rem, 100*frac.to.rem)
+  message(mess)  #verbose?
   
   return(data)
-} 
-
-#' Generate a scGate model
-#'
-#' Given a reference set, calculate expected mean and SD for all cell types in the reference set. Deviations from this expected distribution (Z-score)
-#' can then be used to gate for specific cell types in any query dataset (see function \code{scGate})
-#'
-#' @param ref Seurat object containing the reference data set
-#' @param markers List of markers for each cell type, for example \code{scGate_DB$human$Tcell@@markers}
-#' @param positive_celltypes List of celltypes included in the reference set. These must be one or more from the list of markers (`\code{markers} parameter).
-#'     Only the `positive_celltypes` will be gated when the model is applied to a new query dataset
-#' @param autocomplete Automatically autocomplete cell types in \code{positive_celltypes} that start with same prefix
-#'     (e.g. B.cell gates for B.cell.1, B.cell.2 and B.cell.Plasmocyte signatures) 
-#' @param quant Quantile cutoff for score distribution
-#' @param assay Seurat assay to use
-#' @param method Scoring method for cell signatures (default \code{UCell})
-#' @param min.sd Minimum value for standard deviation - if calculated standard deviation is lower than min.sd, it is set to min.sd
-#' @param chunk.size Number of cells per batch to be scored by the method
-#' @param maxRank Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')
-#' @param ncores Number of processors for parallel processing (requires \code{future.apply})
-#' @param seed Integer seed for random number generator
-#' @param verbose Verbose output
-#' @param quiet Suppress all STDOUT output
-#' @return Returns a \code{scGate_Model} object, containing the expected signature score distribution (background model) for all evaluated signatures.
-#' @examples
-#' library(ProjecTILs)
-#' ref <- load.reference.map()
-#' scGate.model <- train_scGate(ref, positive_celltypes='T.cell')
-#' head(scGate.model@@bg_model)
-#' @seealso \code{\link{scGate()}} to apply signatures on a query dataset and filter on specific cell type(s)
-#' @export
-train_scGate <- function(ref, markers=NULL, positive_celltypes=NULL, autocomplete=T,
-                                          maxRank=1500, min.sd=0.02,
-                                          method=c("UCell","AUCell","ModuleScore"), quant=0.995, assay="RNA",
-                                          chunk.size=1000, ncores=1, seed=123, verbose=TRUE, quiet=FALSE) {
-  
-  set.seed(seed)
-  if (ncores>1) {
-    require(future.apply)
-    future_param_seed <<- seed
-    future_param_ncores <<- ncores
-  }
-  DefaultAssay(ref) <- assay
-  method <- method[1]
-  
-  species <- detect_species(ref)
-  
-  if (is.null(markers)) { #Default
-      markers <- scGate_DB[[species]]$Tcell@markers
-  }
-  
-  #Check selected cell type(s), and autoexpand if required
-  sign <- names(markers)
-  sign.names <- paste0(sign,"_scGate")
-  names(sign.names) <- sign
-  celltype.pass <- check_selected_celltypes(positive_celltypes, db=sign, autocomplete=autocomplete)
-  
-  if (length(celltype.pass)<1) {
-    mess <- sprintf("Could not find selected cell types in marker list. Check your input to 'positive_celltypes' option")
-    stop(mess)
-  }  
-  if (!quiet) {
-    mess <- paste(celltype.pass, collapse=", ")
-    message(sprintf("Training %s scGate model - selected cell types: %s", species, mess))
-  }
-  
-  scores <- get_CTscores(obj=ref, markers.list=markers, z.score=FALSE,
-                      method=method, chunk.size=chunk.size, ncores=ncores, maxRank=maxRank)
-  
-
-  ref_thr <- matrix(nrow=length(sign), ncol=2)
-  rownames(ref_thr) <- sign
-  colnames(ref_thr) <- c("mean","sd")
-  
-  for(s in sign){
-    s.score <- sign.names[s]
-    bulk <- scores[,s.score]
-    bulk <- bulk[bulk >= quantile(bulk, p=1-quant) & bulk <= quantile(bulk,p=quant)]
-    ref_thr[s,1] <- mean(bulk)
-    ref_thr[s,2] <- ifelse(sd(bulk) > min.sd, sd(bulk), min.sd)
-  }
-  
-  obj <- new("scGate_Model",
-             species=species,
-             positive_celltypes=celltype.pass,
-             markers=markers,
-             bg_model=as.data.frame(ref_thr),
-             scoring_method=method)
-  
-  return(obj)
 }
 
 
-#' scGate_Model Class
+#' Filter single-cell data by cell type
 #'
-#' The scGate_Model class is use to store background models generated with the `scGate` package. It contains all the information needed
-#' to apply the model to a query dataset and filter on the cell type(s) of interest stored in the `positive_celltypes` slot.
+#' View scGate model as a decision tree
 #'
-#' @slot species The species of the training data
-#' @slot positive_celltypes List of celltypes included in the reference set. These must be one or more from the list of markers (`markers` parameter).
-#'     Only the `positive_celltypes` will be gated when the model is applied to a new query dataset
-#' @slot markers List of markers for all celltypes included in the model
-#' @slot bg_model A dataframe containing mean and SD calculated on training set for all cell types in `markers` list
-#' @slot scoring_method The algorithm used to calculate signature scores     
-#' @name scGate_Model-class
-#' @rdname scGate_Model-class
-#' @concept objects
-#' @exportClass scGate_Model
-#'
-scGate_Model <- setClass(
-  Class = "scGate_Model",
-  slots = list(
-    species = "character",
-    positive_celltypes = "vector",
-    markers = "list",
-    bg_model = "data.frame",
-    scoring_method = "character"
-  )
-)
+#' @param model A scGate model to be visualized
+#' @param box_size Box size
+#' @param edge.text.size Edge text size
+#' @return A plot of the model
+#' @examples
+#' query <- plot_tree(model)
+#' @export
+
+
+plot_tree <- function(model,box_size = 12, edge.text.size = 12) {
+  
+  require(ggparty)
+  nlev <- length(unique(model$levels))
+  
+  #restructure data for visualization
+  level.list <- list()
+  for (i in 1:nlev) {
+    level.list[[i]] <- list()
+    sub <- subset(model, tolower(model$levels)==paste0("level",i))
+    
+    level.list[[i]][["positive"]] <- sub[sub$use_as=="positive","name"]
+    level.list[[i]][["negative"]] <- sub[sub$use_as=="negative","name"]
+  }
+  
+  #Initialize dataframe for tree
+  df <- data.frame(matrix(ncol=nlev+1, nrow=nlev+1, data = 0))
+  colnames(df) <- c(paste0("Level_", 1:nlev), "Pure")
+  
+  for (i in 2:nlev) {
+    for (j in 1:(i-1)) {
+      df[i,j] <- 1   
+    }
+  }
+  df[nlev+1,] <- 1
+  
+  ##Construct tree structure
+  pn <- list()
+  #bottom level
+  
+  pn[[nlev]] <- partynode(nlev+1, split = partysplit(nlev, index=1:2, breaks = 0),
+                          kids = list(partynode(nlev+2),
+                                      partynode(nlev+3))) 
+  
+  for (i in (nlev-1):1) {
+    pn[[i]] <- partynode(i, split = partysplit(i, index=1:2, breaks=0),
+                         kids = list(partynode(i+1),
+                                     pn[[i+1]]))
+  }
+  
+  #first element in list has complete structure
+  py <- party(pn[[1]], df)
+  
+  
+  sign.annot <- vector(length=2*nlev+1)
+  is.pos <- vector(length=2*nlev+1)
+  sign.annot[1] <- "Root"
+  is.pos[1] <- NA
+  
+  for (i in 1:nlev) {
+    sign.annot[2*i] <- paste0(level.list[[i]]$negative, collapse = "\n")
+    sign.annot[2*i+1] <- paste0(level.list[[i]]$positive, collapse = "\n")
+    
+    is.pos[2*i] <- "Negative"
+    is.pos[2*i+1] <- "Positive"
+  }
+  
+  gg <- ggparty(py)
+  gg$data$info <- sign.annot
+  gg$data$p.value <- is.pos
+  
+  
+  gg$data$breaks_label[grep("<=", gg$data$breaks_label)] <- "Negative"
+  gg$data$breaks_label[grep(">", gg$data$breaks_label)] <- "Positive"
+  
+  gg + geom_edge() +
+    geom_edge_label(size = edge.text.size) +
+    geom_node_label(ids = "inner",
+                    mapping = aes(col = p.value),
+                    line_list = list(aes(label=info)),
+                    line_gpar = list(list(size = box_size)))  +
+    geom_node_label(ids = "terminal",
+                    mapping = aes(col = p.value),
+                    line_list = list(aes(label=info)),
+                    line_gpar = list(list(size = box_size))) +
+    scale_color_manual(values=c("#f60a0a", "#00ae60")) +
+    theme(legend.position = "none") 
+}
