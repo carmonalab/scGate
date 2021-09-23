@@ -9,6 +9,7 @@
 #' @param pos.thr Minimum UCell score value for positive signatures
 #' @param neg.thr Maximum UCell score value for negative signatures
 #' @param nfeatures Number of variable genes for dimensionality reduction
+#' @param k.param Number of nearest neighbors for knn smoothing
 #' @param pca.dim Number of principal components for dimensionality reduction
 #' @param resol Resolution for cluster analysis (if \code{by.knn=FALSE})
 #' @param ncores Number of processors for parallel processing (requires \code{future.apply})
@@ -17,7 +18,7 @@
 #' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
 #'     list of signatures will be returned but not used for filtering.
 #' @param by.knn Perform k-nearest neighbor smoothing for UCell scores
-#' @param k.param Number of nearest neighbors for knn smoothing
+#' @param keep.ranks Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
 #' @param seed Integer seed for random number generator
@@ -31,7 +32,7 @@
 #' query <- subset(query, subset=is.pure=="Pure")
 #' @export
 
-scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1, seed=123,
+scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1, seed=123, keep.ranks=FALSE,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
                    by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
   
@@ -80,8 +81,8 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
     nfeat.use <- round((3/4)**(lev-1) * nfeatures)
     res.use <- round((3/4)**(lev-1) * resol)
     
-    q <- find.nn(q, by.knn = by.knn, assay=assay, min.cells = min.cells, 
-                 nfeatures=nfeat.use, npca=pca.use, k.param=k.param)
+    q <- find.nn(q, by.knn=by.knn, assay=assay, min.cells=min.cells, nfeatures=nfeat.use, npca=pca.use, 
+                 k.param=k.param, genes.blacklist=genes.blacklist)
     
     if(!by.knn){
       q  <- FindClusters(q, resolution = res.use, verbose = FALSE)

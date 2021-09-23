@@ -12,6 +12,7 @@ scGate(
   assay = "RNA",
   ncores = 1,
   seed = 123,
+  keep.ranks = FALSE,
   min.cells = 30,
   nfeatures = 2000,
   pca.dim = 30,
@@ -36,6 +37,8 @@ scGate(
 \item{ncores}{Number of processors for parallel processing (requires \code{future.apply})}
 
 \item{seed}{Integer seed for random number generator}
+
+\item{keep.ranks}{Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.}
 
 \item{min.cells}{Stop iterating if fewer than this number of cells is left}
 

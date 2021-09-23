@@ -1,4 +1,5 @@
-find.nn <- function(q, assay = "RNA", npca=30, nfeatures=2000, k.param=10, min.cells=30, by.knn = F) {
+find.nn <- function(q, assay = "RNA", npca=30, nfeatures=2000, k.param=10, min.cells=30, by.knn = F,
+                    genes.blacklist=NULL) {
   
   DefaultAssay(q) <- assay
   ncells <- length(Cells(q))
@@ -10,7 +11,9 @@ find.nn <- function(q, assay = "RNA", npca=30, nfeatures=2000, k.param=10, min.c
   
   q <- NormalizeData(q, verbose = FALSE)
   q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
+  
   q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
+  
   q <- ScaleData(q, verbose=FALSE)
   q <- RunPCA(q, features = q@assays[[assay]]@var.features, npcs=npca, verbose = FALSE)
   q <- suppressMessages(FindNeighbors(q, reduction = "pca", dims = 1:npca, k.param = k.param, verbose=FALSE,
