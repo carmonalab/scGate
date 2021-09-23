@@ -35,15 +35,13 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
                    by.knn = TRUE, k.param=10, genes.blacklist=NULL, additional.signatures=NULL, verbose=TRUE) {
   
-  #NOTE: add additional.signatures option to evaluate UCell scores, without using them for filtering
-  ## add genes.blacklist (read from option or from default)
   
-  # analyze model signatures; hash it, and create unique signature identifiers (signID)
-  df.model <- identify_model_signatures(model)
-  list.model <- table.to.model(df.model,pass_ids = T)
-  
-  #compute signatures (if it were necessary) 
-  data <- score.computing.for.scGate(data, df.model, ncores=ncores)
+  list.model <- table.to.model(model)
+  # compute signature scores using UCell
+  if (verbose) {
+    message("Computing UCell scores for signatures...\n")
+  }
+  data <- score.computing.for.scGate(data, model, assay, ncores=ncores, keep.ranks=keep.ranks)
   
   #Iterate over levels
   q <- data  #local copy to progressively remove cells
@@ -138,7 +136,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
 #' @export
 
 
-plot_tree <- function(model,box_size = 12, edge.text.size = 12) {
+plot_tree <- function(model, box.size = 12, edge.text.size = 12) {
   
   require(ggparty)
   nlev <- length(unique(model$levels))
@@ -208,11 +206,11 @@ plot_tree <- function(model,box_size = 12, edge.text.size = 12) {
     geom_node_label(ids = "inner",
                     mapping = aes(col = p.value),
                     line_list = list(aes(label=info)),
-                    line_gpar = list(list(size = box_size)))  +
+                    line_gpar = list(list(size = box.size)))  +
     geom_node_label(ids = "terminal",
                     mapping = aes(col = p.value),
                     line_list = list(aes(label=info)),
-                    line_gpar = list(list(size = box_size))) +
+                    line_gpar = list(list(size = box.size))) +
     scale_color_manual(values=c("#f60a0a", "#00ae60")) +
     theme(legend.position = "none") 
 }

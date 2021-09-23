@@ -93,67 +93,20 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
   
 }
 
-sorted_signatures<- function(signatures){
-  signatures <- signatures %>% strsplit(";")%>%lapply(function(x){
-    unlist(x)%>%sort()%>%paste(collapse = ";")})%>%unlist() 
-  return(signatures)
-}
-
-identify_model_signatures <- function(model){
-  # Checking model format 
-  require(openssl)
-  if (class(model)=="list"){   #For now as a list. We can think of a more structured object 
-    df.model <- model.to.table(model)
-  }else if(class(model)=="data.frame"){
-    df.model <- model
-  }else{
-    stop("Please provide a list or a structured data.frame to 'model' parameters")
-  }
+score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", add.sign=NULL, keep.ranks=FALSE) {
   
-  ## Adding a hash to each signature   
-  df.model$signature <- sorted_signatures(df.model$signature)  ## This step makes md5 hash independent of the passed gene order.
-  df.model$hash <- md5(df.model$signature)
-  
-  # Adding a signature ID
-  # Extracting signature IDs  
-  reduced.hashes <- substr(df.model$hash,nchar(df.model$hash) - 3,nchar(df.model$hash))
-  df.model$signID <- paste0(df.model$name,".",reduced.hashes)
-  
-  return(df.model)
-}
-
-score.computing.for.scGate <- function(data, model, ncores=1, verbose =F) {
-  # analyze model signatures;
-  #hash each one by using md5sum, 
-  #create unique signature identifiers (signID); based on both signature name and its gene content.
-  df.model <- identify_model_signatures(model)
-  # deduplicate signatures to be used in the model  
-  df.model.unique <- df.model %>%distinct(signID,.keep_all = T)  ## signID was created by analyze_model_signature function
+  # extract unique signatures
+  model.uniq <- model %>%distinct(name, .keep_all = T) 
   
   ## generate list object to be used in computing stage
-  all.signatures <- df.model.unique$signature %>% strsplit(";") %>% lapply(unlist)
-  names(all.signatures) <- df.model.unique$signID
+  signatures <- model.uniq$signature %>% strsplit("[,; ]+") %>% lapply(unlist)   #also allow comma or space
+  names(signatures) <- model.uniq$name
   
-  ## checking for pre-existing signatures in the query dataset
-  ## Limite the computing stage to those unregistered signatures
-  if("scGate.signatures" %in% names(data@misc)){  
-    existing.signatures <- data@misc$scGate.signatures # list of scGate signatures 
-    to.compute <- all.signatures[!names(all.signatures)%in%names(existing.signatures)]
-  }else{
-    to.compute <- all.signatures
-  }
+  if (is.list(add.sign) & length(add.sign)>0) {
+     markers.list <- append(markers.list, add.sign)
+  } 
   
-  ## Computing (if necessary)
-  ## save signature information in @misc slot for future rehutilization of the computed signatures
-  if(length(to.compute)>0){
-    if(verbose) {
-      message(sprintf("computing new UCell signature scores: %s",to.compute%>%names()%>%paste(collapse = " ; ")))
-    }
-    data <- AddModuleScore_UCell(data, features = to.compute, ncores=ncores)
-    data@misc$scGate.signatures <- c(data@misc$scGate.signatures,to.compute)  ## reserve the computed signature info.
-  }else if(verbose){
-    message("nothing to do; all needed scGate scores are already computed in the query object")
-  }
+  data <- AddModuleScore_UCell(data, features = signatures, ncores=ncores, storeRanks = keep.ranks)
   
   return(data)
 }
@@ -202,10 +155,10 @@ model.to.table <- function(scGate.model){
 }
 
 
-table.to.model <- function(scGate.table, pass_ids =F){
+table.to.model <- function(scGate.table){
   mod <- list()
   for(i in 1:nrow(scGate.table)){ 
-    lev <-scGate.table$levels[i] 
+    lev <- scGate.table$levels[i] 
     useas <- tolower(scGate.table$use_as[i])
     if(!useas %in% c("positive","negative")){
       message(sprintf("Error: row %i do not contain neither, 'positive' or 'negative' strings in 'use_as' column",i))
@@ -213,56 +166,9 @@ table.to.model <- function(scGate.table, pass_ids =F){
     }
     
     sign <- scGate.table$signature[i]
-    if(pass_ids){
-      signID <- scGate.table$signID[i]
-      mod[[lev]][[useas]][[signID]] <- strsplit(sign,";")%>%unlist()
-    }else{
-      name <- scGate.table$name[i]
-      mod[[lev]][[useas]][[name]] <- strsplit(sign,";")%>%unlist()
-    }
     
+    name <- scGate.table$name[i]
+    mod[[lev]][[useas]][[name]] <- strsplit(sign, "[,; ]+") %>% unlist()
   }
   return(mod)
 }
-
-
-## This function allows to complete signatures in a table based model by using the name signature and a provided master.table of signatures
-# the master.table must be a two column data.frame with two columns : 1) name: contains the signature names and 
-# 2)signature: this column contain the genes present in each signature (separated with a semicolon) 
-impute_signatures_from_name <- function(df.model,master.table ,name = "name",descript = "signature"){
-  
-  ## First, check if descript field exists in input table
-  if(!descript %in% colnames(df.model)){
-    df.model[descript] <- ""
-  }
-  
-  ## second, check if there is something to do (or exit)
-  input.sign <- df.model[[descript]]
-  input.names <- df.model[[name]]
-  complete.from.master.table <- as.vector(is.null(input.sign)|input.sign == "" | is.na(input.sign))
-  
-  if(!any(complete.from.master.table)){
-    message("nothing to do, the model signatures are already provided")
-    return(df.model)
-  }
-  # sanity check:
-  warn <- setdiff(input.names[complete.from.master.table],master.table[[name]])
-  if(length(warn)>0){
-    stop(sprintf("signatures '%s' are not present in the provided master.signature table",paste(warn,collapse = " ; " )))
-  }
-  
-  merged <- merge(df.model[complete.from.master.table,],master.table,by = name,suffixes = c("","_from.master"),all.x = T)
-  vect <- merged[[paste0(descript,"_from.master")]]
-  names(vect) <- merged[[name]]
-  if(merged%>%nrow > sum(complete.from.master.table)){
-    stop("please, master.table must not contain duplicated signature names")
-  }
-  
-  # replace ensuring correct order (notice that the merge can change row order)
-  nms <- df.model[complete.from.master.table,name]
-  df.model[complete.from.master.table,descript] <- vect[nms]
-  #  df.model[descript] <- output.sign
-  return(df.model)
-}
-
-
