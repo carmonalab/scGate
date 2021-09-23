@@ -7,7 +7,6 @@ find.nn <- function(q, assay = "RNA", npca=30, nfeatures=2000, k.param=10, min.c
     q$clusterCT <- 0    #with very few cells, consider them as a single cluster
     return(q)
   }  
-  genes.blacklist <- scGate::genes.blacklist.Hs
   
   q <- NormalizeData(q, verbose = FALSE)
   q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)

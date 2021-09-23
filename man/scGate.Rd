@@ -6,95 +6,70 @@
 \usage{
 scGate(
   data,
-  gating.model = NULL,
-  max.impurity = 0.5,
-  max.impurity.decay = 0,
-  ndim = 30,
-  resol = 3,
+  model,
+  pos.thr = 0.2,
+  neg.thr = 0.2,
   assay = "RNA",
-  sd.in = 3,
-  sd.out = 7,
-  chunk.size = 1000,
   ncores = 1,
-  maxRank = 1500,
-  max.iterations = 10,
-  stop.iterations = 0.01,
-  min.cells = 100,
-  additional.signatures = NULL,
-  genes.blacklist = "Tcell.blacklist",
   seed = 123,
-  skip.normalize = FALSE,
-  return_signature_scores = TRUE,
-  verbose = FALSE,
-  quiet = FALSE
+  min.cells = 30,
+  nfeatures = 2000,
+  pca.dim = 30,
+  resol = 3,
+  output.col.name = "is.pure",
+  by.knn = TRUE,
+  k.param = 10,
+  genes.blacklist = "default",
+  additional.signatures = NULL,
+  verbose = TRUE
 )
 }
 \arguments{
 \item{data}{Seurat object containing a query data set - filtering will be applied to this object}
 
-\item{gating.model}{The background expected mean and SD for each cell type - see function \code{\link{train_scGate}}}
+\item{pos.thr}{Minimum UCell score value for positive signatures}
 
-\item{max.impurity}{Maximum fraction of impurity allowed in clusters to flag cells as "pure".}
-
-\item{max.impurity.decay}{Decrease by this fraction the max.impurity allowed at each iteration.}
-
-\item{ndim}{Number of dimensions for cluster analysis}
-
-\item{resol}{Resolution for cluster analysis}
+\item{neg.thr}{Maximum UCell score value for negative signatures}
 
 \item{assay}{Seurat assay to use}
 
-\item{sd.in}{Maximum standard deviations from mean (Z-score) to identify outliers for selected signatures}
-
-\item{sd.out}{Maximum standard deviations from mean (Z-score) to identify outliers for all other signatures}
-
-\item{chunk.size}{Number of cells per batch to be scored by the method}
-
 \item{ncores}{Number of processors for parallel processing (requires \code{future.apply})}
 
-\item{maxRank}{Maximum number of genes to rank per cell; above this rank, a given gene is considered as not expressed (used when 'method' is 'UCell' or 'AUCell')}
-
-\item{max.iterations}{Maximum number of iterations}
-
-\item{stop.iterations}{Stop iterating if fewer than this fraction of cells were removed in the last iteration}
+\item{seed}{Integer seed for random number generator}
 
 \item{min.cells}{Stop iterating if fewer than this number of cells is left}
+
+\item{nfeatures}{Number of variable genes for dimensionality reduction}
+
+\item{pca.dim}{Number of principal components for dimensionality reduction}
+
+\item{resol}{Resolution for cluster analysis (if \code{by.knn=FALSE})}
+
+\item{output.col.name}{Column name with 'pure/impure' annotation}
+
+\item{by.knn}{Perform k-nearest neighbor smoothing for UCell scores}
+
+\item{k.param}{Number of nearest neighbors for knn smoothing}
+
+\item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
+you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
 \item{additional.signatures}{A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
 list of signatures will be returned but not used for filtering.}
 
-\item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
-you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
-
-\item{seed}{Integer seed for random number generator}
-
-\item{skip.normalize}{Skip data normalization}
-
-\item{return_signature_scores}{Add signature scores and Z-scores to object metadata}
-
 \item{verbose}{Verbose output}
 
-\item{quiet}{Suppress all output}
+\item{gating.model}{A tabular model with scGate signatures. See description for this format}
 }
 \value{
 A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
-    The \code{active.ident} is also set to this variable. \cr
-    The metadata field \code{scGate.annotation} will report the suggested identity of filtered cells based on the consensus maximum Zscores within clusters.
-    If \code{return_signature_scores=TRUE}, Z-scores for all signatures in \code{markers} are added to the metadata of the Seurat object.
+    The \code{active.ident} is also set to this variable.
 }
 \description{
 Apply scGate to filter specific cell types in a query dataset
 }
-\note{
-The parameters \code{max.impurity}, \code{sd.in} and \code{sd.out} also accept a vector of values. This allows specifying different values for this
-    parameters for signatures of different levels
-}
 \examples{
-query <- scGate(query)
+query <- scGate(query, model=Bcell.model)
 DimPlot(query)
-DimPlot(query, group.by="scGate.annotation", label=T)
 query <- subset(query, subset=is.pure=="Pure")
-}
-\seealso{
-\code{\link{train_scGate()}} to generate celltype-specific models
 }

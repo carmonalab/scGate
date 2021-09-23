@@ -18,7 +18,7 @@
 #'     list of signatures will be returned but not used for filtering.
 #' @param by.knn Perform k-nearest neighbor smoothing for UCell scores
 #' @param k.param Number of nearest neighbors for knn smoothing
-#' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.Mm};
+#' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
@@ -26,15 +26,28 @@
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
 #'     The \code{active.ident} is also set to this variable.
 #' @examples
-#' query <- scGate(query)
+#' query <- scGate(query, model=Bcell.model)
 #' DimPlot(query)
 #' query <- subset(query, subset=is.pure=="Pure")
 #' @export
 
-scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1, 
+scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1, seed=123,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
-                   by.knn = TRUE, k.param=10, genes.blacklist=NULL, additional.signatures=NULL, verbose=TRUE) {
+                   by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
   
+  set.seed(seed)
+  #check gene blacklist
+  if (!is.null(genes.blacklist)) {
+    if (length(genes.blacklist)==1 && genes.blacklist == "default") {  #Default
+       genes.blacklist = genes.blacklist.default
+    }  
+    if (is.list(genes.blacklist)) {
+      genes.blacklist <- unlist(genes.blacklist)
+    }
+    genes.blacklist <- unique(genes.blacklist)
+  }
+  
+  #if model is NULL, use a default model (ADD)
   
   list.model <- table.to.model(model)
   # compute signature scores using UCell
@@ -123,8 +136,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
 }
 
 
-#' Filter single-cell data by cell type
-#'
+
 #' View scGate model as a decision tree
 #'
 #' @param model A scGate model to be visualized
@@ -201,7 +213,7 @@ plot_tree <- function(model, box.size = 12, edge.text.size = 12) {
   gg$data$breaks_label[grep("<=", gg$data$breaks_label)] <- "Negative"
   gg$data$breaks_label[grep(">", gg$data$breaks_label)] <- "Positive"
   
-  gg + geom_edge() +
+  gg <- gg + geom_edge() +
     geom_edge_label(size = edge.text.size) +
     geom_node_label(ids = "inner",
                     mapping = aes(col = p.value),
@@ -213,4 +225,6 @@ plot_tree <- function(model, box.size = 12, edge.text.size = 12) {
                     line_gpar = list(list(size = box.size))) +
     scale_color_manual(values=c("#f60a0a", "#00ae60")) +
     theme(legend.position = "none") 
+  
+  return(gg)
 }
