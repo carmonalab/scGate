@@ -231,6 +231,21 @@ plot_tree <- function(model, box.size = 12, edge.text.size = 12) {
 }
 
 
+#' Load scGate models
+#'
+#' @param models_path path to scGate model files. The default (models_path = NULL) loads available models in scGate package in \code{scGate::scGate_Models}; Otherwise, you can set a local directory with scGate models in plae tsv file format. See details
+#' @param impute.from.master.table When you load models from plane files, the signatures could be load from a master_table.tsv centralized file. 
+#' @examples
+#' # example 1: default models
+#' model.list <- load_models()
+#' # Example 2: load models from your own files
+#' # Download some models
+#' dir.create("./scGateModels/")
+#' temp <- tempfile("./scGateModels/models.zip")
+#' download.file("https://www.dropbox.com/sh/wtqxtri148qtbxy/AAB5BVPg2yq2-te2Keouyk8oa?dl=1",destfile = temp)
+#' unzip(temp, exdir = "./scGateModels/")
+#' model.list <- load_models("./scGateModels/)
+#' @export
 
 load_models <- function(models_path = NULL,impute.from.master.table = NULL){
   if(is.null(models_path)){
