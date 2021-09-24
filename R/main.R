@@ -229,3 +229,54 @@ plot_tree <- function(model, box.size = 12, edge.text.size = 12) {
   
   return(gg)
 }
+
+
+
+load_models <- function(models_path = NULL,impute.from.master.table = NULL){
+  if(is.null(models_path)){
+    model.list <- scGate_Models
+  }else{
+    if(is.null(impute.from.master.table)){
+      impute.from.master.table = T
+    }    
+    if(impute.from.master.table){
+      master.table.path = file.path(models_path,"master_table.tsv")
+      if(!file.exists(master.table.path)){
+        stop("master_table.tsv file must be present in your 'model folder'; in other case you must to set 'impute.from.master.table = FALSE'")
+      }
+      master.table <- read.table(master.table.path,sep ="\t", header =T) 
+      df.models.toimpute <- list()
+      files.to.impute <- list.files(file.path(models_path),"_scGate_Model.tsv")
+      if(length(files.to.impute)==0){
+        stop("Please, provide some model table files in your 'model folder' or set models_path = NULL for using the default ones")
+      }
+      # load models to impute
+      for(f in files.to.impute){
+        model.name <- strsplit(f,"_scGate_Model.tsv")[[1]][1]
+        df.models.toimpute[[model.name]] <- read.table(file.path(models_path,f),sep ="\t",header =T)
+      }
+      # signature imputing
+      imputed.models <-  lapply(df.models.toimpute,function(df){
+        impute_signatures_from_name(df.model = df,master.table = master.table)
+      })
+      model.list <- imputed.models
+    }else{ # asume models are complete and not need imputation
+      model.list <- list()
+      complete.models <- list.files(file.path(models_path),"_scGate_Model.tsv")
+      if(length(complete.models)==0){
+        stop("Please, provide some model table files in your 'model folder' or set models_path = NULL for using the default ones")
+      }
+      for(f in complete.models){
+        model.name <- strsplit(f,"_scGate_Model.tsv")[[1]][1]
+        model.list[[model.name]] <- read.table(file.path(models_path,f),sep ="\t",header =T)
+        any.null <- any(sapply(model.list[[model.name]]$signature,is.null))
+        any.empty <- any(model.list[[model.name]]$signature %in% c(""))
+        if(any.null|any.empty){
+          stop("if you set 'impute.from.master.table = FALSE, the provided model's signatures must not be empty")
+        }
+      }
+      
+    }  
+  }
+  return(model.list)
+}
