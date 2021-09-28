@@ -149,7 +149,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
 #' @export
 
 
-plot_tree <- function(model, box.size = 12, edge.text.size = 12) {
+plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   
   require(ggparty)
   nlev <- length(unique(model$levels))
