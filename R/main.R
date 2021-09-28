@@ -295,3 +295,45 @@ load_models <- function(models_path = NULL,impute.from.master.table = NULL){
   }
   return(model.list)
 }
+
+#' Evaluate model performance for binary tasks
+#' 
+#' @param actual Logical or numeric binary vector giving the actual cell labels. 
+#' @param pred  Logical or numeric binary vector giving the predicted cell labels. 
+#' @param return_contingency  Logical indicating if contingency table must be returned. Default is FALSE
+
+#' If return_contingency =F (default) this function returns a numeric vector containing c(Precision, Recall, Matthews correlation coefficient)
+#' If return_contingency =T, the function returns a list. "summary" element contains the same (PREC, REC, MCC) vector and the "conting" element contains the contingency table.  
+
+#' @export
+
+performance.metrics <- function(actual,pred,return_contingency =F){
+  actual <- as.numeric(actual +0)  
+  pred <- as.numeric(pred +0)  
+  tp <- sum(actual&pred)
+  tn <- sum((!actual)&(!pred))
+  fn <- sum(actual&(!pred))
+  fp <- sum((!actual)&pred)  
+  
+  PREC <- tp/(tp +fp)
+  REC <- tp/(tp + fn)
+  #sqrt_ <- sqrt((tp + fp)*(tp+fn)*(tn+fp)*(tn+fn))
+  sqrt_ <- exp(0.5* sum(log(c(tp+fp, tp+fn, tn+fp, tn+fn))) )
+  MCC <- (tp*tn - fp*fn) / sqrt_
+  
+  
+  if(!return_contingency){  
+    res.Summary <- c(PREC,REC,MCC); names(res.Summary) <- c("PREC","REC","MCC")
+    return(res.Summary)
+  }else{
+    ct <- table(actual,pred)
+    ## ordering contingency table, but avoiding errors when all predictions (or all actual cells) are equals
+    nam.act <- unique(actual)%>%sort(decreasing = T)%>%as.character()  # 
+    nam.pred <- unique(pred)%>%sort(decreasing = T)%>%as.character()
+    ct <- ct[nam.act,nam.pred]  
+    return(list('conting' = ct,
+                'summary' = res.Summary ))
+  }
+  
+}
+
