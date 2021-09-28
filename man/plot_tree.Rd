@@ -4,7 +4,7 @@
 \alias{plot_tree}
 \title{View scGate model as a decision tree}
 \usage{
-plot_tree(model, box.size = 12, edge.text.size = 12)
+plot_tree(model, box.size = 8, edge.text.size = 4)
 }
 \arguments{
 \item{model}{A scGate model to be visualized}
