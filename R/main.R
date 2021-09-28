@@ -234,7 +234,7 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 #' Load scGate models
 #'
 #' @param models_path path to scGate model files. The default (models_path = NULL) loads available models in scGate package in \code{scGate::scGate_Models}; Otherwise, you can set a local directory with scGate models in plae tsv file format. See details
-#' @param impute.from.master.table When you load models from plane files, the signatures could be load from a master_table.tsv centralized file. 
+#' @param use.master.table When you load models from plane files, the signatures could be load from a master_table.tsv centralized file. 
 #' @examples
 #' # example 1: default models
 #' model.list <- load_models()
@@ -247,17 +247,17 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 #' model.list <- load_models("./scGateModels/)
 #' @export
 
-load_models <- function(models_path = NULL,impute.from.master.table = NULL){
+load_models <- function(models_path = NULL,use.master.table = NULL){
   if(is.null(models_path)){
     model.list <- scGate_Models
   }else{
-    if(is.null(impute.from.master.table)){
-      impute.from.master.table = T
+    if(is.null(use.master.table)){
+      use.master.table = T
     }    
-    if(impute.from.master.table){
+    if(use.master.table){
       master.table.path = file.path(models_path,"master_table.tsv")
       if(!file.exists(master.table.path)){
-        stop("master_table.tsv file must be present in your 'model folder'; in other case you must to set 'impute.from.master.table = FALSE'")
+        stop("master_table.tsv file must be present in your 'model folder'; in other case you must to set 'use.master.table = FALSE'")
       }
       master.table <- read.table(master.table.path,sep ="\t", header =T) 
       df.models.toimpute <- list()
@@ -272,7 +272,7 @@ load_models <- function(models_path = NULL,impute.from.master.table = NULL){
       }
       # signature imputing
       imputed.models <-  lapply(df.models.toimpute,function(df){
-        impute_signatures_from_name(df.model = df,master.table = master.table)
+        use_master_table(df.model = df,master.table = master.table)
       })
       model.list <- imputed.models
     }else{ # asume models are complete and not need imputation
@@ -287,7 +287,7 @@ load_models <- function(models_path = NULL,impute.from.master.table = NULL){
         any.null <- any(sapply(model.list[[model.name]]$signature,is.null))
         any.empty <- any(model.list[[model.name]]$signature %in% c(""))
         if(any.null|any.empty){
-          stop("if you set 'impute.from.master.table = FALSE, the provided model's signatures must not be empty")
+          stop("if you set 'use.master.table = FALSE, the provided model's signatures must not be empty")
         }
       }
       

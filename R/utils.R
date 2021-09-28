@@ -179,7 +179,7 @@ table.to.model <- function(scGate.table){
 # the master.table must be a two column data.frame with two columns : 1) name: contains the signature names and 
 # 2)signature: this column contain the genes present in each signature (separated with a semicolon) 
 require("dplyr")
-impute_signatures_from_name <- function(df.model,master.table ,name = "name",descript = "signature"){
+use_master_table <- function(df.model,master.table ,name = "name",descript = "signature"){
   
   ## First, check if descript field exists in input table
   if(!descript %in% colnames(df.model)){
