@@ -335,3 +335,52 @@ performance.metrics <- function(actual,pred,return_contingency =F){
   
 }
 
+#' Load scGate DB models
+#' 
+#' @param destination destination path for db storage. The default is current location. 
+#' @param update_db  Logical indicating if model db must be updated. WARNING: notice that setting it TRUE, the complete folder and models would be overwritten . 
+#' @param repo_url_zip  url path to scGate model repository database
+#' @examples scGate.model.db <- get_scGateDB()
+#' @export
+
+get_scGateDB <- function(destination = ".",
+                         update_db = F,
+                         repo_url_zip = "https://github.com/carmonalab/scGate/archive/models.zip"){
+  
+  repo.name = "scGate-models"
+  repo_path = file.path(destination,repo.name)
+  temp <- tempfile()
+  
+  if(!dir.exists(repo_path)){
+    if(!dir.exists(destination)) dir.create(destination)
+    download.file(repo_url_zip,temp)
+    unzip(temp,exdir = destination)
+    unlink(temp)
+  }else if(update_db){
+    download.file(repo_url_zip,temp)
+    system(sprintf("rm -r %s",repo_path))  # this ensure that db would be completely overwritten and old model will not persist. 
+    unzip(temp,exdir = destination, overwrite = update_db)
+    unlink(temp)
+  }else{
+    message(sprintf("%s repo already exists: using current scGate model. If you want update it set update_db = T",repo.name))
+  }
+  
+  mt <- file.path(repo_path,'models','mouse')
+  mouse_tissues <- list.dirs(mt); 
+  mouse_tissues <- mouse_tissues[mouse_tissues!= mt]
+  
+  ht <- file.path(repo_path,'models','human')
+  human_tissues <- list.dirs(ht); 
+  human_tissues <- human_tissues[human_tissues!= ht]
+  
+  model_db <- list()
+  for(tissue in human_tissues){
+    model_db[['human']][[basename(tissue)]] <- load_models(tissue)
+  }
+  
+  for(tissue in mouse_tissues){
+    model_db[['mouse']][[basename(tissue)]] <- load_models(tissue)
+  }
+  
+  return(model_db)
+}
