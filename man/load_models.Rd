@@ -4,12 +4,12 @@
 \alias{load_models}
 \title{Load scGate models}
 \usage{
-load_models(models_path = NULL, impute.from.master.table = NULL)
+load_models(models_path = NULL, use.master.table = NULL)
 }
 \arguments{
 \item{models_path}{path to scGate model files. The default (models_path = NULL) loads available models in scGate package in \code{scGate::scGate_Models}; Otherwise, you can set a local directory with scGate models in plae tsv file format. See details}
 
-\item{impute.from.master.table}{When you load models from plane files, the signatures could be load from a master_table.tsv centralized file.}
+\item{use.master.table}{When you load models from plane files, the signatures could be load from a master_table.tsv centralized file.}
 }
 \description{
 Load scGate models
