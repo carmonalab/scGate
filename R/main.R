@@ -301,10 +301,8 @@ load_models <- function(models_path = NULL,use.master.table = NULL){
 #' @param actual Logical or numeric binary vector giving the actual cell labels. 
 #' @param pred  Logical or numeric binary vector giving the predicted cell labels. 
 #' @param return_contingency  Logical indicating if contingency table must be returned. Default is FALSE
-
-#' If return_contingency =F (default) this function returns a numeric vector containing c(Precision, Recall, Matthews correlation coefficient)
-#' If return_contingency =T, the function returns a list. "summary" element contains the same (PREC, REC, MCC) vector and the "conting" element contains the contingency table.  
-
+#' @examples
+#' results <- performance.metrics(actual= sample(c(1,0),20,replace =T),pred =  sample(c(1,0),20,replace = T,prob = c(0.65,0.35) ) )
 #' @export
 
 performance.metrics <- function(actual,pred,return_contingency =F){
