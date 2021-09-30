@@ -7,7 +7,7 @@
 get_scGateDB(
   destination = ".",
   update_db = F,
-  repo_url_zip = "https://github.com/carmonalab/scGate/archive/models.zip"
+  repo_url_zip = "https://github.com/carmonalab/scGate_models/archive/master.zip"
 )
 }
 \arguments{
