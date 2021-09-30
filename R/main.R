@@ -357,11 +357,11 @@ get_scGateDB <- function(destination = ".",
     message(sprintf("%s repo already exists: using current scGate model. If you want update it set update_db = T",repo.name))
   }
   
-  mt <- file.path(repo_path,'models','mouse')
+  mt <- file.path(repo_path,'mouse')
   mouse_tissues <- list.dirs(mt); 
   mouse_tissues <- mouse_tissues[mouse_tissues!= mt]
   
-  ht <- file.path(repo_path,'models','human')
+  ht <- file.path(repo_path,'human')
   human_tissues <- list.dirs(ht); 
   human_tissues <- human_tissues[human_tissues!= ht]
   
