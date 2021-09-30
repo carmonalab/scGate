@@ -339,7 +339,7 @@ get_scGateDB <- function(destination = ".",
                          update_db = F,
                          repo_url_zip = "https://github.com/carmonalab/scGate_models/archive/master.zip"){
   
-  repo.name = "scGate_models"
+  repo.name = "scGate_models-master"
   repo_path = file.path(destination,repo.name)
   temp <- tempfile()
   
