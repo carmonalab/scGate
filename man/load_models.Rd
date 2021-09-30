@@ -14,3 +14,6 @@ load_models(models_path = NULL, use.master.table = NULL)
 \description{
 Load scGate models
 }
+\examples{
+model.list <- load_models("./scGate_models/")
+}
