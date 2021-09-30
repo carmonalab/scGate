@@ -345,9 +345,9 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 
 get_scGateDB <- function(destination = ".",
                          update_db = F,
-                         repo_url_zip = "https://github.com/carmonalab/scGate/archive/models.zip"){
+                         repo_url_zip = "https://github.com/carmonalab/scGate_models/archive/master.zip"){
   
-  repo.name = "scGate-models"
+  repo.name = "scGate_models"
   repo_path = file.path(destination,repo.name)
   temp <- tempfile()
   
