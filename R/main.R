@@ -231,47 +231,22 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 }
 
 
-#' Load scGate models
+#' Load a single scGate model
 #'
-#' Loads into memory a database of scGate models. These can be either models from the scGate_models DB (https://github.com/carmonalab/scGate_models), or
-#' custom models by the user
+#' Loads a custom scGate model into R. For the format of these models, have a look or edit one of the default models obtained with \code{get_scGateDB}
 #'
-#' @param repo_path Path to scGate model folder. If this does not exist, the latest version of scGate_model DB is downloaded from the GitHub repo
-#' @param master.table File name of the master table (in repo_path folder) that contains cell type signatures
+#' @param model_file scGate model file, in .tsv format.
+#' @param master.table File name of the master table (in repo_path folder) that contains cell type signatures.
 #' @examples
-#' model.list <- load_models()
+#' custom.model <- load_scGate_model("my_model.tsv")
 #' @export
 
-load_models <- function(repo_path = "scGate_models-master", master.table = "master_table.tsv"){
+load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
   
-  model_db <- list()
+  model <- read.table(model_file, sep ="\t",header =T)
+  model <- use_master_table(model, master.table = master.table)
   
-  if(!dir.exists(repo_path)){
-     repo_path <- "./scGate_models-master"
-     message(sprintf("scGate_models DB not found. Downloading from the repository and saving to %s", repo_path))
-     get_scGateDB()
-  }  
-  
-  allfiles <- list.files(repo_path, recursive = T, full.names = T)
-  modelfiles <- grep("scGate_Model.tsv", allfiles, value = T)
-  uniq_dirs <- sort(unique(dirname(modelfiles)))
-  
-  for (dir in uniq_dirs) {
-     pattern <- paste0(repo_path, '\\/?')
-     tmp <- gsub(pattern, "", dir, perl=T)
-     sub <- strsplit(tmp, split="/")[[1]]
-     
-     if (length(sub)==1) {
-        model_db[[sub[1]]] <- load.model.helper(dir)
-     } else if (length(sub)==2) {
-       model_db[[sub[1]]][[sub[2]]] <- load.model.helper(dir)
-     } else if (length(sub)==2) {
-       model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(dir)
-     } else {
-        message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", dir))
-     } 
-  }
-  return(model_db)
+  return(model)
 }
 
 
@@ -297,9 +272,11 @@ get_scGateDB <- function(destination = ".",
   } else {
     repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
     repo.name = sprintf("scGate_models-%s", version)
+    repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl = T))  #for some reason GitHub remove the 'v' from repo name after unzipping
   }
   
   repo_path = file.path(destination,repo.name)
+  repo_path.v = file.path(destination,repo.name.v)
   temp <- tempfile()
   
   if(!dir.exists(repo_path)){
@@ -315,8 +292,32 @@ get_scGateDB <- function(destination = ".",
     unzip(temp,exdir = destination, overwrite = force_update)
     unlink(temp)
   }else{
-    message(sprintf("%s repo already exists. If you want update it, set option force_update = TRUE",repo.name))
+    message(sprintf("Using local version of repo %s. If you want update it, set option force_update = TRUE",repo.name))
   }
+  
+  #Now load the models into a list structure
+  allfiles <- list.files(repo_path.v, recursive = T, full.names = T)
+  modelfiles <- grep("scGate_Model.tsv", allfiles, value = T)
+  uniq_dirs <- sort(unique(dirname(modelfiles)))
+  
+  model_db <- list()
+  for (dir in uniq_dirs) {
+    pattern <- paste0(repo_path.v, '\\/?')
+    tmp <- gsub(pattern, "", dir, perl=T)
+    sub <- strsplit(tmp, split="/")[[1]]
+    
+    if (length(sub)==1) {
+      model_db[[sub[1]]] <- load.model.helper(dir)
+    } else if (length(sub)==2) {
+      model_db[[sub[1]]][[sub[2]]] <- load.model.helper(dir)
+    } else if (length(sub)==2) {
+      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(dir)
+    } else {
+      message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", dir))
+    } 
+  }
+  return(model_db)
+  
 }
 
 

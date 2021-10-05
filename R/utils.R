@@ -222,7 +222,7 @@ use_master_table <- function(df.model, master.table, name = "name",descript = "s
   
   #Does the master table exist?
   if(!file.exists(master.table)){
-    stop("master_table.tsv file must be present in your 'model folder' if signatures are completely specified in the models")
+    stop("master_table.tsv file must be present in your 'model folder' unless signatures are completely specified in the models")
   }
   master.table <- read.table(master.table, sep ="\t", header =T) 
   
