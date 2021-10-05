@@ -2,7 +2,7 @@
 % Please edit documentation in R/main.R
 \name{get_scGateDB}
 \alias{get_scGateDB}
-\title{Load scGate DB models}
+\title{Download scGate model database}
 \usage{
 get_scGateDB(
   destination = ".",
@@ -21,7 +21,7 @@ get_scGateDB(
 \item{repo_url}{URL path to scGate model repository database}
 }
 \description{
-Load scGate DB models
+Download or update the database of scGate models. These are stored in a GitHub repository, from where you can download specific versions of the database.
 }
 \examples{
 scGate.model.db <- get_scGateDB()

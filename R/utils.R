@@ -175,12 +175,36 @@ table.to.model <- function(scGate.table){
   return(mod)
 }
 
+
+load.model.helper <- function(models_path, master.table = "master_table.tsv") {
+
+  df.models.toimpute <- list()
+  files.to.impute <- list.files(file.path(models_path),"_scGate_Model.tsv")
+  if(length(files.to.impute)==0){
+    stop("Please, provide some model table files in your 'model folder' or set models_path = NULL for using the default ones")
+  }
+  # load models to impute
+  for(f in files.to.impute){
+    model.name <- strsplit(f,"_scGate_Model.tsv")[[1]][1]
+    df.models.toimpute[[model.name]] <- read.table(file.path(models_path,f),sep ="\t",header =T)
+  }
+  # signature imputing
+  imputed.models <-  lapply(df.models.toimpute,function(df){
+    use_master_table(df.model = df, master.table = file.path(models_path, master.table))
+  })
+  model.list <- imputed.models
+      
+
+  return(model.list)
+}
+
 ## This function allows to complete signatures in a table based model by using the name signature and a provided master.table of signatures
 # the master.table must be a two column data.frame with two columns : 1) name: contains the signature names and 
 # 2)signature: this column contain the genes present in each signature (separated with a semicolon) 
-require("dplyr")
-use_master_table <- function(df.model,master.table ,name = "name",descript = "signature"){
+
+use_master_table <- function(df.model, master.table, name = "name",descript = "signature"){
   
+  require("dplyr")
   ## First, check if descript field exists in input table
   if(!descript %in% colnames(df.model)){
     df.model[descript] <- ""
@@ -195,6 +219,13 @@ use_master_table <- function(df.model,master.table ,name = "name",descript = "si
     message("nothing to do, the model signatures are already provided")
     return(df.model)
   }
+  
+  #Does the master table exist?
+  if(!file.exists(master.table)){
+    stop("master_table.tsv file must be present in your 'model folder' if signatures are completely specified in the models")
+  }
+  master.table <- read.table(master.table, sep ="\t", header =T) 
+  
   # sanity check:
   warn <- setdiff(input.names[complete.from.master.table],master.table[[name]])
   if(length(warn)>0){

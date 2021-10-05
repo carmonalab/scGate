@@ -4,16 +4,20 @@
 \alias{load_models}
 \title{Load scGate models}
 \usage{
-load_models(models_path = NULL, use.master.table = NULL)
+load_models(
+  repo_path = "scGate_models-master",
+  master.table = "master_table.tsv"
+)
 }
 \arguments{
-\item{models_path}{path to scGate model files. The default (models_path = NULL) loads available models in scGate package in \code{scGate::scGate_Models}; Otherwise, you can set a local directory with scGate models in plae tsv file format. See details}
+\item{repo_path}{Path to scGate model folder. If this does not exist, the latest version of scGate_model DB is downloaded from the GitHub repo}
 
-\item{use.master.table}{When you load models from plane files, the signatures could be load from a master_table.tsv centralized file.}
+\item{master.table}{File name of the master table (in repo_path folder) that contains cell type signatures}
 }
 \description{
-Load scGate models
+Loads into memory a database of scGate models. These can be either models from the scGate_models DB (https://github.com/carmonalab/scGate_models), or
+custom models by the user
 }
 \examples{
-model.list <- load_models("./scGate_models/")
+model.list <- load_models()
 }

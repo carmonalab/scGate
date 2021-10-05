@@ -2,7 +2,7 @@
 % Please edit documentation in R/main.R
 \name{performance.metrics}
 \alias{performance.metrics}
-\title{Evaluate model performance for binary tasks}
+\title{Performance metrics}
 \usage{
 performance.metrics(actual, pred, return_contingency = F)
 }

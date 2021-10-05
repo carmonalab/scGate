@@ -233,61 +233,95 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 
 #' Load scGate models
 #'
-#' @param models_path path to scGate model files. The default (models_path = NULL) loads available models in scGate package in \code{scGate::scGate_Models}; Otherwise, you can set a local directory with scGate models in plae tsv file format. See details
-#' @param use.master.table When you load models from plane files, the signatures could be load from a master_table.tsv centralized file. 
+#' Loads into memory a database of scGate models. These can be either models from the scGate_models DB (https://github.com/carmonalab/scGate_models), or
+#' custom models by the user
+#'
+#' @param repo_path Path to scGate model folder. If this does not exist, the latest version of scGate_model DB is downloaded from the GitHub repo
+#' @param master.table File name of the master table (in repo_path folder) that contains cell type signatures
 #' @examples
-#' model.list <- load_models("./scGate_models/")
+#' model.list <- load_models()
 #' @export
 
-load_models <- function(models_path = NULL,use.master.table = NULL){
-  if(is.null(models_path)){
-    model.list <- scGate_Models
-  }else{
-    if(is.null(use.master.table)){
-      use.master.table = T
-    }    
-    if(use.master.table){
-      master.table.path = file.path(models_path,"master_table.tsv")
-      if(!file.exists(master.table.path)){
-        stop("master_table.tsv file must be present in your 'model folder'; in other case you must to set 'use.master.table = FALSE'")
-      }
-      master.table <- read.table(master.table.path,sep ="\t", header =T) 
-      df.models.toimpute <- list()
-      files.to.impute <- list.files(file.path(models_path),"_scGate_Model.tsv")
-      if(length(files.to.impute)==0){
-        stop("Please, provide some model table files in your 'model folder' or set models_path = NULL for using the default ones")
-      }
-      # load models to impute
-      for(f in files.to.impute){
-        model.name <- strsplit(f,"_scGate_Model.tsv")[[1]][1]
-        df.models.toimpute[[model.name]] <- read.table(file.path(models_path,f),sep ="\t",header =T)
-      }
-      # signature imputing
-      imputed.models <-  lapply(df.models.toimpute,function(df){
-        use_master_table(df.model = df,master.table = master.table)
-      })
-      model.list <- imputed.models
-    }else{ # asume models are complete and not need imputation
-      model.list <- list()
-      complete.models <- list.files(file.path(models_path),"_scGate_Model.tsv")
-      if(length(complete.models)==0){
-        stop("Please, provide some model table files in your 'model folder' or set models_path = NULL for using the default ones")
-      }
-      for(f in complete.models){
-        model.name <- strsplit(f,"_scGate_Model.tsv")[[1]][1]
-        model.list[[model.name]] <- read.table(file.path(models_path,f),sep ="\t",header =T)
-        any.null <- any(sapply(model.list[[model.name]]$signature,is.null))
-        any.empty <- any(model.list[[model.name]]$signature %in% c(""))
-        if(any.null|any.empty){
-          stop("if you set 'use.master.table = FALSE, the provided model's signatures must not be empty")
-        }
-      }
-      
-    }  
+load_models <- function(repo_path = "scGate_models-master", master.table = "master_table.tsv"){
+  
+  model_db <- list()
+  
+  if(!dir.exists(repo_path)){
+     repo_path <- "./scGate_models-master"
+     message(sprintf("scGate_models DB not found. Downloading from the repository and saving to %s", repo_path))
+     get_scGateDB()
+  }  
+  
+  allfiles <- list.files(repo_path, recursive = T, full.names = T)
+  modelfiles <- grep("scGate_Model.tsv", allfiles, value = T)
+  uniq_dirs <- sort(unique(dirname(modelfiles)))
+  
+  for (dir in uniq_dirs) {
+     pattern <- paste0(repo_path, '\\/?')
+     tmp <- gsub(pattern, "", dir, perl=T)
+     sub <- strsplit(tmp, split="/")[[1]]
+     
+     if (length(sub)==1) {
+        model_db[[sub[1]]] <- load.model.helper(dir)
+     } else if (length(sub)==2) {
+       model_db[[sub[1]]][[sub[2]]] <- load.model.helper(dir)
+     } else if (length(sub)==2) {
+       model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(dir)
+     } else {
+        message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", dir))
+     } 
   }
-  return(model.list)
+  return(model_db)
 }
 
+
+#' Load scGate model database
+#'
+#' Download, update or load local version of the scGate model database. These are stored in a GitHub repository, from where you can download specific versions of the database.
+#' 
+#' @param destination destination path for db storage. The default is current location. 
+#' @param force_update  Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten . 
+#' @param version Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.
+#' @param repo_url  URL path to scGate model repository database
+#' @examples scGate.model.db <- get_scGateDB()
+#' @export
+
+get_scGateDB <- function(destination = ".",
+                         force_update = FALSE,
+                         version = "latest",
+                         repo_url = "https://github.com/carmonalab/scGate_models"){
+  
+  if (version=="latest") {
+    repo_url_zip = sprintf("%s/archive/master.zip", repo_url)
+    repo.name = "scGate_models-master"
+  } else {
+    repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
+    repo.name = sprintf("scGate_models-%s", version)
+  }
+  
+  repo_path = file.path(destination,repo.name)
+  temp <- tempfile()
+  
+  if(!dir.exists(repo_path)){
+    if(!dir.exists(destination)) {
+      dir.create(destination)
+    }
+    download.file(repo_url_zip,temp)
+    unzip(temp,exdir = destination)
+    unlink(temp)
+  }else if(force_update){
+    download.file(repo_url_zip,temp)
+    system(sprintf("rm -r %s",repo_path))  # this ensure that db would be completely overwritten and old model will not persist. 
+    unzip(temp,exdir = destination, overwrite = force_update)
+    unlink(temp)
+  }else{
+    message(sprintf("%s repo already exists. If you want update it, set option force_update = TRUE",repo.name))
+  }
+}
+
+
+#' Performance metrics
+#'
 #' Evaluate model performance for binary tasks
 #' 
 #' @param actual Logical or numeric binary vector giving the actual cell labels. 
@@ -327,62 +361,3 @@ performance.metrics <- function(actual,pred,return_contingency =F){
   
 }
 
-#' Load scGate DB models
-#' 
-#' @param destination destination path for db storage. The default is current location. 
-#' @param force_update  Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten . 
-#' @param version Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.
-#' @param repo_url  URL path to scGate model repository database
-#' @examples scGate.model.db <- get_scGateDB()
-#' @export
-
-get_scGateDB <- function(destination = ".",
-                         force_update = FALSE,
-                         version = "latest",
-                         repo_url = "https://github.com/carmonalab/scGate_models"){
-  
-  repo.name = "scGate_models-master"
-  repo_path = file.path(destination,repo.name)
-  temp <- tempfile()
-  
-  if (version=="latest") {
-    repo_url_zip = sprintf("%s/archive/master.zip", repo_url)
-  } else {
-    repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
-  }
-  
-  if(!dir.exists(repo_path)){
-    if(!dir.exists(destination)) {
-      dir.create(destination)
-    }
-    download.file(repo_url_zip,temp)
-    unzip(temp,exdir = destination)
-    unlink(temp)
-  }else if(force_update){
-    download.file(repo_url_zip,temp)
-    system(sprintf("rm -r %s",repo_path))  # this ensure that db would be completely overwritten and old model will not persist. 
-    unzip(temp,exdir = destination, overwrite = force_update)
-    unlink(temp)
-  }else{
-    message(sprintf("%s repo already exists: using current scGate model. If you want update it set force_update = TRUE",repo.name))
-  }
-  
-  mt <- file.path(repo_path,'mouse')
-  mouse_tissues <- list.dirs(mt); 
-  mouse_tissues <- mouse_tissues[mouse_tissues!= mt]
-  
-  ht <- file.path(repo_path,'human')
-  human_tissues <- list.dirs(ht); 
-  human_tissues <- human_tissues[human_tissues!= ht]
-  
-  model_db <- list()
-  for(tissue in human_tissues){
-    model_db[['human']][[basename(tissue)]] <- load_models(tissue)
-  }
-  
-  for(tissue in mouse_tissues){
-    model_db[['mouse']][[basename(tissue)]] <- load_models(tissue)
-  }
-  
-  return(model_db)
-}
