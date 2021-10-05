@@ -6,16 +6,19 @@
 \usage{
 get_scGateDB(
   destination = ".",
-  update_db = F,
-  repo_url_zip = "https://github.com/carmonalab/scGate_models/archive/master.zip"
+  force_update = FALSE,
+  version = "latest",
+  repo_url = "https://github.com/carmonalab/scGate_models"
 )
 }
 \arguments{
 \item{destination}{destination path for db storage. The default is current location.}
 
-\item{update_db}{Logical indicating if model db must be updated. WARNING: notice that setting it TRUE, the complete folder and models would be overwritten .}
+\item{force_update}{Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten .}
 
-\item{repo_url_zip}{url path to scGate model repository database}
+\item{version}{Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.}
+
+\item{repo_url}{URL path to scGate model repository database}
 }
 \description{
 Load scGate DB models

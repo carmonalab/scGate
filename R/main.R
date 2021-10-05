@@ -330,31 +330,41 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' Load scGate DB models
 #' 
 #' @param destination destination path for db storage. The default is current location. 
-#' @param update_db  Logical indicating if model db must be updated. WARNING: notice that setting it TRUE, the complete folder and models would be overwritten . 
-#' @param repo_url_zip  url path to scGate model repository database
+#' @param force_update  Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten . 
+#' @param version Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.
+#' @param repo_url  URL path to scGate model repository database
 #' @examples scGate.model.db <- get_scGateDB()
 #' @export
 
 get_scGateDB <- function(destination = ".",
-                         update_db = F,
-                         repo_url_zip = "https://github.com/carmonalab/scGate_models/archive/master.zip"){
+                         force_update = FALSE,
+                         version = "latest",
+                         repo_url = "https://github.com/carmonalab/scGate_models"){
   
   repo.name = "scGate_models-master"
   repo_path = file.path(destination,repo.name)
   temp <- tempfile()
   
+  if (version=="latest") {
+    repo_url_zip = sprintf("%s/archive/master.zip", repo_url)
+  } else {
+    repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
+  }
+  
   if(!dir.exists(repo_path)){
-    if(!dir.exists(destination)) dir.create(destination)
+    if(!dir.exists(destination)) {
+      dir.create(destination)
+    }
     download.file(repo_url_zip,temp)
     unzip(temp,exdir = destination)
     unlink(temp)
-  }else if(update_db){
+  }else if(force_update){
     download.file(repo_url_zip,temp)
     system(sprintf("rm -r %s",repo_path))  # this ensure that db would be completely overwritten and old model will not persist. 
-    unzip(temp,exdir = destination, overwrite = update_db)
+    unzip(temp,exdir = destination, overwrite = force_update)
     unlink(temp)
   }else{
-    message(sprintf("%s repo already exists: using current scGate model. If you want update it set update_db = T",repo.name))
+    message(sprintf("%s repo already exists: using current scGate model. If you want update it set force_update = TRUE",repo.name))
   }
   
   mt <- file.path(repo_path,'mouse')
