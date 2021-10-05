@@ -268,7 +268,8 @@ get_scGateDB <- function(destination = ".",
   
   if (version=="latest") {
     repo_url_zip = sprintf("%s/archive/master.zip", repo_url)
-    repo.name = "scGate_models-master"
+    repo.name <- "scGate_models-master"
+    repo.name.v <- repo.name
   } else {
     repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
     repo.name = sprintf("scGate_models-%s", version)
