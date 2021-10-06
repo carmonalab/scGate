@@ -34,7 +34,7 @@ scGate(
 
 \item{assay}{Seurat assay to use}
 
-\item{ncores}{Number of processors for parallel processing (requires \code{future.apply})}
+\item{ncores}{Number of processors for parallel processing (requires \code{\link{future.apply}})}
 
 \item{seed}{Integer seed for random number generator}
 
@@ -62,7 +62,7 @@ list of signatures will be returned but not used for filtering.}
 
 \item{verbose}{Verbose output}
 
-\item{gating.model}{A tabular model with scGate signatures. See description for this format}
+\item{gating.model}{A tabular model with scGate signatures. See Details for this format}
 }
 \value{
 A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
@@ -71,8 +71,26 @@ A new metadata column \code{is.pure} is added to the query Seurat object, indica
 \description{
 Apply scGate to filter specific cell types in a query dataset
 }
+\details{
+Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
+    \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
+}
 \examples{
-query <- scGate(query, model=Bcell.model)
+library(scGate)
+models <- get_scGateDB()
+query <- scGate(query, model=models$human$generic$PanBcell)
 DimPlot(query)
-query <- subset(query, subset=is.pure=="Pure")
+query.filtered <- subset(query, subset=is.pure=="Pure")
+
+############
+# Using a custom model
+
+my.model <- load_scGate_model("custom_model.tsv")
+plot_tree(my.model)
+query <- scGate(query, model=my.model)
+query.filtered <- subset(query, subset=is.pure=="Pure")
+
+}
+\seealso{
+\code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}}
 }

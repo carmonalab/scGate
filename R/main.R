@@ -3,7 +3,7 @@
 #' Apply scGate to filter specific cell types in a query dataset
 #'
 #' @param data Seurat object containing a query data set - filtering will be applied to this object
-#' @param gating.model A tabular model with scGate signatures. See description for this format
+#' @param gating.model A tabular model with scGate signatures. See Details for this format
 #' @param pca.dim Number of dimensions for cluster analysis
 #' @param assay Seurat assay to use
 #' @param pos.thr Minimum UCell score value for positive signatures
@@ -12,7 +12,7 @@
 #' @param k.param Number of nearest neighbors for knn smoothing
 #' @param pca.dim Number of principal components for dimensionality reduction
 #' @param resol Resolution for cluster analysis (if \code{by.knn=FALSE})
-#' @param ncores Number of processors for parallel processing (requires \code{future.apply})
+#' @param ncores Number of processors for parallel processing (requires \code{\link{future.apply}})
 #' @param output.col.name Column name with 'pure/impure' annotation
 #' @param min.cells Stop iterating if fewer than this number of cells is left
 #' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
@@ -26,10 +26,24 @@
 
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
 #'     The \code{active.ident} is also set to this variable.
+#' @details Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
+#'     \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.   
 #' @examples
-#' query <- scGate(query, model=Bcell.model)
+#' library(scGate)
+#' models <- get_scGateDB()
+#' query <- scGate(query, model=models$human$generic$PanBcell)
 #' DimPlot(query)
-#' query <- subset(query, subset=is.pure=="Pure")
+#' query.filtered <- subset(query, subset=is.pure=="Pure")
+#' 
+#' ############
+#' # Using a custom model
+#' 
+#' my.model <- load_scGate_model("custom_model.tsv")
+#' plot_tree(my.model)
+#' query <- scGate(query, model=my.model)
+#' query.filtered <- subset(query, subset=is.pure=="Pure")
+#' 
+#' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
 #' @export
 
 scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1, seed=123, keep.ranks=FALSE,
@@ -137,15 +151,17 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
 }
 
 
-
+#' Plot model tree
+#'
 #' View scGate model as a decision tree
 #'
 #' @param model A scGate model to be visualized
-#' @param box_size Box size
+#' @param box.size Box size
 #' @param edge.text.size Edge text size
-#' @return A plot of the model
+#' @return A plot of the model as a decision tree. At each level, green boxes indicate the 'positive' (accepted) cell types, red boxed indicate the
+#'     'negative' cell types (filtered out). The final Pure population is the bottom right subset in the tree.
 #' @examples
-#' query <- plot_tree(model)
+#' plot_tree(model)
 #' @export
 
 
@@ -222,10 +238,11 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
                     line_gpar = list(list(size = box.size)))  +
     geom_node_label(ids = "terminal",
                     mapping = aes(col = p.value),
+                    nudge_y=0.01,
                     line_list = list(aes(label=info)),
                     line_gpar = list(list(size = box.size))) +
     scale_color_manual(values=c("#f60a0a", "#00ae60")) +
-    theme(legend.position = "none") 
+    theme(legend.position = "none", plot.margin = unit(c(1,1,1,1), "cm")) 
   
   return(gg)
 }
@@ -233,12 +250,16 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 
 #' Load a single scGate model
 #'
-#' Loads a custom scGate model into R. For the format of these models, have a look or edit one of the default models obtained with \code{get_scGateDB}
+#' Loads a custom scGate model into R. For the format of these models, have a look or edit one of the default models obtained with \code{\link{get_scGateDB()}}
 #'
 #' @param model_file scGate model file, in .tsv format.
 #' @param master.table File name of the master table (in repo_path folder) that contains cell type signatures.
 #' @examples
-#' custom.model <- load_scGate_model("my_model.tsv")
+#' library(scGate)
+#' my.model <- load_scGate_model("my_model.tsv")
+#' plot_tree(my.model)
+#' query <- scGate(query, model=my.model)
+#' @seealso \code{\link{scGate}} \code{\link{get_scGateDB}} 
 #' @export
 
 load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
@@ -252,13 +273,24 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 
 #' Load scGate model database
 #'
-#' Download, update or load local version of the scGate model database. These are stored in a GitHub repository, from where you can download specific versions of the database.
+#' Download, update or load local version of the scGate model database. These are stored in a GitHub repository, from where you can download specific 
+#' versions of the database.
 #' 
 #' @param destination destination path for db storage. The default is current location. 
 #' @param force_update  Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten . 
 #' @param version Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.
 #' @param repo_url  URL path to scGate model repository database
-#' @examples scGate.model.db <- get_scGateDB()
+#' @return A list of models, organized according to the folder structure of the database. See the examples below.
+#' @details Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
+#'     \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.  
+#' @examples 
+#' library(scGate)
+#' scGate.model.db <- get_scGateDB()
+#' # To see a specific model, browse the list of models:
+#' scGate.model.db$human$generic$Myeloid
+#' # Apply scGate with this model
+#' query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
+#' @seealso \code{\link{scGate}} \code{\link{load_scGate_model}}  
 #' @export
 
 get_scGateDB <- function(destination = ".",

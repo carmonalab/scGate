@@ -20,9 +20,25 @@ get_scGateDB(
 
 \item{repo_url}{URL path to scGate model repository database}
 }
+\value{
+A list of models, organized according to the folder structure of the database. See the examples below.
+}
 \description{
-Download, update or load local version of the scGate model database. These are stored in a GitHub repository, from where you can download specific versions of the database.
+Download, update or load local version of the scGate model database. These are stored in a GitHub repository, from where you can download specific 
+versions of the database.
+}
+\details{
+Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
+    \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
 }
 \examples{
+library(scGate)
 scGate.model.db <- get_scGateDB()
+# To see a specific model, browse the list of models:
+scGate.model.db$human$generic$Myeloid
+# Apply scGate with this model
+query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
+}
+\seealso{
+\code{\link{scGate}} \code{\link{load_scGate_model}}
 }

@@ -204,7 +204,6 @@ load.model.helper <- function(models_path, master.table = "master_table.tsv") {
 
 use_master_table <- function(df.model, master.table, name = "name",descript = "signature"){
   
-  require("dplyr")
   ## First, check if descript field exists in input table
   if(!descript %in% colnames(df.model)){
     df.model[descript] <- ""
