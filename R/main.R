@@ -70,7 +70,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
   if (verbose) {
     message("Computing UCell scores for signatures...\n")
   }
-  data <- score.computing.for.scGate(data, model, assay, ncores=ncores, keep.ranks=keep.ranks)
+  data <- score.computing.for.scGate(data, model, assay, ncores=ncores, keep.ranks=keep.ranks, add.sign=additional.signatures)
   
   #Iterate over levels
   q <- data  #local copy to progressively remove cells
