@@ -105,7 +105,7 @@ score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", add.s
   names(signatures) <- model.uniq$name
   
   if (is.list(add.sign) & length(add.sign)>0) {
-     markers.list <- append(markers.list, add.sign)
+     signatures <- append(signatures, add.sign)
   } 
   
   data <- AddModuleScore_UCell(data, features = signatures, ncores=ncores, storeRanks = keep.ranks)
