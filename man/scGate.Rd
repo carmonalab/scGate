@@ -28,6 +28,8 @@ scGate(
 \arguments{
 \item{data}{Seurat object containing a query data set - filtering will be applied to this object}
 
+\item{model}{A tabular model with scGate signatures. See Details for this format}
+
 \item{pos.thr}{Minimum UCell score value for positive signatures}
 
 \item{neg.thr}{Maximum UCell score value for negative signatures}
@@ -61,8 +63,6 @@ you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 list of signatures will be returned but not used for filtering.}
 
 \item{verbose}{Verbose output}
-
-\item{gating.model}{A tabular model with scGate signatures. See Details for this format}
 }
 \value{
 A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).

@@ -3,7 +3,7 @@
 #' Apply scGate to filter specific cell types in a query dataset
 #'
 #' @param data Seurat object containing a query data set - filtering will be applied to this object
-#' @param gating.model A tabular model with scGate signatures. See Details for this format
+#' @param model A tabular model with scGate signatures. See Details for this format
 #' @param pca.dim Number of dimensions for cluster analysis
 #' @param assay Seurat assay to use
 #' @param pos.thr Minimum UCell score value for positive signatures
@@ -50,6 +50,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
                    by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
   
+  require(dplyr)
   set.seed(seed)
   #check gene blacklist
   if (!is.null(genes.blacklist)) {
@@ -298,6 +299,7 @@ get_scGateDB <- function(destination = ".",
                          version = "latest",
                          repo_url = "https://github.com/carmonalab/scGate_models"){
   
+  require(dplyr)
   if (version=="latest") {
     repo_url_zip = sprintf("%s/archive/master.zip", repo_url)
     repo.name <- "scGate_models-master"
