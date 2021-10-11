@@ -55,7 +55,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
   #check gene blacklist
   if (!is.null(genes.blacklist)) {
     if (length(genes.blacklist)==1 && genes.blacklist == "default") {  #Default
-       genes.blacklist = genes.blacklist.default
+       genes.blacklist = scGate::genes.blacklist.default
     }  
     if (is.list(genes.blacklist)) {
       genes.blacklist <- unlist(genes.blacklist)
