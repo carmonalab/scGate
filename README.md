@@ -2,10 +2,8 @@
 
 scGate is a method to filter specific cell types from single-cell dataset.
 
-Several methods exist for multiclass classification of single cells (e.g. singleR); but they do not perform well.
-Aiming to achieve high resolution for detecting one cell type (or a subset of cell types), we propose to simplify 
-multiclass classifiction to a two-class classification, i.e. the cell type(s) of interest vs. everything else.
-Details of the algorithm (TO DO).
+Several methods exist for multiclass classification of single cells based on profiles learned from a training set (e.g. singleR). However, the performance of these methods highly depend on the quality, annotation, and completeness of the training set. They can only detect the cell types present in the training set and are difficult to customize (i.e. retraining is necessary). With scGate, we aim at providing a training-free method for detecting specific cell types, using signature-based, hierachical models that can be easily customized by the user. 
+
 
 ### Installation
 ```
@@ -13,23 +11,48 @@ remotes::install_github("carmonalab/UCell")
 remotes::install_github("carmonalab/scGate")
 ```
 
-### Functions
-scGate is composed of two main functions:
-* `train_scGate`: given a set of signatures and a reference set, calculate expected mean and SD for all cell types 
-in the reference set. Deviations from this expected distribution (Z-score) can then be used to gate for specific cell types 
-in any query dataset
-* `scGate`: apply a scGate gating model to filter specific cell types in a query dataset
+### Testing the package
 
-See the R help for all the parameters.
+Obtain a single-cell dataset for testing (**UPDATE LINK**) and run scGate to filter a specific cell type
+```
+test.set <- readRDS(ADD_LINK)
+
+#Load scGate and upload a database of models
+library(scGate)
+models.DB <- get_scGateDB()
+
+#For example, filter B cells from this dataset
+model.Bcell <- models.DB$human$generic$PanBcell 
+test.set <- scGate(test.set, model = model.Bcell)
+DimPlot(test.set)
+```
 
 ### Gating models
-Pre-trained scGate models are available with the scGate package in: `scGate::scGate_DB`
-
-For example, to filter T cells from a human dataset run:
+A database of gating models for scGate is available on [GitHub](https://github.com/carmonalab/scGate_models), and can loaded directly into your R workspace with the following function:
 ```
-query.data <- scGate(query.data, gating.model=scGate_DB$human$CD8.Tcell)
+library(scGate)
+models.DB <- get_scGateDB()
+```
+The first time you run this command the scGate database will be downloaded from the repository. On successive calls it will load your local version of the DB.
+
+You may freely edit the available models or create new models for your cell type of interest. You can then load your custom model into R using:
+```
+my.model <- load_scGate_model("path_to_my.model")
 ```
 
-Pure/Impure classifications are stored in the object metadata (column `is.pure`), together with the most likely annotation for gated-out cells (column `scGate.annotation`).
+You can also apply the `plot_tree` function to visualize the hierarchical structure of one of the models.
+```
+scGate::plot.tree(scGate::plot_tree(models.DB$human$generic$Tcell))
+scGate::plot.tree(scGate::plot_tree(my.model)
+```
+
+### Demos and tutorials
+
+Add this section
+
+### References
+
+Add references
+
 
 
