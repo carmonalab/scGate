@@ -122,21 +122,24 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
       break  # in case of all cells became filtered, we do not continue with the next layer
     }
   }
+  
+  #Add 'pure' labels to metadata
+  data <- AddMetaData(data,col.name = output.col.name,metadata = rep("Impure",tot.cells))
+  
   if(any(retain_pure_cells)){  
     pure.cells <- colnames(q)
-    data <- AddMetaData(data,col.name = output.col.name,metadata = rep("Impure",tot.cells))
     data@meta.data[pure.cells, output.col.name] <- "Pure"
-    
-    # save output by level
-    for(name.lev in names(list.model)){
-      data <- AddMetaData(data,col.name = paste0(output.col.name,".",name.lev),metadata = output_by_level[[name.lev]])
-    }
-  }else{
+  } else {
     message(sprintf("Warning, all cells were removed at level %i. Consider reviewing signatures or model layout...", lev))
-    data <- AddMetaData(data,col.name = output.col.name,metadata = rep("Impure",tot.cells))
-    # save output by level
-    for(name.lev in names(list.model)){
-      data <- AddMetaData(data,col.name = paste0(output.col.name,".",name.lev),metadata = output_by_level[[name.lev]])
+  }
+  
+  data@meta.data[,output.col.name] <- factor(data@meta.data[,output.col.name], levels=c("Pure","Impure"))
+    
+  # Save output by level
+  for(name.lev in names(list.model)){
+      colname <- paste0(output.col.name,".",name.lev)
+      data <- AddMetaData(data,col.name = colname, metadata = output_by_level[[name.lev]])
+      data@meta.data[,colname] <- factor(data@meta.data[,colname], levels=c("Pure","Impure"))
     }
   }
   
@@ -146,7 +149,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
   frac.to.rem <- n_rem/tot.cells
   mess <- sprintf("\n### Detected a total of %i non-pure cells for selected signatures - %.2f%% cells marked for removal (active.ident)",
                   n_rem, 100*frac.to.rem)
-  message(mess)  #verbose?
+  message(mess)
   
   return(data)
 }
