@@ -140,9 +140,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
       colname <- paste0(output.col.name,".",name.lev)
       data <- AddMetaData(data,col.name = colname, metadata = output_by_level[[name.lev]])
       data@meta.data[,colname] <- factor(data@meta.data[,colname], levels=c("Pure","Impure"))
-    }
   }
-  
   Idents(data) <- output.col.name
   
   n_rem <- sum(data[[output.col.name]]=="Impure")
