@@ -8,8 +8,8 @@ Authors@R: c(
   person(given = 'Ariel', family = 'Berenstein', email = 'arieljberenstein@gmail.com', role = c('aut'), comment = c(ORCID = '0000-0001-8540-5389'))
   )
 Description: scGate allows filtering of specific cell types from sigle-cell data. Given a query single-cell data set, the package evaluates a panel of gene signatures, and returns only the cells enriched for the desired cell type, while removing cells with high signature scores for other cell types.
-Depends: R(>= 3.6.1),Seurat(>= 3.2.1),data.table(>= 1.13.6),UCell(>= 1.1.0),patchwork,dplyr,ggparty
-Suggests: future.apply
+Depends: R(>= 3.6.1),Seurat(>= 3.2.1),data.table(>= 1.13.6),UCell(>= 1.1.0),dplyr
+Suggests: future.apply,ggparty
 License: GPL-3
 Encoding: UTF-8
 LazyData: true

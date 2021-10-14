@@ -169,7 +169,9 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1,
 
 plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   
-  require(ggparty)
+  if (!suppressWarnings(require(ggparty))) {  #check ggparty is available
+    stop("Please install and load package 'ggparty'")
+  }
   nlev <- length(unique(model$levels))
   
   #restructure data for visualization

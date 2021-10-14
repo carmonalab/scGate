@@ -9,6 +9,7 @@ Several methods exist for multiclass classification of single cells based on pro
 ```
 remotes::install_github("carmonalab/UCell")
 remotes::install_github("carmonalab/scGate")
+install.packages("ggparty")
 ```
 
 ### Testing the package
