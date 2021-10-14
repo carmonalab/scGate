@@ -245,3 +245,11 @@ use_master_table <- function(df.model, master.table, name = "name",descript = "s
   return(df.model)
 }
 
+plot_levels <- function(obj){
+  myCols <- grep("is.pure", colnames(obj@meta.data),value = T)
+  plots <- list()
+  for (myCol in myCols){
+    plots[[myCol]] <- DimPlot(obj, group.by = myCol)
+  }
+  return(plots)
+}
