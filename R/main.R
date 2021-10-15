@@ -400,3 +400,81 @@ performance.metrics <- function(actual,pred,return_contingency =F){
   
 }
 
+test_my_model <- function(model,dataset = 'hsa.latest',target = "PanBcell",PLOT = T){
+  
+  targets <- c('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell')
+  if(!target %in% targets){
+    stop(sprintf("target must be one of %s",paste(targets,collapse = "';'")))
+  }
+  if(dataset == "hsa.latest"){
+    custom.dataset = FALSE
+    testing.datasets <- readRDS(url("https://www.dropbox.com/s/vl527ko9m43xmj0/testing.datasets.2k.rds?dl=1"))
+  }else if(class(dataset) == "Seurat"){
+    testing.datasets <- list()
+    testing.datasets$user.dataset <- dataset
+    custom.dataset = TRUE
+  }else{
+    stop("please, provide a valid testing dataset. See doc for details")
+  }
+  
+  if(custom.dataset){
+    if(!"cell_type" %in% colnames(dataset@meta.data)){
+      stop("please, provide a 'cell_type' column to be used as reference cell type")
+    }
+    
+    if(any(!target %in% dataset$cell_type)){
+      stop("all target celltypes must be included in cell_type metadata field")
+    }
+    
+  }
+  
+  plt.out <- list()
+  perf.out <- list()
+  output <- list()
+  # Drop is.pure cols if exists
+  for(dset in names(testing.datasets)){
+    obj <- testing.datasets[[dset]]
+    #obj <- subset(obj, cells=sample(Cells(obj),200))
+    plt <- list()
+    dropcols = obj@meta.data%>%colnames()%>%grep("^is.pure",.,value =T)%>%unique()
+    if(length(dropcols)>0){
+      for(col in dropcols){
+        obj[[col]] <- NULL   
+      }
+    }
+    
+    ## scGate filtering
+    obj <- scGate(obj, model = model, assay = DefaultAssay(obj))
+
+    # add annotation plot
+    nname <- sprintf("%s's manual annot",dset)
+    plt[[nname]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle(nname) + NoLegend() 
+
+    # add one DimPlot by model level
+    level.plots <- plot_levels(obj)  # this return a list of plots one by each model level
+    names(level.plots) <- paste(dset,names(level.plots),sep = "_")
+    plt <- c(plt,level.plots)  ## add plots (one by layer)
+    
+    #reserve plots of this dset
+    plt.out[[dset]] <- patchwork::wrap_plots(plt,ncol = length(plt))
+    
+    if(!custom.dataset){    
+      performance = scGate::performance.metrics(actual = obj@meta.data[,target], pred = obj$is.pure== "Pure")
+    }else{
+      performance = scGate::performance.metrics(actual = obj@cell_type %in% target, pred = obj$is.pure== "Pure")
+    }
+    perf.out[[dset]] <- performance 
+    output[[dset]] <- obj
+    
+  }
+  
+  perf <- Reduce(rbind,perf.out)
+  rownames(perf) <- names(perf.out)
+  
+  if(PLOT) {
+    print(patchwork::wrap_plots(plt.out, ncol = 1))
+  }
+  return(list(performance = perf, plots = plt.out,objects = output))
+}
+
+
