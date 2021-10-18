@@ -5,7 +5,7 @@
 \title{Load scGate model database}
 \usage{
 get_scGateDB(
-  destination = ".",
+  destination = "~/.scGateDB",
   force_update = FALSE,
   version = "latest",
   repo_url = "https://github.com/carmonalab/scGate_models"
