@@ -278,6 +278,5 @@ get_testing_data <- function(version = 'hsa.latest', destination = "~/.scGateDB"
   testing.data <- readRDS(testing.data.path)
   return(testing.data)
 }
-  
-aver = get_testing_data()
+
 
