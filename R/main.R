@@ -421,7 +421,6 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' your.own.seurat.object <- readRDS(path.to.your.custom.dataset)
 #' your.own.seurat.object$cell_type <- your.own.seurat.object$your.gold.standard.column   ## This make a copy of the cell_type reference column as required for scGate
 #' performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model, custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))  # notice that 'Bcell' and 'PlasmaCell' must be celltypes present in your custom.dataset
-
 #' @export
 
 test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset = NULL,target = "PanBcell",PLOT = T){
