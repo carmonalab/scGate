@@ -407,8 +407,7 @@ test_my_model <- function(model,dataset = 'hsa.latest',target = "PanBcell",PLOT 
     stop(sprintf("target must be one of %s",paste(targets,collapse = "';'")))
   }
   if(dataset == "hsa.latest"){
-    custom.dataset = FALSE
-    testing.datasets <- readRDS(url("https://www.dropbox.com/s/vl527ko9m43xmj0/testing.datasets.2k.rds?dl=1"))
+    testing.datasets <- get_testing_data(version = dataset)
   }else if(class(dataset) == "Seurat"){
     testing.datasets <- list()
     testing.datasets$user.dataset <- dataset
