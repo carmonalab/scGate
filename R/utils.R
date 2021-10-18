@@ -253,3 +253,31 @@ plot_levels <- function(obj){
   }
   return(plots)
 }
+
+get_testing_data <- function(version = 'hsa.latest', destination = "~/.scGateDB"){
+  data.folder = file.path(destination,"testing.data")
+  if(!dir.exists(data.folder)){
+      dir.create(data.folder,recursive = T)
+  }
+  if(version == 'hsa.latest'){
+    testing.data.url =   "https://figshare.com/ndownloader/files/31114669?private_link=75b1193bd4c705ffb50b"  ## When testing the dataset became public, this line must be replaced with the corresponding DOI
+    testing.data.path = file.path(data.folder,"testing.dataset.2k.rds")
+  }
+  if(!file.exists(testing.data.path)){
+    # for low speed conections, avoid tout limit error
+    tout.curr <- getOption('timeout')
+    if(tout.curr <500){
+      options(timeout=500)
+      download.file(url = testing.data.url,destfile = testing.data.path)
+      options(timeout = tout.curr)
+    }else{
+      download.file(url = testing.data.url,destfile = testing.data.path)
+    }
+  }
+
+  testing.data <- readRDS(testing.data.path)
+  return(testing.data)
+}
+  
+aver = get_testing_data()
+
