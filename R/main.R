@@ -400,33 +400,72 @@ performance.metrics <- function(actual,pred,return_contingency =F){
   
 }
 
-test_my_model <- function(model,dataset = 'hsa.latest',target = "PanBcell",PLOT = T){
+#' Test your model
+#'
+#' wraper for fast model testing on 3 sampled datasets 
+#' 
+#' @param model scGate model in data.frame format 
+#' @param testing.version  Character indicating the version of testing tatasets to be used. By default "hsa-latest" will be used. It will be ignored if custom.dataset variable is provied in Seurat format. Check available version in "https://figshare.com/XXXX/". 
+#' @param custom.dataset  Seurat object to be used as a testing dataset. For testing purposes, metadata seurat object must contain a column named 'cell_type' to be used as a gold standard. Also a set of positive targets mut be provided in the target variable. 
+#' @target variable indicating the positive target cell types. If default testing version is used this variable must be a character indictating one of the available target models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell'). If a custom.dataset is provided in seurat format, this variable must be a vector of possitive cell types in your data. The last case also require that such labels were named as in your cell_type meta.data column. 
+#' @examples
+#' library(scGate)
+#' scGate.model.db <- get_scGateDB()
+#' # Browse the list of models and select one:
+#' model.panBcell <-  scGate.model.db$human$generic$PanBcell
+#' # Case 1: test the model with available testing datasets
+#' panBcell.performance <- test_my_model(model.panBcell, testing.version = 'hsa.latest',target = "PanBcell")
+#' model.Myeloid <-  scGate.model.db$human$generic$Myeloid
+#' myeloid.performance <- test_my_model(model.Myeloid, testing.version = 'hsa.latest',target = "Myeloid")
+#' # Case 2: use your own dataset for testing purposes. 
+#' your.own.seurat.object <- readRDS(path.to.your.custom.dataset)
+#' your.own.seurat.object$cell_type <- your.own.seurat.object$your.gold.standard.column   ## This make a copy of the cell_type reference column as required for scGate
+#' performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model, custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))  # notice that 'Bcell' and 'PlasmaCell' must be celltypes present in your custom.dataset
+
+#' @export
+
+test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset = NULL,target = "PanBcell",PLOT = T){
   
-  targets <- c('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell')
-  if(!target %in% targets){
-    stop(sprintf("target must be one of %s",paste(targets,collapse = "';'")))
-  }
-  if(dataset == "hsa.latest"){
-    testing.datasets <- get_testing_data(version = dataset)
-  }else if(class(dataset) == "Seurat"){
+  if(class(custom.dataset) == "Seurat"){
     testing.datasets <- list()
-    testing.datasets$user.dataset <- dataset
-    custom.dataset = TRUE
-  }else{
-    stop("please, provide a valid testing dataset. See doc for details")
+    testing.datasets$user.dataset <- custom.dataset
+    custom = TRUE
+  }else{ 
+    custom = FALSE
   }
+
+  if(!custom){
+    targets <- c('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell')
+    if(!target %in% targets){
+      stop(sprintf("target must be one of %s",paste(targets,collapse = "';'")))
+    }
+    
+    ## check dataset version
+    available.datasets = c("hsa.latest")
+    if(!testing.version %in% available.datasets){
+      stop("please, provide a valid testing.version paramter or provide a custom.dataset in seurat format")
+    }
+    
+    # load testing datasets
+    if(testing.version == "hsa.latest"){
+      testing.datasets <- get_testing_data(version = testing.version)
+    }
+    
+  }  
   
-  if(custom.dataset){
-    if(!"cell_type" %in% colnames(dataset@meta.data)){
+  if(custom){
+    if(!"cell_type" %in% colnames(custom.dataset@meta.data)){
       stop("please, provide a 'cell_type' column to be used as reference cell type")
     }
     
-    if(any(!target %in% dataset$cell_type)){
+    if(any(!target %in% custom.dataset$cell_type)){
       stop("all target celltypes must be included in cell_type metadata field")
     }
     
+    
   }
   
+
   plt.out <- list()
   perf.out <- list()
   output <- list()
@@ -457,7 +496,7 @@ test_my_model <- function(model,dataset = 'hsa.latest',target = "PanBcell",PLOT 
     #reserve plots of this dset
     plt.out[[dset]] <- patchwork::wrap_plots(plt,ncol = length(plt))
     
-    if(!custom.dataset){    
+    if(!custom){    
       performance = scGate::performance.metrics(actual = obj@meta.data[,target], pred = obj$is.pure== "Pure")
     }else{
       performance = scGate::performance.metrics(actual = obj@cell_type %in% target, pred = obj$is.pure== "Pure")
@@ -473,7 +512,7 @@ test_my_model <- function(model,dataset = 'hsa.latest',target = "PanBcell",PLOT 
   if(PLOT) {
     print(patchwork::wrap_plots(plt.out, ncol = 1))
   }
-  return(list(performance = perf, plots = plt.out,objects = output))
+  return(list(performance = perf, plots = plt.out, objects = output))
 }
 
 
