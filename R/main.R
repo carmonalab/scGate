@@ -513,5 +513,3 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
   }
   return(list(performance = perf, plots = plt.out, objects = output))
 }
-
-
