@@ -297,7 +297,7 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 #' @seealso \code{\link{scGate}} \code{\link{load_scGate_model}}  
 #' @export
 
-get_scGateDB <- function(destination = ".",
+get_scGateDB <- function(destination = "~/.scGateDB",
                          force_update = FALSE,
                          version = "latest",
                          repo_url = "https://github.com/carmonalab/scGate_models"){
