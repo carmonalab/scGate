@@ -4,7 +4,7 @@
 \alias{plot_levels}
 \title{Plot scGate filtering results by level}
 \usage{
-plot_levels(obj)
+plot_levels(obj, pure.col = "#00ae60", impure.col = "gray")
 }
 \arguments{
 \item{obj}{Gated Seurat object output of scGate filtering function.}
