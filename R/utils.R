@@ -254,7 +254,7 @@ plot_levels <- function(obj){
   return(plots)
 }
 
-get_testing_data <- function(version = 'hsa.latest', destination = "~/.scGateDB"){
+get_testing_data <- function(version = 'hsa.latest', destination = "./scGateDB"){
   data.folder = file.path(destination,"testing.data")
   if(!dir.exists(data.folder)){
       dir.create(data.folder,recursive = T)
