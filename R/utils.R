@@ -245,15 +245,6 @@ use_master_table <- function(df.model, master.table, name = "name",descript = "s
   return(df.model)
 }
 
-plot_levels <- function(obj){
-  myCols <- grep("^is.pure.", colnames(obj@meta.data),value = T)
-  plots <- list()
-  for (myCol in myCols){
-    plots[[myCol]] <- DimPlot(obj, group.by = myCol)
-  }
-  return(plots)
-}
-
 get_testing_data <- function(version = 'hsa.latest', destination = "./scGateDB"){
   data.folder = file.path(destination,"testing.data")
   if(!dir.exists(data.folder)){

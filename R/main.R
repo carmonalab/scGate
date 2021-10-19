@@ -513,3 +513,28 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
   }
   return(list(performance = perf, plots = plt.out, objects = output))
 }
+
+#' Plot scGate filtering results by level
+#'
+#' Fast plotting of gating results over each model level.
+#' 
+#' @param obj Gated Seurat object output of scGate filtering function. 
+#' @examples
+#' library(scGate)
+#' scGate.model.db <- get_scGateDB()
+#' # To see a specific model, browse the list of models:
+#' scGate.model.db$human$generic$Myeloid
+#' # Apply scGate with this model
+#' query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
+#' plot_levels(query)
+#' @export
+
+plot_levels <- function(obj){
+  myCols <- grep("^is.pure.", colnames(obj@meta.data),value = T)
+  plots <- list()
+  for (myCol in myCols){
+    plots[[myCol]] <- DimPlot(obj, group.by = myCol)
+  }
+  return(plots)
+}
+
