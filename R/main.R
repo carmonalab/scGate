@@ -585,4 +585,36 @@ edit_model <- function(model=NULL, level, name, signature, positive = T, remove 
   return(model)
 }
 
+#' Model signature editing
+#'
+#' Modify a given signature in a scGate existing model
+#' 
+#' @param model scGate model to be modified. When is NULL (default) a new empty model will be initialized.   
+#' @param level integer. It refers to the level of the model tree in wich the signature will be added.    
+#' @param name character indicating signature name (i.e. Immune, TCell, NK etc).   
+#' @param signature character vector indicating genes to be included in the signature. If a minus sign is placed to the end of a gene name, this gene will be used as negative in UCell computing. See UCell documentation for details    
+#' @param method one of  c("replace","add","substract"). When this is set as "replace" (default) the signature will be overwritten. If it set as add, the provided gene(s) will be add to the signature. When you set "substract" the provided genes will be removed of that signature 
+
+#' @examples
+#' @export
+
+edit_signature <- function(model, level = NULL, name = NULL, signature = NULL, method = c("replace","add","substract")){
+  method = match.arg(method)  # default "replace
+  if(method == "replace"){
+    if(any(c(is.null(level), is.null(name), is.null(signature)))){
+      stop("please specify model level, name and a non empty gene signature") 
+    }else{
+      L <- paste0("level",level)
+      sign <- ifelse(length(signature) >1, paste(signature,collapse = ";") ,signature)
+      model[((model$levels == L) & (model$name == name)), "signature"] <- sign
+    }
+  }else if(method == "add"){
+    stop(sprintf("method %s is under development", method))  #### PENDING
+    
+  }else if(method == "substract"){
+    stop(sprintf("method %s is under development", method))  #### PENDING
+  }  
+  
+  return(model)
+}
 
