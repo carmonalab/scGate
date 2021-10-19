@@ -538,3 +538,51 @@ plot_levels <- function(obj,pure.col = "#00ae60" ,impure.col = "gray"){
   return(plots)
 }
 
+#' Model creation and editing
+#'
+#'Generate an scGate model from scratch or edit an existing one
+#' 
+#' @param model scGate model to be modified. When is NULL (default) a new empty model will be initialized.   
+#' @param level integer. It refers to the level of the model tree in wich the signature will be added.    
+#' @param name character indicating signature name (i.e. Immune, TCell, NK etc).   
+#' @param signature character vector indicating genes to be included in the signature. If a minus sign is placed to the end of a gene name, this gene will be used as negative in UCell computing. See UCell documentation for details    
+#' @param positive Logical indicating if the signature must be used as a positive signature in those model level. Default is TRUE. 
+#' @param remove Logical indicating if the the signature must be removed at the indicated level. When it is set TRUE the level and name of the signature to be removed will be necessary and the remaining parameters will be ignored 
+
+#' @examples
+#' library(scGate)
+#' my_model <- edit_model()  # model initizlization
+#' # add a first signature
+#' my_model <- edit_model(model = my_model, 
+#'                        level = 1, positive = T, name = "immune", signature = c("PTPRC"))
+#' my_model <- edit_model(model = my_model, 
+#'                        level = 1, positive = F, name = "Epithelial", signature = c("CDH1","FLT1") )
+#' remove an existing signature
+#' dropped_model <- edit_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
+#' @export
+
+edit_model <- function(model=NULL, level, name, signature, positive = T, remove = F){
+  template <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("levels","use_as", "name", "signature"))
+  
+  if(is.null(model)){
+    model <- template 
+  }else{
+    if(!remove){
+      new.signature <- data.frame(levels = paste0("level",level),
+                                  use_as = ifelse(positive, "positive","negative"),
+                                  name = name,
+                                  signature = ifelse(length(signature) >1, paste(signature,collapse = ";") ,signature))
+      model <- rbind(model,new.signature)
+    }else{
+      L <- paste0("level",level)
+      
+      model <- model[!((model$levels == L) & (model$name == name)),]
+    }
+    
+  }
+  
+  
+  return(model)
+}
+
+
