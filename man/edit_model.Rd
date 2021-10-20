@@ -4,7 +4,15 @@
 \alias{edit_model}
 \title{Model creation and editing}
 \usage{
-edit_model(model = NULL, level, name, signature, positive = T, remove = F)
+edit_model(
+  model = NULL,
+  level = 1,
+  name,
+  signature,
+  positive = T,
+  negative = NULL,
+  remove = F
+)
 }
 \arguments{
 \item{model}{scGate model to be modified. When is NULL (default) a new empty model will be initialized.}
