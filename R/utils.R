@@ -46,6 +46,9 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
       })
     }
     meds <- Reduce(rbind, means)
+    if(class(meds) == "numeric"){
+      dim(meds) <- c(1,length(meds))
+    }
     rownames(meds) <- cols
     
     pos <- vector(length=dim(meds)[2])
@@ -55,7 +58,11 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
       neg[j] <- max(meds[negative,j])
     }
     
-    indices <- intersect(which(pos > pos.thr), which(neg < neg.thr))
+    if(length(negative)>0){
+      indices <- intersect(which(pos > pos.thr), which(neg < neg.thr))
+    }else{
+      indices <- which(pos > pos.thr) # case without negative signature
+    }
     select.pures <- colnames(meds)[indices]
     ispure <- ifelse(q$clusterCT %in% select.pures,"Pure","Impure")
     
@@ -73,7 +80,11 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
       means[[col]] <- apply(m,1,mean)
     }
     meds <- Reduce(rbind, means)
+    if(class(meds) == "numeric"){
+      dim(meds) <- c(1,length(meds))
+    }
     rownames(meds) <- cols
+    
     if(length(positive)>1){
       pos <- meds[positive,]%>%apply(2,max)
     }else{
@@ -85,7 +96,12 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
       neg<- meds[negative,]
     }
     ispure <- rep("Impure",dim(q)[2])
-    ispure[(pos > pos.thr)&(neg < neg.thr)] <- "Pure"
+    if(length(negative)>0){
+      ispure[(pos > pos.thr)&(neg < neg.thr)] <- "Pure"
+    }else{
+      ispure[pos > pos.thr] <- "Pure"  # case without negative signature
+    }
+      
   }
   
   q$is.pure <- ispure
