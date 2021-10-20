@@ -561,8 +561,12 @@ plot_levels <- function(obj,pure.col = "#00ae60" ,impure.col = "gray"){
 #' dropped_model <- edit_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
 #' @export
 
-edit_model <- function(model=NULL, level, name, signature, positive = T, remove = F){
+edit_model <- function(model=NULL, level= 1, name, signature, positive = T, negative = NULL, remove = F){
   template <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("levels","use_as", "name", "signature"))
+  
+  if(negative){
+    positive <-  F
+  }
   
   if(is.null(model)){
     model <- template 
