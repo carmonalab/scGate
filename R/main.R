@@ -173,7 +173,9 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
     stop("Please install and load package 'ggparty'")
   }
   nlev <- length(unique(model$levels))
-  
+  if(nlev <= 1){
+    stop("your model must contain at least two levels to be ploted as a tree")
+  }
   #restructure data for visualization
   level.list <- list()
   for (i in 1:nlev) {
