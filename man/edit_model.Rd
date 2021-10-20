@@ -10,7 +10,7 @@ edit_model(
   name,
   signature,
   positive = T,
-  negative = NULL,
+  negative = F,
   remove = F
 )
 }
