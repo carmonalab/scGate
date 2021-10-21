@@ -548,11 +548,11 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
 #' plot_levels(query)
 #' @export
 
-plot_levels <- function(obj,pure.col = "#00ae60" ,impure.col = "gray"){
+plot_levels <- function(obj,pure.col = "green" ,impure.col = "gray"){
   myCols <- grep("^is.pure.", colnames(obj@meta.data),value = T)
   plots <- list()
   for (myCol in myCols){
-    plots[[myCol]] <- DimPlot(obj, group.by = myCol, cols = list(Pure = pure.col,Impure = impure.col))
+    plots[[myCol]] <- DimPlot(obj, group.by = myCol, cols = list(Pure = pure.col,Impure = impure.col)) +  theme(aspect.ratio = 1)
   }
   return(plots)
 }
