@@ -495,7 +495,7 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
 
     # add annotation plot
     nname <- sprintf("%s's manual annot",dset)
-    plt[[nname]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle(nname) + NoLegend() 
+    plt[[nname]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle(nname) + NoLegend() +  theme(aspect.ratio = 1)
 
     # add one DimPlot by model level
     level.plots <- plot_levels(obj)  # this return a list of plots one by each model level
