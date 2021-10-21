@@ -425,7 +425,8 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model, custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))  # notice that 'Bcell' and 'PlasmaCell' must be celltypes present in your custom.dataset
 #' @export
 
-test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset = NULL,target = "PanBcell",PLOT = T){
+test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset = NULL,target = NULL,PLOT = T){
+  performance.computation  <- ifelse (is.null(target), F, T)
   
   if(class(custom.dataset) == "Seurat"){
     testing.datasets <- list()
@@ -437,8 +438,12 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
 
   if(!custom){
     targets <- c('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell')
-    if(!target %in% targets){
-      stop(sprintf("target must be one of %s",paste(targets,collapse = "';'")))
+    
+    if(is.null(target)){
+      message("warning: target cell_type not provided. Avoiding performance computation")  
+      performace.computation = F
+    }else if(!target %in% targets){
+      stop(sprintf("target must be one of %s; or NULL for avoiding performance computation",paste(targets,collapse = "';'")))
     }
     
     ## check dataset version
@@ -459,8 +464,11 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
       stop("please, provide a 'cell_type' column to be used as reference cell type")
     }
     
-    if(any(!target %in% custom.dataset$cell_type)){
-      stop("all target celltypes must be included in cell_type metadata field")
+    if(is.null(target)){
+      message("warning: target cell_type not provided. Avoiding performance computation")  
+      performace.computation = F
+    }else if(any(!target %in% custom.dataset$cell_type)){
+      stop("all target celltypes must be included in cell_type metadata field. Otherwise, set target = NULL for avoiding performance computation")
     }
     
     
@@ -497,23 +505,32 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     #reserve plots of this dset
     plt.out[[dset]] <- patchwork::wrap_plots(plt,ncol = length(plt))
     
-    if(!custom){    
-      performance = scGate::performance.metrics(actual = obj@meta.data[,target], pred = obj$is.pure== "Pure")
-    }else{
-      performance = scGate::performance.metrics(actual = obj@cell_type %in% target, pred = obj$is.pure== "Pure")
+    if(performance.computation){
+      if(!custom){    
+        performance = scGate::performance.metrics(actual = obj@meta.data[,target], pred = obj$is.pure== "Pure")
+      }else{
+        performance = scGate::performance.metrics(actual = obj@cell_type %in% target, pred = obj$is.pure== "Pure")
+      }
+      perf.out[[dset]] <- performance 
     }
-    perf.out[[dset]] <- performance 
     output[[dset]] <- obj
     
   }
   
-  perf <- Reduce(rbind,perf.out)
-  rownames(perf) <- names(perf.out)
+  if(performance.computation){
+    perf <- Reduce(rbind,perf.out)
+    rownames(perf) <- names(perf.out)
+  }
   
   if(PLOT) {
     print(patchwork::wrap_plots(plt.out, ncol = 1))
   }
-  return(list(performance = perf, plots = plt.out, objects = output))
+
+  if(performance.computation){
+    return(list(performance = perf, plots = plt.out, objects = output))
+  }else{
+    return(list(plots = plt.out, objects = output))
+  }
 }
 
 #' Plot scGate filtering results by level
