@@ -46,7 +46,7 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
       })
     }
     meds <- Reduce(rbind, means)
-    if(class(meds) == "numeric"){
+    if(is.null(dim(meds))){
       dim(meds) <- c(1,length(meds))
     }
     rownames(meds) <- cols
@@ -80,7 +80,7 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
       means[[col]] <- apply(m,1,mean)
     }
     meds <- Reduce(rbind, means)
-    if(class(meds) == "numeric"){
+    if(is.null(dim(meds))){
       dim(meds) <- c(1,length(meds))
     }
     rownames(meds) <- cols
