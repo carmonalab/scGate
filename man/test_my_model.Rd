@@ -8,7 +8,7 @@ test_my_model(
   model,
   testing.version = "hsa.latest",
   custom.dataset = NULL,
-  target = "PanBcell",
+  target = NULL,
   PLOT = T
 )
 }
