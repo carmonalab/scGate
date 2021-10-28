@@ -2,6 +2,7 @@
 
 export(gating_model)
 export(get_scGateDB)
+export(get_testing_data)
 export(load_scGate_model)
 export(modify_model)
 export(performance.metrics)
