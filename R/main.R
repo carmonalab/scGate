@@ -30,21 +30,26 @@
 #'     \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.   
 #' @examples
 #' library(scGate)
-#' testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest') # get some testing datasets
+#' testing.datasets <- get_testing_data(version = 'hsa.latest') # get some testing datasets
 #' seurat_object <- testing.datasets[["Satija"]]
 #' my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) # define basic gating model for B cells
 #' seurat_object <- scGate(data = seurat_object, model = my_scGate_model) # gate it!
 #' table(seurat_object$is.pure)
+#' DimPlot(seurat_object)
 #' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure") # create a subsetted Seurat object with gated population
 #' 
 #' ############
 #' # Using pre-defined models
 #' 
 #' models <- get_scGateDB()
-#' plot_tree(models$human$generic$PanBcell) # tree model visualization
 #' seurat_object <- scGate(seurat_object, model=models$human$generic$PanBcell)
 #' DimPlot(seurat_object)
 #' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
+#' 
+#' ############
+#' # Tree-like model visualization
+#' 
+#' plot_tree(models$human$generic$PanBcell) 
 #' 
 #' ############
 #' # Using a manually edited model
@@ -52,6 +57,8 @@
 #' my_scGate_model <- load_scGate_model("custom_model.tsv")
 #' seurat_object <- scGate(seurat_object, model=my_scGate_model)
 #' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
+#' 
+#' 
 #' 
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
 #' @export
@@ -575,12 +582,12 @@ plot_levels <- function(obj,pure.col = "green" ,impure.col = "gray"){
 #'
 #'Generate an scGate model from scratch or edit an existing one
 #' 
-#' @param model scGate model to be modified. When is NULL (default) a new empty model will be initialized.   
-#' @param level integer. It refers to the level of the model tree in wich the signature will be added.    
-#' @param name character indicating signature name (i.e. Immune, TCell, NK etc).   
-#' @param signature character vector indicating genes to be included in the signature. If a minus sign is placed to the end of a gene name, this gene will be used as negative in UCell computing. See UCell documentation for details    
+#' @param model scGate model to be modified. When is NULL (default) a new model will be initialized.   
+#' @param level integer. It refers to the hierarchical level of the model tree in which the signature will be added (level=1 by default)    
+#' @param name Arbitrary signature name (i.e. Immune, Tcell, NK etc).   
+#' @param signature character vector indicating gene symbols to be included in the signature (e.g. CD3D). If a minus sign is placed to the end of a gene name (e.g. "CD3D-"), this gene will be used as negative in UCell computing. See UCell documentation for details    
 #' @param positive Logical indicating if the signature must be used as a positive signature in those model level. Default is TRUE. 
-#' @param remove Logical indicating if the the signature must be removed at the indicated level. When it is set TRUE the level and name of the signature to be removed will be necessary and the remaining parameters will be ignored 
+#' @param negative same as `positive` but negated (negative=TRUE equals to positive=FALSE)
 
 #' @examples
 #' library(scGate)

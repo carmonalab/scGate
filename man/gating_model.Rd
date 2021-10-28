@@ -15,17 +15,17 @@ gating_model(
 )
 }
 \arguments{
-\item{model}{scGate model to be modified. When is NULL (default) a new empty model will be initialized.}
+\item{model}{scGate model to be modified. When is NULL (default) a new model will be initialized.}
 
-\item{level}{integer. It refers to the level of the model tree in wich the signature will be added.}
+\item{level}{integer. It refers to the hierarchical level of the model tree in which the signature will be added (level=1 by default)}
 
-\item{name}{character indicating signature name (i.e. Immune, TCell, NK etc).}
+\item{name}{Arbitrary signature name (i.e. Immune, Tcell, NK etc).}
 
-\item{signature}{character vector indicating genes to be included in the signature. If a minus sign is placed to the end of a gene name, this gene will be used as negative in UCell computing. See UCell documentation for details}
+\item{signature}{character vector indicating gene symbols to be included in the signature (e.g. CD3D). If a minus sign is placed to the end of a gene name (e.g. "CD3D-"), this gene will be used as negative in UCell computing. See UCell documentation for details}
 
 \item{positive}{Logical indicating if the signature must be used as a positive signature in those model level. Default is TRUE.}
 
-\item{remove}{Logical indicating if the the signature must be removed at the indicated level. When it is set TRUE the level and name of the signature to be removed will be necessary and the remaining parameters will be ignored}
+\item{negative}{same as `positive` but negated (negative=TRUE equals to positive=FALSE)}
 }
 \description{
 Generate an scGate model from scratch or edit an existing one

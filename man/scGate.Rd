@@ -77,21 +77,26 @@ Models for scGate are dataframes where each line is a signature for a given filt
 }
 \examples{
 library(scGate)
-testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest') # get some testing datasets
+testing.datasets <- get_testing_data(version = 'hsa.latest') # get some testing datasets
 seurat_object <- testing.datasets[["Satija"]]
 my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) # define basic gating model for B cells
 seurat_object <- scGate(data = seurat_object, model = my_scGate_model) # gate it!
 table(seurat_object$is.pure)
+DimPlot(seurat_object)
 seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure") # create a subsetted Seurat object with gated population
 
 ############
 # Using pre-defined models
 
 models <- get_scGateDB()
-plot_tree(models$human$generic$PanBcell) # tree model visualization
 seurat_object <- scGate(seurat_object, model=models$human$generic$PanBcell)
 DimPlot(seurat_object)
 seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
+
+############
+# Tree-like model visualization
+
+plot_tree(models$human$generic$PanBcell) 
 
 ############
 # Using a manually edited model
@@ -99,6 +104,8 @@ seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 my_scGate_model <- load_scGate_model("custom_model.tsv")
 seurat_object <- scGate(seurat_object, model=my_scGate_model)
 seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
+
+
 
 }
 \seealso{
