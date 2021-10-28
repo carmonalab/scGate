@@ -570,17 +570,16 @@ plot_levels <- function(obj,pure.col = "green" ,impure.col = "gray"){
 
 #' @examples
 #' library(scGate)
-#' my_model <- edit_model()  # model initizlization
-#' # add a first signature
-#' my_model <- edit_model(model = my_model, 
+#' # create a simple gating model
+#' my_model <- gating_model(model = my_model, 
 #'                        level = 1, positive = T, name = "immune", signature = c("PTPRC"))
-#' my_model <- edit_model(model = my_model, 
+#' my_model <- gating_model(model = my_model, 
 #'                        level = 1, positive = F, name = "Epithelial", signature = c("CDH1","FLT1") )
 #' remove an existing signature
-#' dropped_model <- edit_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
+#' dropped_model <- gating_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
 #' @export
 
-edit_model <- function(model=NULL, level= 1, name, signature, positive = T, negative = F, remove = F){
+gating_model <- function(model=NULL, level= 1, name, signature, positive = T, negative = F, remove = F){
   template <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("levels","use_as", "name", "signature"))
   
   if(negative){
@@ -589,7 +588,8 @@ edit_model <- function(model=NULL, level= 1, name, signature, positive = T, nega
 
   if(is.null(model)){
     model <- template 
-  }else{
+  }
+  
     if(!remove){
       new.signature <- data.frame(levels = paste0("level",level),
                                   use_as = ifelse(positive, "positive","negative"),
@@ -602,7 +602,6 @@ edit_model <- function(model=NULL, level= 1, name, signature, positive = T, nega
       model <- model[!((model$levels == L) & (model$name == name)),]
     }
     
-  }
   
   
   return(model)
@@ -621,7 +620,7 @@ edit_model <- function(model=NULL, level= 1, name, signature, positive = T, nega
 #' @examples
 #' @export
 
-edit_signature <- function(model, level = NULL, name = NULL, signature = NULL, method = c("replace","add","substract")){
+modify_model <- function(model, level = NULL, name = NULL, signature = NULL, method = c("replace","add","substract")){
   method = match.arg(method)  # default "replace
   if(method == "replace"){
     if(any(c(is.null(level), is.null(name), is.null(signature)))){
