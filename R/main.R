@@ -30,25 +30,39 @@
 #'     \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.   
 #' @examples
 #' library(scGate)
-#' models <- get_scGateDB()
-#' query <- scGate(query, model=models$human$generic$PanBcell)
-#' DimPlot(query)
-#' query.filtered <- subset(query, subset=is.pure=="Pure")
+#' testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest') # get some testing datasets
+#' seurat_object <- testing.datasets[["Satija"]]
+#' my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) # define basic gating model for B cells
+#' seurat_object <- scGate(data = seurat_object, model = my_scGate_model) # gate it!
+#' table(seurat_object$is.pure)
+#' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure") # create a subsetted Seurat object with gated population
 #' 
 #' ############
-#' # Using a custom model
+#' # Using pre-defined models
 #' 
-#' my.model <- load_scGate_model("custom_model.tsv")
-#' plot_tree(my.model)
-#' query <- scGate(query, model=my.model)
-#' query.filtered <- subset(query, subset=is.pure=="Pure")
+#' models <- get_scGateDB()
+#' plot_tree(models$human$generic$PanBcell) # tree model visualization
+#' seurat_object <- scGate(seurat_object, model=models$human$generic$PanBcell)
+#' DimPlot(seurat_object)
+#' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
+#' 
+#' ############
+#' # Using a manually edited model
+#' 
+#' my_scGate_model <- load_scGate_model("custom_model.tsv")
+#' seurat_object <- scGate(seurat_object, model=my_scGate_model)
+#' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 #' 
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
 #' @export
 
-scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="RNA", ncores=1, seed=123, keep.ranks=FALSE,
+scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="DefaultAssay", ncores=1, seed=123, keep.ranks=FALSE,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
                    by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
+  
+  if(assay=="DefaultAssay"){
+    assay= Seurat::DefaultAssay(data)
+  }
   
   require(dplyr)
   set.seed(seed)
