@@ -63,13 +63,13 @@
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
 #' @export
 
-scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay="DefaultAssay", ncores=1, seed=123, keep.ranks=FALSE,
+scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, ncores=1, seed=123, keep.ranks=FALSE,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
                    by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
   
-  if(assay=="DefaultAssay"){
-    assay= Seurat::DefaultAssay(data)
-  }
+  
+  assay <- assay %||% DefaultAssay(object = object)
+  DefaultAssay(object = object) <- assay
   
   require(dplyr)
   set.seed(seed)
