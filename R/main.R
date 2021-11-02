@@ -68,8 +68,8 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, ncores=1, 
                    by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
   
   
-  assay <- assay %||% DefaultAssay(object = object)
-  DefaultAssay(object = object) <- assay
+  assay <- assay %||% DefaultAssay(object = data)
+  DefaultAssay(object = data) <- assay
   
   require(dplyr)
   set.seed(seed)
