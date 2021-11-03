@@ -14,9 +14,10 @@ install.packages("ggparty")
 
 ### Testing the package
 
-Obtain a single-cell dataset for testing (**UPDATE LINK**) and run scGate to filter a specific cell type
+Obtain a single-cell dataset for testing (e.g. sample datasets included with the package) and run scGate to filter a specific cell type
 ```
-test.set <- readRDS(ADD_LINK)
+sample.sets <- scGate::get_testing_data(version = 'hsa.latest')
+test.set <- sample.sets[[1]]
 
 #Load scGate and upload a database of models
 library(scGate)
@@ -49,11 +50,11 @@ scGate::plot.tree(scGate::plot_tree(my.model)
 
 ### Demos and tutorials
 
-Add this section
+Coming soon
 
 ### References
 
-Add references
+Coming soon
 
 
 
