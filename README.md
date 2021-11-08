@@ -1,60 +1,75 @@
-# scGate
+# scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets
 
-scGate is a method to filter specific cell types from single-cell dataset.
+scGate is an R package that automatizes the typical manual marker-based approach to cell type annotation, to enable accurate and intuitive purification of a cell population of interest from a complex scRNA-seq dataset, without requiring reference gene expression profiles or training data. 
 
-Several methods exist for multiclass classification of single cells based on profiles learned from a training set (e.g. singleR). However, the performance of these methods highly depend on the quality, annotation, and completeness of the training set. They can only detect the cell types present in the training set and are difficult to customize (i.e. retraining is necessary). With scGate, we aim at providing a training-free method for detecting specific cell types, using signature-based, hierachical models that can be easily customized by the user. 
+scGate builds upon our recent method [UCell](https://github.com/carmonalab/UCell) for robust single-cell signature scoring, and [Seurat](https://github.com/satijalab/seurat/), a comprehensive and powerful framework for single-cell omics analysis.
 
+Briefly, scGate takes as input: i) a gene expression matrix stored in a Seurat object and ii) a “gating model” (GM), consisting of a set of marker genes that define the cell population of interest. The GM can be as simple as a single marker gene, or a combination of positive and negative markers. More complex GMs can be constructed in a hierarchical fashion, akin to gating strategies employed in flow cytometry. 
+scGate evaluates the strength of the markers' gene expression in each cell using the rank-based method UCell, and then performs k-nearest neighbor (kNN) smoothing by calculating the mean UCell score across neighboring cells. kNN-smoothing aims at compensating for the large degree of sparsity in scRNA-seq data. Finally, a universal threshold over kNN-smoothed signature scores is applied in binary decision trees generated from the user-provided gating model, to annotate cells as either “pure” or “impure”, with respect to the cell population of interest. 
 
 ### Installation
+
 ```
+install.packages("remotes")
 remotes::install_github("carmonalab/UCell")
 remotes::install_github("carmonalab/scGate")
-install.packages("ggparty")
 ```
 
 ### Testing the package
 
-Obtain a single-cell dataset for testing (e.g. sample datasets included with the package) and run scGate to filter a specific cell type
-```
-sample.sets <- scGate::get_testing_data(version = 'hsa.latest')
-test.set <- sample.sets[[1]]
+Use scGate to purify a cell population of interest using manually defined marker genes
 
-#Load scGate and upload a database of models
-library(scGate)
-models.DB <- get_scGateDB()
-
-#For example, filter B cells from this dataset
-model.Bcell <- models.DB$human$generic$PanBcell 
-test.set <- scGate(test.set, model = model.Bcell)
-DimPlot(test.set)
-```
-
-### Gating models
-A database of gating models for scGate is available on [GitHub](https://github.com/carmonalab/scGate_models), and can loaded directly into your R workspace with the following function:
 ```
 library(scGate)
-models.DB <- get_scGateDB()
-```
-The first time you run this command the scGate database will be downloaded from the repository. On successive calls it will load your local version of the DB.
 
-You may freely edit the available models or create new models for your cell type of interest. You can then load your custom model into R using:
-```
-my.model <- load_scGate_model("path_to_my.model")
+#Get a test scRNA-seq dataset (as a list of Seurat objects)
+sample.data.seurat.list <- scGate::get_testing_data()
+
+seurat_object <- sample.data.seurat.list$Satija
+
+#Manually define a simple scGate's gating model to purify eg. Natural Killer (NK) cells, using a positive marker KLRD1 and negative marker CD3D
+my_scGate_model <- gating_model(name = "NK", signature = c("KLRD1","CD3D-"))  
+
+#scGate it!
+seurat_object <- scGate(data = seurat_object, model = my_scGate_model)
+
+#Use Seurat to visualize "Pure" and "Impure" cells
+DimPlot(seurat_object, group.by = "is.pure")
+
+#Use Seurat to subset pure cells
+seurat_object_purified <- subset(seurat_object, subset = `is.pure` == "Pure" )
 ```
 
-You can also apply the `plot_tree` function to visualize the hierarchical structure of one of the models.
+### Pre-defined Gating models
+
+A database of gating models for scGate is available on [scGate_models](https://github.com/carmonalab/scGate_models) and can be loaded using ``get_scGateDB()`
 ```
-scGate::plot.tree(scGate::plot_tree(models.DB$human$generic$Tcell))
-scGate::plot.tree(scGate::plot_tree(my.model)
+#Get scGate's database of pre-defined gating models
+scGate_models_DB <- get_scGateDB()
+
+#For example, filter abT cells using one of scGate's pre-defined gating models
+seurat_object <- scGate(seurat_object, model = models.DB$human$generic$Tcell.alphabeta)
+
+DimPlot(seurat_object)
+```
+The first time you run `get_scGateDB()`  the database will be downloaded from the repository. On successive calls it will load your local version of the DB.
+
+You may manually edit the available models (eg in Excel) or create new models for your cell type of interest. You can then load your custom model into R using:
+```
+my_scGate_model <- load_scGate_model("path_to_my.model")
+```
+
+You can use the `plot_tree` function to visualize the hierarchical structure of one of the models (requires [ggparty](https://cran.r-project.org/package=ggparty)).
+
+```
+install.packages("ggparty")
+scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
 ```
 
 ### Demos and tutorials
 
-Coming soon
+Check out the scGate's DEMO for a reproducible analysis, construction of hierarchical gating models, tools for performance evaluation and other advanced features
 
 ### References
 
-Coming soon
-
-
-
+scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets. Massimo Andreatta, Ariel Berenstein, Santiago J. Carmona (in preparation)
