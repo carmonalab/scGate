@@ -39,8 +39,11 @@ DimPlot(seurat_object, group.by = "is.pure")
 #Use Seurat to subset pure cells
 seurat_object_purified <- subset(seurat_object, subset = `is.pure` == "Pure" )
 ```
+### Demos and tutorials
 
-### Pre-defined Gating models
+Check out the scGate's DEMO for a reproducible analysis, construction of hierarchical gating models, tools for performance evaluation and other advanced features
+
+### Pre-defined Gating Models
 
 A database of gating models for scGate is available on [scGate_models](https://github.com/carmonalab/scGate_models) and can be loaded using ``get_scGateDB()`
 ```
@@ -66,9 +69,6 @@ install.packages("ggparty")
 scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
 ```
 
-### Demos and tutorials
-
-Check out the scGate's DEMO for a reproducible analysis, construction of hierarchical gating models, tools for performance evaluation and other advanced features
 
 ### References
 
