@@ -41,7 +41,7 @@ seurat_object_purified <- subset(seurat_object, subset = `is.pure` == "Pure" )
 ```
 ### Demos and tutorials
 
-Check out the scGate's DEMO for a reproducible analysis, construction of hierarchical gating models, tools for performance evaluation and other advanced features
+Check out the scGate's [DEMO](https://carmonalab.github.io/scGate.demo) for a reproducible analysis, construction of hierarchical gating models, tools for performance evaluation and other advanced features
 
 ### Pre-defined Gating Models
 
