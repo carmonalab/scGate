@@ -72,4 +72,4 @@ scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
 
 ### References
 
-scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets. Massimo Andreatta, Ariel Berenstein, Santiago J. Carmona (in preparation)
+Massimo Andreatta, Ariel J. Berenstein, Santiago J. Carmona (2021) *scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets.*  bioRxiv preprint: https://doi.org/10.1101/2021.11.08.467740
