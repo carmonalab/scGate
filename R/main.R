@@ -627,7 +627,7 @@ plot_UCell_scores <- function(obj, model, overlay=5, ncol=NULL, combine=T) {
     ncells <- nrow(meta)
     stat <- table(meta[,sprintf("is.pure.level%i",l)])
     
-    to.plot <- meta[,col]
+    to.plot <- meta[,col, drop=FALSE]
     colnames(to.plot) <- gsub("_UCell","",colnames(to.plot))
     
     to.plot <- reshape2::melt(to.plot, id=NULL)
