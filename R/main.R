@@ -426,12 +426,14 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 
 #' Test your model
 #'
-#' wraper for fast model testing on 3 sampled datasets 
+#' Wrapper for fast model testing on 3 sampled datasets 
 #' 
 #' @param model scGate model in data.frame format 
 #' @param testing.version  Character indicating the version of testing tatasets to be used. By default "hsa-latest" will be used. It will be ignored if custom.dataset variable is provied in Seurat format. Check available version in "https://figshare.com/XXXX/". 
 #' @param custom.dataset  Seurat object to be used as a testing dataset. For testing purposes, metadata seurat object must contain a column named 'cell_type' to be used as a gold standard. Also a set of positive targets mut be provided in the target variable. 
-#' @target variable indicating the positive target cell types. If default testing version is used this variable must be a character indictating one of the available target models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell'). If a custom.dataset is provided in seurat format, this variable must be a vector of possitive cell types in your data. The last case also require that such labels were named as in your cell_type meta.data column. 
+#' @param target Positive target cell types. If default testing version is used this variable must be a character indicating one of the available target models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell'). 
+#'     If a custom.dataset is provided in seurat format, this variable must be a vector of positive cell types in your data. The last case also require that such labels were named as in your cell_type meta.data column. 
+#' @param plot Whether to return plots to device 
 #' @examples
 #' library(scGate)
 #' scGate.model.db <- get_scGateDB()
@@ -447,7 +449,7 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model, custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))  # notice that 'Bcell' and 'PlasmaCell' must be celltypes present in your custom.dataset
 #' @export
 
-test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset = NULL,target = NULL,PLOT = T){
+test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset = NULL,target = NULL, plot = T){
   performance.computation  <- ifelse (is.null(target), F, T)
   
   if(class(custom.dataset) == "Seurat"){
@@ -492,11 +494,8 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     }else if(any(!target %in% custom.dataset$cell_type)){
       stop("all target celltypes must be included in cell_type metadata field. Otherwise, set target = NULL for avoiding performance computation")
     }
-    
-    
   }
   
-
   plt.out <- list()
   perf.out <- list()
   output <- list()
@@ -544,7 +543,7 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     rownames(perf) <- names(perf.out)
   }
   
-  if(PLOT) {
+  if(plot) {
     print(patchwork::wrap_plots(plt.out, ncol = 1))
   }
 
@@ -577,6 +576,77 @@ plot_levels <- function(obj,pure.col = "green" ,impure.col = "gray"){
     plots[[myCol]] <- DimPlot(obj, group.by = myCol, cols = list(Pure = pure.col,Impure = impure.col)) +  theme(aspect.ratio = 1)
   }
   return(plots)
+}
+
+#' Plot UCell scores by level
+#'
+#' Show distribution of UCell scores for each level of a given scGate model
+#' 
+#' @import reshape2
+#' @import ggridges
+#' @import patchwork
+#' @param obj Gated Seurat object (output of scGate)
+#' @param model scGate model used to identify a target population in obj
+#' @param overlay Degree of overlay for ggridges
+#' @param ncol Number of columns in output object (passed to wrap_plots)
+#' @param combine Whether to combine plots into a single object, or to return a list of plots
+#'  
+#' @examples
+#' library(scGate)
+#' scGate.model.db <- get_scGateDB()
+#' model <- scGate.model.db$human$generic$Tcell
+#' # Apply scGate with this model
+#' query <- scGate(query, model=model)
+#' # View UCell score distribution
+#' plot_UCell_scores(query, model)
+#' @return Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
+#' @export
+#' 
+plot_UCell_scores <- function(obj, model, overlay=5, ncol=NULL, combine=T) {
+  u_cols <- grep('_UCell', colnames(obj@meta.data), value = T)
+  
+  levs <- unique(model$levels)
+  pll <- list()
+  
+  palette <- c("#00fd0c","#f4340e")
+  names(palette) <- c("Positive","Negative")
+  
+  for (l in seq_along(levs)) {
+    
+    lev.name <- levs[l]
+    
+    sigs <- model[model$levels == lev.name, c("use_as","name")]
+    
+    col <- sprintf("%s_UCell", sigs$name)
+    col <- col[col %in% u_cols]
+    
+    meta <- obj@meta.data
+    if (l>1) {
+      meta <- meta[meta[sprintf("is.pure.level%i",l-1)]=="Pure",]
+    }
+    ncells <- nrow(meta)
+    stat <- table(meta[,sprintf("is.pure.level%i",l)])
+    
+    to.plot <- meta[,col]
+    colnames(to.plot) <- gsub("_UCell","",colnames(to.plot))
+    
+    to.plot <- reshape2::melt(to.plot, id=NULL)
+    colnames(to.plot) <- c("Signature","Score")
+    
+    to.plot$Class <- "Positive"
+    to.plot$Class[to.plot$Signature %in% sigs[sigs$use_as =="negative","name"]] <- "Negative"
+    
+    pll[[l]] <- ggplot(to.plot, aes(x = Score, y = Signature, fill=Class)) + 
+      geom_density_ridges(scale = overlay) +
+      scale_fill_manual(values = palette) + theme_minimal() +
+      theme(axis.title.y=element_blank()) + ggtitle(sprintf("%s - %i/%i pure ",lev.name, stat["Pure"], ncells))
+    
+  }
+  if (combine) {
+    return(wrap_plots(pll, ncol=ncol))
+  } else {
+    return(pll)
+  }
 }
 
 #' Model creation and editing
@@ -629,44 +699,17 @@ gating_model <- function(model=NULL, level= 1, name, signature, positive = T, ne
   return(model)
 }
 
-#' Model signature editing
+#' Download sample data
 #'
-#' Modify a given signature in a scGate existing model
+#' Helper function to obtain some sample data
 #' 
-#' @param model scGate model to be modified. When is NULL (default) a new empty model will be initialized.   
-#' @param level integer. It refers to the level of the model tree in wich the signature will be added.    
-#' @param name character indicating signature name (i.e. Immune, TCell, NK etc).   
-#' @param signature character vector indicating genes to be included in the signature. If a minus sign is placed to the end of a gene name, this gene will be used as negative in UCell computing. See UCell documentation for details    
-#' @param method one of  c("replace","add","substract"). When this is set as "replace" (default) the signature will be overwritten. If it set as add, the provided gene(s) will be add to the signature. When you set "substract" the provided genes will be removed of that signature 
-
+#' @param version Which sample dataset   
+#' @param destination Save to this directory   
 #' @examples
+#' library(scGate)
+#' testing.datasets <- get_testing_data(version = 'hsa.latest')
 #' @export
 
-modify_model <- function(model, level = NULL, name = NULL, signature = NULL, method = c("replace","add","substract")){
-  method = match.arg(method)  # default "replace
-  if(method == "replace"){
-    if(any(c(is.null(level), is.null(name), is.null(signature)))){
-      stop("please specify model level, name and a non empty gene signature") 
-    }else{
-      L <- paste0("level",level)
-      sign <- ifelse(length(signature) >1, paste(signature,collapse = ";") ,signature)
-      model[((model$levels == L) & (model$name == name)), "signature"] <- sign
-    }
-  }else if(method == "add"){
-    stop(sprintf("method %s is under development", method))  #### PENDING
-    
-  }else if(method == "substract"){
-    stop(sprintf("method %s is under development", method))  #### PENDING
-  }  
-  
-  return(model)
-}
-
-
-#' Get testing datasets
-#'
-#' @export
-#' 
 get_testing_data <- function(version = 'hsa.latest', destination = "./scGateDB"){
   data.folder = file.path(destination,"testing.data")
   if(!dir.exists(data.folder)){

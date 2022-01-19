@@ -124,7 +124,7 @@ score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", add.s
      signatures <- append(signatures, add.sign)
   } 
   
-  data <- UCell::AddModuleScore_UCell(data, features = signatures, ncores=ncores, storeRanks = keep.ranks)
+  data <- UCell::AddModuleScore_UCell(data, features = signatures, assay=assay, ncores=ncores, storeRanks = keep.ranks)
   
   return(data)
 }

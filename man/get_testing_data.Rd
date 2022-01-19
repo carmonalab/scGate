@@ -2,10 +2,19 @@
 % Please edit documentation in R/main.R
 \name{get_testing_data}
 \alias{get_testing_data}
-\title{Get testing datasets}
+\title{Download sample data}
 \usage{
 get_testing_data(version = "hsa.latest", destination = "./scGateDB")
 }
+\arguments{
+\item{version}{Which sample dataset}
+
+\item{destination}{Save to this directory}
+}
 \description{
-Get testing datasets
+Helper function to obtain some sample data
+}
+\examples{
+library(scGate)
+testing.datasets <- get_testing_data(version = 'hsa.latest')
 }

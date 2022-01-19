@@ -9,7 +9,7 @@ scGate(
   model,
   pos.thr = 0.2,
   neg.thr = 0.2,
-  assay = "DefaultAssay",
+  assay = NULL,
   ncores = 1,
   seed = 123,
   keep.ranks = FALSE,
