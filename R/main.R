@@ -8,6 +8,7 @@
 #' @param assay Seurat assay to use
 #' @param pos.thr Minimum UCell score value for positive signatures
 #' @param neg.thr Maximum UCell score value for negative signatures
+#' @param maxRank Maximum number of genes that UCell will rank per cell
 #' @param nfeatures Number of variable genes for dimensionality reduction
 #' @param k.param Number of nearest neighbors for knn smoothing
 #' @param pca.dim Number of principal components for dimensionality reduction
@@ -64,7 +65,7 @@
 #' @export
 
 scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, ncores=1, seed=123, keep.ranks=FALSE,
-                   min.cells=30, nfeatures=2000, pca.dim=30, resol=3, output.col.name = 'is.pure',
+                   min.cells=30, nfeatures=2000, pca.dim=30, resol=3, maxRank=1500, output.col.name = 'is.pure',
                    by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
   
   
@@ -91,7 +92,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, ncores=1, 
   if (verbose) {
     message("Computing UCell scores for signatures...\n")
   }
-  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay, 
+  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay, maxRank=maxRank, 
                                      keep.ranks=keep.ranks, add.sign=additional.signatures)
   
   #Iterate over levels
@@ -587,6 +588,8 @@ plot_levels <- function(obj,pure.col = "green" ,impure.col = "gray"){
 #' @import patchwork
 #' @param obj Gated Seurat object (output of scGate)
 #' @param model scGate model used to identify a target population in obj
+#' @param pos.thr Threshold for positive signatures used in scGate model (set to NULL to disable)
+#' @param neg.thr Threshold for negative signatures used in scGate model (set to NULL to disable) 
 #' @param overlay Degree of overlay for ggridges
 #' @param ncol Number of columns in output object (passed to wrap_plots)
 #' @param combine Whether to combine plots into a single object, or to return a list of plots
@@ -602,7 +605,7 @@ plot_levels <- function(obj,pure.col = "green" ,impure.col = "gray"){
 #' @return Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
 #' @export
 #' 
-plot_UCell_scores <- function(obj, model, overlay=5, ncol=NULL, combine=T) {
+plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2, neg.thr=0.2, ncol=NULL, combine=T) {
   u_cols <- grep('_UCell', colnames(obj@meta.data), value = T)
   
   levs <- unique(model$levels)
@@ -636,12 +639,28 @@ plot_UCell_scores <- function(obj, model, overlay=5, ncol=NULL, combine=T) {
     to.plot$Class <- "Positive"
     to.plot$Class[to.plot$Signature %in% sigs[sigs$use_as =="negative","name"]] <- "Negative"
     
+    #vertical lines (thresholds)
+    to.plot$Thr <- NA
+    if (!is.null(pos.thr)) {
+       to.plot[to.plot$Class=="Positive","Thr"] <- pos.thr
+    }
+    if (!is.null(neg.thr)) {
+      to.plot[to.plot$Class=="Negative","Thr"] <- neg.thr
+    }
+    
+    #Make ggridges distribution plot
     pll[[l]] <- ggplot(to.plot, aes(x = Score, y = Signature, fill=Class)) + 
       geom_density_ridges(scale = overlay) +
       scale_fill_manual(values = palette) + theme_minimal() +
-      theme(axis.title.y=element_blank()) + ggtitle(sprintf("%s - %i/%i pure ",lev.name, stat["Pure"], ncells))
+      theme(axis.title.y=element_blank()) + ggtitle(sprintf("%s - %i/%i pure ",lev.name, stat["Pure"], ncells)) 
     
+    #Add threshold lines
+    if (!is.null(pos.thr) |  !is.null(neg.thr)) {  
+      pll[[l]] <- pll[[l]] + geom_segment(aes(x = Thr, xend = Thr, y = as.numeric(Signature), 
+                                              yend = as.numeric(Signature)+0.9), linetype = "dashed")
+    }
   }
+  #Return combined plot or list of plots
   if (combine) {
     return(wrap_plots(pll, ncol=ncol))
   } else {

@@ -111,7 +111,8 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
   
 }
 
-score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", add.sign=NULL, keep.ranks=FALSE) {
+score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", 
+                                       add.sign=NULL, keep.ranks=FALSE, maxRank=1500) {
   
   # extract unique signatures
   model.uniq <- model %>%distinct(name, .keep_all = T) 
@@ -124,7 +125,8 @@ score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", add.s
      signatures <- append(signatures, add.sign)
   } 
   
-  data <- UCell::AddModuleScore_UCell(data, features = signatures, assay=assay, ncores=ncores, storeRanks = keep.ranks)
+  data <- UCell::AddModuleScore_UCell(data, features = signatures, assay=assay, 
+                                      ncores=ncores, storeRanks = keep.ranks, maxRank = maxRank)
   
   return(data)
 }

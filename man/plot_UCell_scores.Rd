@@ -4,7 +4,15 @@
 \alias{plot_UCell_scores}
 \title{Plot UCell scores by level}
 \usage{
-plot_UCell_scores(obj, model, overlay = 5, ncol = NULL, combine = T)
+plot_UCell_scores(
+  obj,
+  model,
+  overlay = 5,
+  pos.thr = 0.2,
+  neg.thr = 0.2,
+  ncol = NULL,
+  combine = T
+)
 }
 \arguments{
 \item{obj}{Gated Seurat object (output of scGate)}
@@ -12,6 +20,10 @@ plot_UCell_scores(obj, model, overlay = 5, ncol = NULL, combine = T)
 \item{model}{scGate model used to identify a target population in obj}
 
 \item{overlay}{Degree of overlay for ggridges}
+
+\item{pos.thr}{Threshold for positive signatures used in scGate model (set to NULL to disable)}
+
+\item{neg.thr}{Threshold for negative signatures used in scGate model (set to NULL to disable)}
 
 \item{ncol}{Number of columns in output object (passed to wrap_plots)}
 

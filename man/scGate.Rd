@@ -17,6 +17,7 @@ scGate(
   nfeatures = 2000,
   pca.dim = 30,
   resol = 3,
+  maxRank = 1500,
   output.col.name = "is.pure",
   by.knn = TRUE,
   k.param = 10,
@@ -49,6 +50,8 @@ scGate(
 \item{pca.dim}{Number of principal components for dimensionality reduction}
 
 \item{resol}{Resolution for cluster analysis (if \code{by.knn=FALSE})}
+
+\item{maxRank}{Maximum number of genes that UCell will rank per cell}
 
 \item{output.col.name}{Column name with 'pure/impure' annotation}
 
