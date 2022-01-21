@@ -6,6 +6,7 @@
 #' @param model A tabular model with scGate signatures. See Details for this format
 #' @param pca.dim Number of dimensions for cluster analysis
 #' @param assay Seurat assay to use
+#' @param slot Data slot in Seurat object
 #' @param pos.thr Minimum UCell score value for positive signatures
 #' @param neg.thr Maximum UCell score value for negative signatures
 #' @param maxRank Maximum number of genes that UCell will rank per cell
@@ -64,7 +65,7 @@
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
 #' @export
 
-scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, ncores=1, seed=123, keep.ranks=FALSE,
+scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data", ncores=1, seed=123, keep.ranks=FALSE,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, maxRank=1500, output.col.name = 'is.pure',
                    by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
   
@@ -92,7 +93,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, ncores=1, 
   if (verbose) {
     message("Computing UCell scores for signatures...\n")
   }
-  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay, maxRank=maxRank, 
+  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay, slot=slot, maxRank=maxRank, 
                                      keep.ranks=keep.ranks, add.sign=additional.signatures)
   
   #Iterate over levels
@@ -119,8 +120,8 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, ncores=1, 
     nfeat.use <- round((3/4)**(lev-1) * nfeatures)
     res.use <- round((3/4)**(lev-1) * resol)
     
-    q <- find.nn(q, by.knn=by.knn, assay=assay, min.cells=min.cells, nfeatures=nfeat.use, npca=pca.use, 
-                 k.param=k.param, genes.blacklist=genes.blacklist)
+    q <- find.nn(q, by.knn=by.knn, assay=assay, slot=slot, min.cells=min.cells, nfeatures=nfeat.use, 
+                 npca=pca.use, k.param=k.param, genes.blacklist=genes.blacklist)
     
     if(!by.knn){
       q  <- FindClusters(q, resolution = res.use, verbose = FALSE)

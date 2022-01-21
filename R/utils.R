@@ -1,15 +1,24 @@
-find.nn <- function(q, assay = "RNA", npca=30, nfeatures=2000, k.param=10, min.cells=30, by.knn = F,
+find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.param=10, min.cells=30, by.knn = F,
                     genes.blacklist=NULL) {
   
   DefaultAssay(q) <- assay
   ncells <- length(Cells(q))
+  ngenes < nrow(q)
   
   if(ncells < min.cells){
     q$clusterCT <- 0    #with very few cells, consider them as a single cluster
     return(q)
   }  
+  if (ngenes < nfeatures) {
+     nfeatures <- ngenes
+  }
+  if (ngenes <- npca) {
+     npca <- ngenes
+  }
   
-  q <- NormalizeData(q, verbose = FALSE)
+  if (slot=="counts") { 
+     q <- NormalizeData(q, verbose = FALSE)
+  }
   q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
   
   q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
@@ -111,7 +120,7 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
   
 }
 
-score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", 
+score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot="data",
                                        add.sign=NULL, keep.ranks=FALSE, maxRank=1500) {
   
   # extract unique signatures
@@ -125,7 +134,7 @@ score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA",
      signatures <- append(signatures, add.sign)
   } 
   
-  data <- UCell::AddModuleScore_UCell(data, features = signatures, assay=assay, 
+  data <- UCell::AddModuleScore_UCell(data, features = signatures, assay=assay, slot=slot,
                                       ncores=ncores, storeRanks = keep.ranks, maxRank = maxRank)
   
   return(data)

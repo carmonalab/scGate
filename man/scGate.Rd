@@ -10,6 +10,7 @@ scGate(
   pos.thr = 0.2,
   neg.thr = 0.2,
   assay = NULL,
+  slot = "data",
   ncores = 1,
   seed = 123,
   keep.ranks = FALSE,
@@ -36,6 +37,8 @@ scGate(
 \item{neg.thr}{Maximum UCell score value for negative signatures}
 
 \item{assay}{Seurat assay to use}
+
+\item{slot}{Data slot in Seurat object}
 
 \item{ncores}{Number of processors for parallel processing (requires \code{\link{future.apply}})}
 
