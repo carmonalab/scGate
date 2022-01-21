@@ -12,14 +12,18 @@ find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.pa
   if (ngenes < nfeatures) {
      nfeatures <- ngenes
   }
-  if (ngenes < npca) {
-     npca <- ngenes
+  if (ngenes/2 < npca) {
+     npca <- ngenes/2
   }
   
   if (slot=="counts") { 
      q <- NormalizeData(q, verbose = FALSE)
   }
-  q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
+  if (ngenes > 200) {  #only perform this for high-dim data
+     q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
+  } else {
+     q@assays[[assay]]@var.features <- rownames(q)
+  }
   
   q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
   
