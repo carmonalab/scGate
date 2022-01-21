@@ -3,7 +3,7 @@ find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.pa
   
   DefaultAssay(q) <- assay
   ncells <- length(Cells(q))
-  ngenes < nrow(q)
+  ngenes <- nrow(q)
   
   if(ncells < min.cells){
     q$clusterCT <- 0    #with very few cells, consider them as a single cluster
