@@ -12,7 +12,7 @@ find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.pa
   if (ngenes < nfeatures) {
      nfeatures <- ngenes
   }
-  if (ngenes <- npca) {
+  if (ngenes < npca) {
      npca <- ngenes
   }
   
