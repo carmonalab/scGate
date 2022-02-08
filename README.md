@@ -73,6 +73,8 @@ install.packages("ggparty")
 scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
 ```
 
+### Other single-cell modalities
+scGate can be applied to modalities other than RNA-seq, such as ATAC-seq ([scATAC-seq demo](https://carmonalab.github.io/scGate.demo/scGate.ATAC-seq.html)) and antibody-derived tags (ADT) ([CITE-seq demo](https://carmonalab.github.io/scGate.demo/scGate.CITE-seq.html)).
 
 ### References
 
