@@ -15,7 +15,7 @@ scGate evaluates the strength of signature marker expression in each cell using 
 
 ```
 install.packages("remotes")
-remotes::install_github("carmonalab/UCell")
+remotes::install_github("carmonalab/UCell", ref="v1.3")
 remotes::install_github("carmonalab/scGate")
 ```
 
