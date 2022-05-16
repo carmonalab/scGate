@@ -13,7 +13,7 @@ scGate evaluates the strength of signature marker expression in each cell using 
 
 ### Installation
 
-```
+```r
 install.packages("remotes")
 remotes::install_github("carmonalab/UCell", ref="v1.3")
 remotes::install_github("carmonalab/scGate")
@@ -23,7 +23,7 @@ remotes::install_github("carmonalab/scGate")
 
 Use scGate to purify a cell population of interest using manually defined marker genes
 
-```
+```r
 library(scGate)
 
 #Get a test scRNA-seq dataset (as a list of Seurat objects)
@@ -50,7 +50,7 @@ Check out this [scGate demo](https://carmonalab.github.io/scGate.demo) for a rep
 ### Pre-defined Gating Models
 
 A database of gating models for scGate is available on [scGate_models](https://github.com/carmonalab/scGate_models) and can be loaded using `get_scGateDB()`
-```
+```r
 #Get scGate database of pre-defined gating models
 scGate_models_DB <- get_scGateDB()
 
@@ -62,13 +62,13 @@ DimPlot(seurat_object)
 The first time you run `get_scGateDB()`  the database will be downloaded from the repository. On successive calls it will load your local version of the DB.
 
 You may manually edit the available models (eg in Excel) or create new models for your cell type of interest. You can then load your custom model into R using:
-```
+```r
 my_scGate_model <- load_scGate_model("path_to_my.model")
 ```
 
 You can use the `plot_tree` function to visualize the hierarchical structure of one of the models (requires [ggparty](https://cran.r-project.org/package=ggparty)).
 
-```
+```r
 install.packages("ggparty")
 scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
 ```
