@@ -18,6 +18,7 @@ scGate(
   nfeatures = 2000,
   pca.dim = 30,
   resol = 3,
+  param_decay = 0.25,
   maxRank = 1500,
   output.col.name = "is.pure",
   by.knn = TRUE,
@@ -53,6 +54,9 @@ scGate(
 \item{pca.dim}{Number of principal components for dimensionality reduction}
 
 \item{resol}{Resolution for cluster analysis (if \code{by.knn=FALSE})}
+
+\item{param_decay}{Controls decrease in parameter complexity at each iteration, between 0 and 1.
+\code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay}
 
 \item{maxRank}{Maximum number of genes that UCell will rank per cell}
 

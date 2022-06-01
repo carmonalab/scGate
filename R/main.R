@@ -14,6 +14,8 @@
 #' @param k.param Number of nearest neighbors for knn smoothing
 #' @param pca.dim Number of principal components for dimensionality reduction
 #' @param resol Resolution for cluster analysis (if \code{by.knn=FALSE})
+#' @param param_decay Controls decrease in parameter complexity at each iteration, between 0 and 1.
+#'     \code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay
 #' @param ncores Number of processors for parallel processing (requires \code{\link{future.apply}})
 #' @param output.col.name Column name with 'pure/impure' annotation
 #' @param min.cells Stop iterating if fewer than this number of cells is left
@@ -66,8 +68,9 @@
 #' @export
 
 scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data", ncores=1, seed=123, keep.ranks=FALSE,
-                   min.cells=30, nfeatures=2000, pca.dim=30, resol=3, maxRank=1500, output.col.name = 'is.pure',
-                   by.knn = TRUE, k.param=10, genes.blacklist="default", additional.signatures=NULL, verbose=TRUE) {
+                   min.cells=30, nfeatures=2000, pca.dim=30, resol=3, param_decay=0.25, maxRank=1500,
+                   output.col.name = 'is.pure', by.knn = TRUE, k.param=10, genes.blacklist="default",
+                   additional.signatures=NULL, verbose=TRUE) {
   
   
   assay <- assay %||% DefaultAssay(object = data)
@@ -116,9 +119,13 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
     neg.names <- sprintf("%s_UCell", names(list.model[[lev]]$negative))
     
     ##Reduce parameter complexity at each iteration
-    pca.use <- round((3/4)**(lev-1) * pca.dim)
-    nfeat.use <- round((3/4)**(lev-1) * nfeatures)
-    res.use <- round((3/4)**(lev-1) * resol)
+    if (param_decay < 0 | param_decay > 1) {
+      stop("Parameter param_decay must be a number between 0 and 1")
+    }
+    
+    pca.use <- round((1-param_decay)**(lev-1) * pca.dim)
+    nfeat.use <- round((1-param_decay)**(lev-1) * nfeatures)
+    res.use <- round((1-param_decay)**(lev-1) * resol)
     
     q <- find.nn(q, by.knn=by.knn, assay=assay, slot=slot, min.cells=min.cells, nfeatures=nfeat.use, 
                  npca=pca.use, k.param=k.param, genes.blacklist=genes.blacklist)
