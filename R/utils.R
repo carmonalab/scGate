@@ -28,7 +28,7 @@ find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.pa
   q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
   
   q <- ScaleData(q, verbose=FALSE)
-  q <- RunPCA(q, features = q@assays[[assay]]@var.features, npcs=npca, verbose = FALSE, reduction.key = "knnPCA")
+  q <- RunPCA(q, features = q@assays[[assay]]@var.features, npcs=npca, verbose = FALSE, reduction.key = "knnPCA_")
   q <- suppressMessages(FindNeighbors(q, reduction = "pca", dims = 1:npca, k.param = k.param, verbose=FALSE,
                                       return.neighbor = by.knn))
   return(q)
