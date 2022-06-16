@@ -2,7 +2,7 @@
 
 **scGate** is an R package that automatizes the typical manual marker-based approach to cell type annotation, to enable accurate and intuitive purification of a cell population of interest from a complex scRNA-seq dataset, **without requiring reference gene expression profiles or training data**. scGate works with any scRNA-seq technology and with other single-cell modalities.
 
-scGate builds upon our recent method [UCell](https://github.com/carmonalab/UCell) for robust single-cell signature scoring and [Seurat](https://github.com/satijalab/seurat/), a comprehensive and powerful framework for single-cell omics analysis.
+scGate builds upon [UCell](https://github.com/carmonalab/UCell) for robust single-cell signature scoring and [Seurat](https://github.com/satijalab/seurat/), a comprehensive and powerful framework for single-cell omics analysis.
 
 Briefly, scGate takes as input: *i)* a gene expression matrix stored in a Seurat object and *ii)* a “gating model” (GM), consisting of a set of marker genes that define the cell population of interest. The GM can be as simple as a single marker gene, or a combination of positive and negative markers. More complex GMs can be constructed in a hierarchical fashion, akin to gating strategies employed in flow cytometry. 
 
