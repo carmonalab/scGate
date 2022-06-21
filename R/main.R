@@ -75,8 +75,8 @@
 #' models <- get_scGateDB()
 #' model.list <- list("Bcell" = models$human$generic$Bcell,
 #'                    "Tcell" = models$human$generic$Tcell)
-#' seurat_object <- scGate(seurat_object, model=model.list)
-#' table(seurat_object$scGate_multi, useNA="always")
+#' seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
+#' DimPlot(seurat_object, group.by = "scGate_multi")
 #' 
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
 #' @export
@@ -129,6 +129,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
                            pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
                            colname=col.id, save.levels=save.levels)
     
+    Idents(data) <- col.id
     n_rem <- sum(data[[col.id]]=="Impure")
     frac.to.rem <- n_rem/ncol(data)
     mess <- sprintf("\n### Detected a total of %i non-pure cells for %s - %.2f%% cells marked for removal (active.ident)",

@@ -78,7 +78,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   # Save output by level
   if (save.levels) {
     for(name.lev in names(list.model)){
-      combname <- paste0(output.col.name,".",name.lev)
+      combname <- paste0(colname,".",name.lev)
       data <- AddMetaData(data,col.name = combname, metadata = output_by_level[[name.lev]])
       data@meta.data[,combname] <- factor(data@meta.data[,combname], levels=c("Pure","Impure"))
     }

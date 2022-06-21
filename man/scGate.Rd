@@ -132,8 +132,8 @@ seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 models <- get_scGateDB()
 model.list <- list("Bcell" = models$human$generic$Bcell,
                    "Tcell" = models$human$generic$Tcell)
-seurat_object <- scGate(seurat_object, model=model.list)
-table(seurat_object$scGate_multi, useNA="always")
+seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
+DimPlot(seurat_object, group.by = "scGate_multi")
 
 }
 \seealso{
