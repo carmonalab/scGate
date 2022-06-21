@@ -3,6 +3,10 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
                                    by.knn = TRUE, k.param=10, genes.blacklist="default", verbose=FALSE,
                                    colname="is.pure", save.levels=FALSE) {
   
+  if (!inherits(model, "data.frame")) {
+    stop("Invalid scGate model. Please check the format of your model")
+  }
+  
   list.model <- table.to.model(model)
   
   q <- data  #local copy to progressively remove cells

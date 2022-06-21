@@ -36,8 +36,8 @@
 #'     A database of models can be downloaded using the function \code{get_scGateDB()}.
 #'     You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
 #'     
-#'     Multiple models can also be evaluated as once, by running scGate with a list of models. Gating for each individual model is
-#'     returned as metadata, with a consensus annotation stored in scGate_multi metadata field. This allows using scGate as a
+#'     Multiple models can also be evaluated at once, by running scGate with a list of models. Gating for each individual model is
+#'     returned as metadata, with a consensus annotation stored in \code{scGate_multi} metadata field. This allows using scGate as a
 #'     multi-class classifier, where only cells that are "Pure" for a single model are assigned a label, cells that are "Pure" for
 #'     more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 #' @examples
