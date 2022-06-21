@@ -127,7 +127,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
                            nfeatures=nfeatures, by.knn=by.knn, min.cells=min.cells,
                            assay=assay, slot=slot, genes.blacklist=genes.blacklist,
                            pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
-                           colname=col.id)
+                           colname=col.id, save.levels=save.levels)
     
     n_rem <- sum(data[[col.id]]=="Impure")
     frac.to.rem <- n_rem/ncol(data)
