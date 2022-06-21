@@ -24,14 +24,16 @@ scGate(
   by.knn = TRUE,
   k.param = 10,
   genes.blacklist = "default",
+  multi.asNA = FALSE,
   additional.signatures = NULL,
-  verbose = TRUE
+  save.levels = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
 \item{data}{Seurat object containing a query data set - filtering will be applied to this object}
 
-\item{model}{A tabular model with scGate signatures. See Details for this format}
+\item{model}{A single scGate model, or a list of scGate models. See Details for this format}
 
 \item{pos.thr}{Minimum UCell score value for positive signatures}
 
@@ -47,7 +49,7 @@ scGate(
 
 \item{keep.ranks}{Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.}
 
-\item{min.cells}{Stop iterating if fewer than this number of cells is left}
+\item{min.cells}{Minimum number of cells to cluster or define cell types}
 
 \item{nfeatures}{Number of variable genes for dimensionality reduction}
 
@@ -69,8 +71,12 @@ scGate(
 \item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
+\item{multi.asNA}{How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)}
+
 \item{additional.signatures}{A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
 list of signatures will be returned but not used for filtering.}
+
+\item{save.levels}{Whether to save in metadata the filtering output for each gating model level}
 
 \item{verbose}{Verbose output}
 }
@@ -82,8 +88,14 @@ A new metadata column \code{is.pure} is added to the query Seurat object, indica
 Apply scGate to filter specific cell types in a query dataset
 }
 \details{
-Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
-    \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
+Models for scGate are dataframes where each line is a signature for a given filtering level.
+    A database of models can be downloaded using the function \code{get_scGateDB()}.
+    You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
+    
+    Multiple models can also be evaluated as once, by running scGate with a list of models. Gating for each individual model is
+    returned as metadata, with a consensus annotation stored in scGate_multi metadata field. This allows using scGate as a
+    multi-class classifier, where only cells that are "Pure" for a single model are assigned a label, cells that are "Pure" for
+    more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 }
 \examples{
 library(scGate)
@@ -115,7 +127,13 @@ my_scGate_model <- load_scGate_model("custom_model.tsv")
 seurat_object <- scGate(seurat_object, model=my_scGate_model)
 seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 
-
+############
+# Run multiple models at once
+models <- get_scGateDB()
+model.list <- list("Bcell" = models$human$generic$Bcell,
+                   "Tcell" = models$human$generic$Tcell)
+seurat_object <- scGate(seurat_object, model=model.list)
+table(seurat_object$scGate_multi, useNA="always")
 
 }
 \seealso{

@@ -3,7 +3,7 @@
 #' Apply scGate to filter specific cell types in a query dataset
 #'
 #' @param data Seurat object containing a query data set - filtering will be applied to this object
-#' @param model A tabular model with scGate signatures. See Details for this format
+#' @param model A single scGate model, or a list of scGate models. See Details for this format
 #' @param pca.dim Number of dimensions for cluster analysis
 #' @param assay Seurat assay to use
 #' @param slot Data slot in Seurat object
@@ -18,20 +18,28 @@
 #'     \code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay
 #' @param ncores Number of processors for parallel processing (requires \code{\link{future.apply}})
 #' @param output.col.name Column name with 'pure/impure' annotation
-#' @param min.cells Stop iterating if fewer than this number of cells is left
+#' @param min.cells Minimum number of cells to cluster or define cell types
 #' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
 #'     list of signatures will be returned but not used for filtering.
+#' @param save.levels Whether to save in metadata the filtering output for each gating model level
 #' @param by.knn Perform k-nearest neighbor smoothing for UCell scores
 #' @param keep.ranks Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
+#' @param multi.asNA How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
 
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
 #'     The \code{active.ident} is also set to this variable.
-#' @details Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
-#'     \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.   
+#' @details Models for scGate are dataframes where each line is a signature for a given filtering level.
+#'     A database of models can be downloaded using the function \code{get_scGateDB()}.
+#'     You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
+#'     
+#'     Multiple models can also be evaluated as once, by running scGate with a list of models. Gating for each individual model is
+#'     returned as metadata, with a consensus annotation stored in scGate_multi metadata field. This allows using scGate as a
+#'     multi-class classifier, where only cells that are "Pure" for a single model are assigned a label, cells that are "Pure" for
+#'     more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 #' @examples
 #' library(scGate)
 #' testing.datasets <- get_testing_data(version = 'hsa.latest') # get some testing datasets
@@ -62,7 +70,13 @@
 #' seurat_object <- scGate(seurat_object, model=my_scGate_model)
 #' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 #' 
-#' 
+#' ############
+#' # Run multiple models at once
+#' models <- get_scGateDB()
+#' model.list <- list("Bcell" = models$human$generic$Bcell,
+#'                    "Tcell" = models$human$generic$Tcell)
+#' seurat_object <- scGate(seurat_object, model=model.list)
+#' table(seurat_object$scGate_multi, useNA="always")
 #' 
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
 #' @export
@@ -70,7 +84,7 @@
 scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data", ncores=1, seed=123, keep.ranks=FALSE,
                    min.cells=30, nfeatures=2000, pca.dim=30, resol=3, param_decay=0.25, maxRank=1500,
                    output.col.name = 'is.pure', by.knn = TRUE, k.param=10, genes.blacklist="default",
-                   additional.signatures=NULL, verbose=TRUE) {
+                   multi.asNA = FALSE, additional.signatures=NULL, save.levels=FALSE, verbose=FALSE) {
   
   
   assay <- assay %||% DefaultAssay(object = data)
@@ -89,97 +103,48 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
     genes.blacklist <- unique(genes.blacklist)
   }
   
-  #if model is NULL, use a default model (ADD)
+  #With single model, make a list of one element
+  if (!inherits(model, "list")) {
+    model <- list("Target" = model)
+  }
+  if (is.null(names(model))) {
+    names(model) <- paste(output.col.name, seq_along(model), sep = ".")
+  }
   
-  list.model <- table.to.model(model)
   # compute signature scores using UCell
   if (verbose) {
-    message("Computing UCell scores for signatures...\n")
+    message("Computing UCell scores for all signatures...\n")
   }
   data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay, slot=slot, maxRank=maxRank, 
                                      keep.ranks=keep.ranks, add.sign=additional.signatures)
   
-  #Iterate over levels
-  q <- data  #local copy to progressively remove cells
-  tot.cells <- dim(q)[2]
-  
-  ## prepare output object (one pure/impure flag by level)
-  output_by_level <- rep("Impure",length(list.model)*tot.cells)
-  dim(output_by_level) <- c(tot.cells,length(list.model))
-  colnames(output_by_level) <- names(list.model)
-  output_by_level <- data.frame(output_by_level)
-  rownames(output_by_level) <- data@meta.data%>%rownames()
-  
-  for (lev in 1:length(list.model)) {
-    if (verbose) {
-      message(sprintf("Running scGate on level %i...", lev))
-    }
-    #We can introduce iterations over same level until convergence (optional)
-    pos.names <- sprintf("%s_UCell", names(list.model[[lev]]$positive))
-    neg.names <- sprintf("%s_UCell", names(list.model[[lev]]$negative))
+  for (m in names(model)) {
     
-    ##Reduce parameter complexity at each iteration
-    if (param_decay < 0 | param_decay > 1) {
-      stop("Parameter param_decay must be a number between 0 and 1")
-    }
+    col.id <- paste0(output.col.name, "_", m)
+
+    data <- run_scGate_singlemodel(data, model=model[[m]],
+                           param_decay=param_decay, pca.dim, resol=resol,
+                           nfeatures=nfeatures, by.knn=by.knn, min.cells=min.cells,
+                           assay=assay, slot=slot, genes.blacklist=genes.blacklist,
+                           pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
+                           colname=col.id)
     
-    pca.use <- round((1-param_decay)**(lev-1) * pca.dim)
-    nfeat.use <- round((1-param_decay)**(lev-1) * nfeatures)
-    res.use <- round((1-param_decay)**(lev-1) * resol)
-    
-    q <- find.nn(q, by.knn=by.knn, assay=assay, slot=slot, min.cells=min.cells, nfeatures=nfeat.use, 
-                 npca=pca.use, k.param=k.param, genes.blacklist=genes.blacklist)
-    
-    if(!by.knn){
-      q  <- FindClusters(q, resolution = res.use, verbose = FALSE)
-      q$clusterCT <- q@active.ident
-    }
-    
-    q <- filter_bymean(q, positive=pos.names, negative=neg.names, pos.thr=pos.thr, assay=assay,
-                       min.cells=min.cells, neg.thr=neg.thr, by.knn = by.knn)
-    
-    n_rem <- sum(q$is.pure=="Impure")
-    frac.to.rem <- n_rem/tot.cells
-    mess <- sprintf("scGate: Detected %i non-pure cells at level %i", n_rem, lev)
-    if (verbose) { message(mess) }
-    
-    ## retain pure cells will give us info in case of all cell where filtered
-    retain_pure_cells <- q$is.pure=="Pure"
-    
-    if(any(retain_pure_cells)){
-      output_by_level[names(retain_pure_cells[retain_pure_cells==T]),lev] <- "Pure"  # save layer output
-      q <- subset(q, is.pure=="Pure")
-    }else{
-      break  # in case of all cells became filtered, we do not continue with the next layer
-    }
+    n_rem <- sum(data[[col.id]]=="Impure")
+    frac.to.rem <- n_rem/ncol(data)
+    mess <- sprintf("\n### Detected a total of %i non-pure cells for %s - %.2f%% cells marked for removal (active.ident)",
+                    n_rem, m, 100*frac.to.rem)
+    message(mess)
   }
-  
-  #Add 'pure' labels to metadata
-  data <- AddMetaData(data,col.name = output.col.name,metadata = rep("Impure",tot.cells))
-  
-  if(any(retain_pure_cells)){  
-    pure.cells <- colnames(q)
-    data@meta.data[pure.cells, output.col.name] <- "Pure"
-  } else {
-    message(sprintf("Warning, all cells were removed at level %i. Consider reviewing signatures or model layout...", lev))
+ 
+  #Combine results from multiple model into single cell type annotation 
+  data <- combine_scGate_multiclass(data, prefix=paste0(output.col.name,"_"),
+                            scGate_classes = names(m), multi.asNA = multi.asNA,
+                            min_cells=min.cells, out_column = "scGate_multi")
+
+  #Back-compatibility with previous versions
+  if (names(model)[1] == 'Target') {
+     names(data@meta.data)[names(data@meta.data) == paste0(output.col.name, "_Target")] <- output.col.name
   }
-  
-  data@meta.data[,output.col.name] <- factor(data@meta.data[,output.col.name], levels=c("Pure","Impure"))
-    
-  # Save output by level
-  for(name.lev in names(list.model)){
-      colname <- paste0(output.col.name,".",name.lev)
-      data <- AddMetaData(data,col.name = colname, metadata = output_by_level[[name.lev]])
-      data@meta.data[,colname] <- factor(data@meta.data[,colname], levels=c("Pure","Impure"))
-  }
-  Idents(data) <- output.col.name
-  
-  n_rem <- sum(data[[output.col.name]]=="Impure")
-  frac.to.rem <- n_rem/tot.cells
-  mess <- sprintf("\n### Detected a total of %i non-pure cells for selected signatures - %.2f%% cells marked for removal (active.ident)",
-                  n_rem, 100*frac.to.rem)
-  message(mess)
-  
   return(data)
 }
 
@@ -761,3 +726,71 @@ get_testing_data <- function(version = 'hsa.latest', destination = "./scGateDB")
   testing.data <- readRDS(testing.data.path)
   return(testing.data)
 }
+
+#' Combine scGate annotations
+#'
+#' If a single-cell dataset has precomputed results for multiple scGate models, combined them in multi-class annotation
+#' 
+#' @param obj Seurat object with scGate results for multiple models stored as metadata   
+#' @param prefix Prefix in metadata column names for scGate result models
+#' @param scGate_classes Vector of scGate model names. If NULL, use all columns that start with "prefix" above.
+#' @param min_cells Minimum number of cells for a cell label to be considered
+#' @param multi.asNA How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)
+#' @param out_column The name of the metadata column where to store the multi-class cell labels
+#' @examples
+#' library(scGate)
+#' obj <- combine_scGate_multiclass(obj)
+#' @export
+
+combine_scGate_multiclass <- function(obj,
+                                  prefix="is.pure_",
+                                  scGate_classes=NULL,
+                                  min_cells=20,
+                                  multi.asNA = FALSE,
+                                  out_column="scGate_multi"
+){
+  #Use all columns with given prefix
+  if (is.null(scGate_classes)){  
+    cols <- grep(prefix, colnames(obj@meta.data), value = T)
+    cols <- grep("\\.level\\d+$", cols, invert=T, perl=T, value=T)
+  } else {
+    cols <- paste0(prefix, scGate_classes)
+    cols <- cols[cols %in% colnames(obj@meta.data)]
+  }
+  if (is.null(cols)) {
+    stop("Could not find scGate annotations in this object metadata.")
+  }
+  
+  meta <- obj@meta.data[,cols, drop=FALSE]
+  meta[is.na(meta)] <- "Impure"  #Avoid NAs
+  obj.logical <- meta=="Pure"
+  
+  label.sums <- apply(obj.logical,1,sum)
+  
+  obj.single <- obj.logical[label.sums==1, , drop=FALSE]
+  obj.single.labels <- apply(obj.single,1,function(x) names(x)[x])
+  #remove prefix
+  if (!is.null(prefix)) {
+    obj.single.labels <- gsub(prefix, "", obj.single.labels)
+  }
+  
+  #Assign labels to uniquely identified cells
+  labs <- rep(NA, ncol(obj))
+  names(labs) <- colnames(obj)
+  
+  labs[names(obj.single.labels)] <- obj.single.labels
+ 
+  #Set to NA classes with too few cells
+  tt <- table(labs, useNA = "always")
+  labs[labs %in% names(tt)[tt<min_cells]] <- NA
+  
+  if (multi.asNA) {
+    labs[names(label.sums[label.sums>1])] <- NA
+  } else { 
+    labs[names(label.sums[label.sums>1])] <- "Multi"
+  }
+  
+  obj@meta.data[[out_column]] <- labs
+  obj
+}
+

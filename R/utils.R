@@ -1,3 +1,88 @@
+run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data",
+                                   nfeatures=2000, pca.dim=30, resol=3, param_decay=0.25, min.cells=30,
+                                   by.knn = TRUE, k.param=10, genes.blacklist="default", verbose=FALSE,
+                                   colname="is.pure", save.levels=FALSE) {
+  
+  list.model <- table.to.model(model)
+  
+  q <- data  #local copy to progressively remove cells
+  tot.cells <- ncol(q)
+  
+  ## prepare output object (one pure/impure flag by level)
+  output_by_level <- rep("Impure",length(list.model)*tot.cells)
+  dim(output_by_level) <- c(tot.cells,length(list.model))
+  colnames(output_by_level) <- names(list.model)
+  output_by_level <- data.frame(output_by_level)
+  rownames(output_by_level) <- data@meta.data%>%rownames()
+  
+  for (lev in 1:length(list.model)) {
+    if (verbose) {
+      message(sprintf("Running scGate on level %i...", lev))
+    }
+
+    pos.names <- sprintf("%s_UCell", names(list.model[[lev]]$positive))
+    neg.names <- sprintf("%s_UCell", names(list.model[[lev]]$negative))
+    
+    ##Reduce parameter complexity at each iteration
+    if (param_decay < 0 | param_decay > 1) {
+      stop("Parameter param_decay must be a number between 0 and 1")
+    }
+    
+    pca.use <- round((1-param_decay)**(lev-1) * pca.dim)
+    nfeat.use <- round((1-param_decay)**(lev-1) * nfeatures)
+    res.use <- round((1-param_decay)**(lev-1) * resol)
+    
+    q <- find.nn(q, by.knn=by.knn, assay=assay, slot=slot, min.cells=min.cells, nfeatures=nfeat.use, 
+                 npca=pca.use, k.param=k.param, genes.blacklist=genes.blacklist)
+    
+    if(!by.knn){
+      q  <- FindClusters(q, resolution = res.use, verbose = FALSE)
+      q$clusterCT <- q@active.ident
+    }
+    
+    q <- filter_bymean(q, positive=pos.names, negative=neg.names, pos.thr=pos.thr, assay=assay,
+                       min.cells=min.cells, neg.thr=neg.thr, by.knn = by.knn)
+    
+    n_rem <- sum(q$is.pure=="Impure")
+    frac.to.rem <- n_rem/tot.cells
+    mess <- sprintf("scGate: Detected %i non-pure cells at level %i", n_rem, lev)
+    if (verbose) { message(mess) }
+    
+    ## retain pure cells will give us info in case of all cell where filtered
+    retain_pure_cells <- q$is.pure=="Pure"
+    
+    if(any(retain_pure_cells)){
+      output_by_level[names(retain_pure_cells[retain_pure_cells==T]),lev] <- "Pure"  # save layer output
+      q <- subset(q, is.pure=="Pure")
+    } else {
+      break  # in case of all cells became filtered, we do not continue with the next layer
+    }
+  }
+  
+  #Add 'pure' labels to metadata
+  data <- AddMetaData(data,col.name = colname, metadata = rep("Impure",tot.cells))
+  
+  if(any(retain_pure_cells)){  
+    pure.cells <- colnames(q)
+    data@meta.data[pure.cells, colname] <- "Pure"
+  } else {
+    message(sprintf("Warning, all cells were removed at level %i. Consider reviewing signatures or model layout...", lev))
+  }
+  
+  data@meta.data[,colname] <- factor(data@meta.data[,colname], levels=c("Pure","Impure"))
+  
+  # Save output by level
+  if (save.levels) {
+    for(name.lev in names(list.model)){
+      combname <- paste0(output.col.name,".",name.lev)
+      data <- AddMetaData(data,col.name = combname, metadata = output_by_level[[name.lev]])
+      data@meta.data[,combname] <- factor(data@meta.data[,combname], levels=c("Pure","Impure"))
+    }
+  }
+  return(data)
+}
+
+
 find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.param=10, min.cells=30, by.knn = F,
                     genes.blacklist=NULL) {
   
@@ -127,8 +212,17 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
 score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot="data",
                                        add.sign=NULL, keep.ranks=FALSE, maxRank=1500) {
   
+  comb <- bind_rows(model, .id = "Model_ID")
   # extract unique signatures
-  model.uniq <- model %>%distinct(name, .keep_all = T) 
+  model.uniq <- comb %>% dplyr::distinct(name, signature, .keep_all = T) 
+  
+  #Stop if there are signature with same name but different genes
+  t <- table(model.uniq$name)
+  dup <- names(t[t>1])
+  if (length(dup)>0) {
+    s <- paste(dup,collapse=", ")
+    stop(sprintf("Different gene sets have been assigned to signature with same name: %s", s))
+  }
   
   ## generate list object to be used in computing stage
   signatures <- model.uniq$signature %>% strsplit("[,; ]+") %>% lapply(unlist)   #also allow comma or space
@@ -143,7 +237,6 @@ score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot=
   
   return(data)
 }
-
 
 model.to.table <- function(scGate.model){
   tab <- data.frame(levels=NULL,use_as = NULL,name = NULL,signature = NULL)
