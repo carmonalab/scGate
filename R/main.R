@@ -78,7 +78,8 @@
 #' seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
 #' DimPlot(seurat_object, group.by = "scGate_multi")
 #' 
-#' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}} 
+#' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}}
+#' @import dplyr 
 #' @export
 
 scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data", ncores=1, seed=123, keep.ranks=FALSE,
@@ -86,12 +87,23 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
                    output.col.name = 'is.pure', by.knn = TRUE, k.param=10, genes.blacklist="default",
                    multi.asNA = FALSE, additional.signatures=NULL, save.levels=FALSE, verbose=FALSE) {
   
+  set.seed(seed)
   
   assay <- assay %||% DefaultAssay(object = data)
   DefaultAssay(object = data) <- assay
   
-  require(dplyr)
-  set.seed(seed)
+  if (assay == "integrated") { #UCell should not run on integrated assay
+    if ('RNA' %in% Assays(data)) {
+      assay.ucell <- 'RNA'
+    } else if ('SCT' %in% Assays(data)) {
+      assay.ucell <- 'SCT'
+    } else {
+      stop("Cannot find assays with unintegrated data in this Seurat object")
+    }
+  } else {
+    assay.ucell <- assay
+  }
+    
   #check gene blacklist
   if (!is.null(genes.blacklist)) {
     if (length(genes.blacklist)==1 && genes.blacklist == "default") {  #Default
@@ -113,9 +125,9 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
   
   # compute signature scores using UCell
   if (verbose) {
-    message("Computing UCell scores for all signatures...\n")
+    message(sprintf("Computing UCell scores for all signatures using %s assay...\n", assay.ucell))
   }
-  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay, slot=slot, maxRank=maxRank, 
+  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay.ucell, slot=slot, maxRank=maxRank, 
                                      keep.ranks=keep.ranks, add.sign=additional.signatures)
   
   for (m in names(model)) {
@@ -132,7 +144,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
     Idents(data) <- col.id
     n_rem <- sum(data[[col.id]]=="Impure")
     frac.to.rem <- n_rem/ncol(data)
-    mess <- sprintf("\n### Detected a total of %i non-pure cells for %s - %.2f%% cells marked for removal (active.ident)",
+    mess <- sprintf("\n### Detected a total of %i non-pure cells for %s (%.2f%% of total)",
                     n_rem, m, 100*frac.to.rem)
     message(mess)
   }
@@ -144,7 +156,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
 
   #Back-compatibility with previous versions
   if (names(model)[1] == 'Target') {
-     names(data@meta.data)[names(data@meta.data) == paste0(output.col.name, "_Target")] <- output.col.name
+     data@meta.data[,output.col.name] <- data@meta.data[,paste0(output.col.name, "_Target")]
   }
   return(data)
 }

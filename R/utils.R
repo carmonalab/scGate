@@ -232,9 +232,12 @@ score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot=
   signatures <- model.uniq$signature %>% strsplit("[,; ]+") %>% lapply(unlist)   #also allow comma or space
   names(signatures) <- model.uniq$name
   
-  if (is.list(add.sign) & length(add.sign)>0) {
-     signatures <- append(signatures, add.sign)
-  } 
+  if (!is.null(add.sign)) {
+    if (!inherits(add.sign, "list")) {
+      add.sign <- list("Additional_signature"=add.sign)
+    }
+    signatures <- append(signatures, add.sign)
+  }
   
   data <- UCell::AddModuleScore_UCell(data, features = signatures, assay=assay, slot=slot,
                                       ncores=ncores, storeRanks = keep.ranks, maxRank = maxRank)
