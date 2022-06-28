@@ -156,7 +156,17 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
 
   #Back-compatibility with previous versions
   if (names(model)[1] == 'Target') {
-     data@meta.data[,output.col.name] <- data@meta.data[,paste0(output.col.name, "_Target")]
+    cn <- paste0(output.col.name, "_Target")
+    data@meta.data[,output.col.name] <- data@meta.data[,cn]
+    data@meta.data[,cn] <- NULL
+    
+    if (save.levels) {
+      for (l in unique(model[[1]]$levels)) {
+        cn <- paste0(output.col.name, "_Target.",l)
+        data@meta.data[,paste0(output.col.name,".",l)] <- data@meta.data[,cn]
+        data@meta.data[,cn] <- NULL
+      }
+    }
   }
   return(data)
 }
