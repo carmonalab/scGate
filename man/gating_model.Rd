@@ -25,7 +25,9 @@ gating_model(
 
 \item{positive}{Logical indicating if the signature must be used as a positive signature in those model level. Default is TRUE.}
 
-\item{negative}{same as `positive` but negated (negative=TRUE equals to positive=FALSE)}
+\item{negative}{Same as `positive` but negated (negative=TRUE equals to positive=FALSE)}
+
+\item{remove}{Whether to remove the given signature from the model}
 }
 \description{
 Generate an scGate model from scratch or edit an existing one
@@ -37,6 +39,6 @@ my_model <- gating_model(model = my_model,
                        level = 1, positive = T, name = "immune", signature = c("PTPRC"))
 my_model <- gating_model(model = my_model, 
                        level = 1, positive = F, name = "Epithelial", signature = c("CDH1","FLT1") )
-remove an existing signature
+# Remove an existing signature
 dropped_model <- gating_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
 }

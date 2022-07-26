@@ -17,7 +17,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   dim(output_by_level) <- c(tot.cells,length(list.model))
   colnames(output_by_level) <- names(list.model)
   output_by_level <- data.frame(output_by_level)
-  rownames(output_by_level) <- data@meta.data%>%rownames()
+  rownames(output_by_level) <- data@meta.data %>% rownames()
   
   for (lev in 1:length(list.model)) {
     if (verbose) {
@@ -57,7 +57,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     
     if(any(retain_pure_cells)){
       output_by_level[names(retain_pure_cells[retain_pure_cells==T]),lev] <- "Pure"  # save layer output
-      q <- subset(q, is.pure=="Pure")
+      q <- subset(q, subset=is.pure=="Pure")
     } else {
       break  # in case of all cells became filtered, we do not continue with the next layer
     }
@@ -216,9 +216,9 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.
 score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot="data",
                                        add.sign=NULL, keep.ranks=FALSE, maxRank=1500) {
   
-  comb <- bind_rows(model, .id = "Model_ID")
+  comb <- dplyr::bind_rows(model, .id = "Model_ID")
   # extract unique signatures
-  model.uniq <- comb %>% dplyr::distinct(name, signature, .keep_all = T) 
+  model.uniq <- comb %>% dplyr::distinct(.data$name, .data$signature, .keep_all = T) 
   
   #Stop if there are signature with same name but different genes
   t <- table(model.uniq$name)

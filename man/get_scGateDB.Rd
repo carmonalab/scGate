@@ -29,7 +29,7 @@ versions of the database.
 }
 \details{
 Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
-    \code{get_scGateDB()}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
+    \code{get_scGateDB}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
 }
 \examples{
 library(scGate)

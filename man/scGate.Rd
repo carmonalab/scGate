@@ -43,7 +43,7 @@ scGate(
 
 \item{slot}{Data slot in Seurat object}
 
-\item{ncores}{Number of processors for parallel processing (requires \code{\link{future.apply}})}
+\item{ncores}{Number of processors for parallel processing}
 
 \item{seed}{Integer seed for random number generator}
 
@@ -89,7 +89,7 @@ Apply scGate to filter specific cell types in a query dataset
 }
 \details{
 Models for scGate are dataframes where each line is a signature for a given filtering level.
-    A database of models can be downloaded using the function \code{get_scGateDB()}.
+    A database of models can be downloaded using the function \code{get_scGateDB}.
     You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
     
     Multiple models can also be evaluated at once, by running scGate with a list of models. Gating for each individual model is

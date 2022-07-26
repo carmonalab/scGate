@@ -7,7 +7,11 @@
 plot_levels(obj, pure.col = "green", impure.col = "gray")
 }
 \arguments{
-\item{obj}{Gated Seurat object output of scGate filtering function.}
+\item{obj}{Gated Seurat object output of scGate filtering function}
+
+\item{pure.col}{Color code for pure category}
+
+\item{impure.col}{Color code for impure category}
 }
 \description{
 Fast plotting of gating results over each model level.
