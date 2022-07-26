@@ -519,13 +519,14 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     obj <- scGate(obj, model = model, assay = DefaultAssay(obj))
 
     # add annotation plot
-    nname <- sprintf("%s's manual annot",dset)
-    plt[[nname]] <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + ggtitle(nname) + NoLegend() +  theme(aspect.ratio = 1)
+    nname <- sprintf("%s manual annot",dset)
+    plt <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + 
+      ggtitle(nname) + NoLegend() +  theme(aspect.ratio = 1)
 
     # add one DimPlot by model level
-    level.plots <- plot_levels(obj)  # this return a list of plots one by each model level
-    names(level.plots) <- paste(dset,names(level.plots),sep = "_")
-    plt <- c(plt,level.plots)  ## add plots (one by layer)
+    pure.plot <- DimPlot(obj, group.by = "is.pure", cols = list("Pure"="green","Impure"="gray")) +
+      theme(aspect.ratio = 1)
+    plt <- list("Annotation"=plt, "Gating"=pure.plot)
     
     #reserve plots of this dset
     plt.out[[dset]] <- patchwork::wrap_plots(plt,ncol = length(plt))
@@ -579,7 +580,9 @@ plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
   myCols <- grep("^is.pure.", colnames(obj@meta.data),value = T)
   plots <- list()
   for (myCol in myCols){
-    plots[[myCol]] <- DimPlot(obj, group.by = myCol, cols = list(Pure = pure.col,Impure = impure.col)) +  theme(aspect.ratio = 1)
+    plots[[myCol]] <- DimPlot(obj, group.by = myCol, 
+                              cols = list(Pure = pure.col,Impure = impure.col)) +
+      theme(aspect.ratio = 1)
   }
   return(plots)
 }
