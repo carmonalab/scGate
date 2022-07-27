@@ -1,6 +1,7 @@
 run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data",
-                                   nfeatures=2000, pca.dim=30, resol=3, param_decay=0.25, min.cells=30,
-                                   by.knn = TRUE, k.param=10, genes.blacklist="default", verbose=FALSE,
+                                   reduction="calculate", nfeatures=2000, pca.dim=30, resol=3,
+                                   param_decay=0.25, min.cells=30, by.knn = TRUE, k.param=10, 
+                                   genes.blacklist="default", verbose=FALSE,
                                    colname="is.pure", save.levels=FALSE) {
   
   if (!inherits(model, "data.frame")) {
@@ -32,12 +33,15 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
       stop("Parameter param_decay must be a number between 0 and 1")
     }
     
-    pca.use <- round((1-param_decay)**(lev-1) * pca.dim)
-    nfeat.use <- round((1-param_decay)**(lev-1) * nfeatures)
-    res.use <- round((1-param_decay)**(lev-1) * resol)
-    
+    if (reduction=="calculate") {
+      pca.use <- round((1-param_decay)**(lev-1) * pca.dim)
+      nfeat.use <- round((1-param_decay)**(lev-1) * nfeatures)
+      res.use <- round((1-param_decay)**(lev-1) * resol)
+    } else {
+      pca.use <- pca.dim
+    }
     q <- find.nn(q, by.knn=by.knn, assay=assay, slot=slot, min.cells=min.cells, nfeatures=nfeat.use, 
-                 npca=pca.use, k.param=k.param, genes.blacklist=genes.blacklist)
+                 reduction=reduction, npca=pca.use, k.param=k.param, genes.blacklist=genes.blacklist)
     
     if(!by.knn){
       q  <- FindClusters(q, resolution = res.use, verbose = FALSE)
@@ -57,7 +61,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     
     if(any(retain_pure_cells)){
       output_by_level[names(retain_pure_cells[retain_pure_cells==T]),lev] <- "Pure"  # save layer output
-      q <- subset(q, subset=is.pure=="Pure")
+      q <- subset(q, subset=`is.pure`=="Pure")
     } else {
       break  # in case of all cells became filtered, we do not continue with the next layer
     }
@@ -87,38 +91,45 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
 }
 
 
-find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.param=10, min.cells=30, by.knn = F,
-                    genes.blacklist=NULL) {
+find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.param=10,
+                    min.cells=30, by.knn = F, reduction="calculate", genes.blacklist=NULL) {
   
   DefaultAssay(q) <- assay
   ncells <- length(Cells(q))
   ngenes <- nrow(q)
   
-  if(ncells < min.cells){
-    q$clusterCT <- 0    #with very few cells, consider them as a single cluster
-    return(q)
-  }  
-  if (ngenes < nfeatures) {
-     nfeatures <- ngenes
-  }
-  if (ngenes/2 < npca) {
-     npca <- ngenes/2
-  }
-  
-  if (slot=="counts") { 
-     q <- NormalizeData(q, verbose = FALSE)
-  }
-  if (ngenes > 200) {  #only perform this for high-dim data
-     q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
+  if (reduction=="calculate") {
+    if(ncells < min.cells){
+      q$clusterCT <- 0    #with very few cells, consider them as a single cluster
+      return(q)
+    }  
+    if (ngenes < nfeatures) {
+      nfeatures <- ngenes
+    }
+    if (ngenes/2 < npca) {
+      npca <- ngenes/2
+    }
+    
+    if (slot=="counts") { 
+      q <- NormalizeData(q, verbose = FALSE)
+    }
+    if (ngenes > 200) {  #only perform this for high-dim data
+      q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
+    } else {
+      q@assays[[assay]]@var.features <- rownames(q)
+    }
+    
+    q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
+    
+    q <- ScaleData(q, verbose=FALSE)
+    q <- RunPCA(q, features = q@assays[[assay]]@var.features, npcs=npca, verbose = FALSE, reduction.key = "knnPCA_")
+    
+    red.use <- 'pca'
   } else {
-     q@assays[[assay]]@var.features <- rownames(q)
+    red.use <- reduction
   }
   
-  q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
-  
-  q <- ScaleData(q, verbose=FALSE)
-  q <- RunPCA(q, features = q@assays[[assay]]@var.features, npcs=npca, verbose = FALSE, reduction.key = "knnPCA_")
-  q <- suppressMessages(FindNeighbors(q, reduction = "pca", dims = 1:npca, k.param = k.param, verbose=FALSE,
+  q <- suppressMessages(FindNeighbors(q, reduction = red.use, dims = 1:npca, k.param = k.param, verbose=FALSE,
                                       return.neighbor = by.knn))
   return(q)
   

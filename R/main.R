@@ -12,6 +12,9 @@
 #' @param maxRank Maximum number of genes that UCell will rank per cell
 #' @param nfeatures Number of variable genes for dimensionality reduction
 #' @param k.param Number of nearest neighbors for knn smoothing
+#' @param reduction Dimensionality reduction to use for knn smoothing. By default, calculates a new reduction
+#'     based on the given \code{assay}; otherwise you may specify a precalculated dimensionality reduction (e.g.
+#'     in the case of an integrated dataset after batch-effect correction)
 #' @param pca.dim Number of principal components for dimensionality reduction
 #' @param resol Resolution for cluster analysis (if \code{by.knn=FALSE})
 #' @param param_decay Controls decrease in parameter complexity at each iteration, between 0 and 1.
@@ -78,6 +81,12 @@
 #' seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
 #' DimPlot(seurat_object, group.by = "scGate_multi")
 #' 
+#' ###########
+#' # Run on pre-integrated space (e.g. using harmony)
+#' models <- get_scGateDB()
+#' seurat_object <- scGate(seurat_object, model=models$human$generic$Tcell, reduction="harmony")
+#' DimPlot(seurat_object)
+#' 
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}}
 #' @import Seurat
 #' @import ggplot2
@@ -85,10 +94,30 @@
 #' @importFrom UCell AddModuleScore_UCell
 #' @export
 
-scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data", ncores=1, seed=123, keep.ranks=FALSE,
-                   min.cells=30, nfeatures=2000, pca.dim=30, resol=3, param_decay=0.25, maxRank=1500,
-                   output.col.name = 'is.pure', by.knn = TRUE, k.param=10, genes.blacklist="default",
-                   multi.asNA = FALSE, additional.signatures=NULL, save.levels=FALSE, verbose=FALSE) {
+scGate <- function(data,
+                   model,
+                   pos.thr=0.2,
+                   neg.thr=0.2,
+                   assay=NULL,
+                   slot="data",
+                   ncores=1,
+                   seed=123,
+                   keep.ranks=FALSE,
+                   reduction=c("calculate","PCA","UMAP","harmony","Liors_elephant"),
+                   min.cells=30,
+                   nfeatures=2000,
+                   pca.dim=30,
+                   resol=3,
+                   param_decay=0.25,
+                   maxRank=1500,
+                   output.col.name='is.pure',
+                   by.knn = TRUE,
+                   k.param=10,
+                   genes.blacklist="default",
+                   multi.asNA = FALSE,
+                   additional.signatures=NULL,
+                   save.levels=FALSE,
+                   verbose=FALSE) {
   
   set.seed(seed)
   
@@ -107,6 +136,16 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
     }
   } else {
     assay.ucell <- assay
+  }
+  
+  reduction <- reduction[1]
+  if (is.null(reduction) || tolower(reduction)=="calculate") {
+    reduction = "calculate"
+  } else {
+    if (!reduction %in% Reductions(data)) {
+      stop(sprintf("Could not find reduction %s in this object. Set reduction='calculate' to compute a new dimred", reduction))
+    }
+    pca.dim <- ncol(data@reductions[[reduction]])
   }
     
   #check gene blacklist
@@ -144,7 +183,7 @@ scGate <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data
                            nfeatures=nfeatures, by.knn=by.knn, min.cells=min.cells,
                            assay=assay, slot=slot, genes.blacklist=genes.blacklist,
                            pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
-                           colname=col.id, save.levels=save.levels)
+                           reduction=reduction, colname=col.id, save.levels=save.levels)
     
     Idents(data) <- col.id
     n_rem <- sum(data[[col.id]]=="Impure")

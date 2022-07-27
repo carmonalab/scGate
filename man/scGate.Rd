@@ -14,6 +14,7 @@ scGate(
   ncores = 1,
   seed = 123,
   keep.ranks = FALSE,
+  reduction = c("calculate", "PCA", "UMAP", "harmony", "Liors_elephant"),
   min.cells = 30,
   nfeatures = 2000,
   pca.dim = 30,
@@ -48,6 +49,10 @@ scGate(
 \item{seed}{Integer seed for random number generator}
 
 \item{keep.ranks}{Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.}
+
+\item{reduction}{Dimensionality reduction to use for knn smoothing. By default, calculates a new reduction
+based on the given \code{assay}; otherwise you may specify a precalculated dimensionality reduction (e.g.
+in the case of an integrated dataset after batch-effect correction)}
 
 \item{min.cells}{Minimum number of cells to cluster or define cell types}
 
@@ -134,6 +139,12 @@ model.list <- list("Bcell" = models$human$generic$Bcell,
                    "Tcell" = models$human$generic$Tcell)
 seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
 DimPlot(seurat_object, group.by = "scGate_multi")
+
+###########
+# Run on pre-integrated space (e.g. using harmony)
+models <- get_scGateDB()
+seurat_object <- scGate(seurat_object, model=models$human$generic$Tcell, reduction="harmony")
+DimPlot(seurat_object)
 
 }
 \seealso{
