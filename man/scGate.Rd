@@ -14,7 +14,7 @@ scGate(
   ncores = 1,
   seed = 123,
   keep.ranks = FALSE,
-  reduction = c("calculate", "PCA", "UMAP", "harmony", "Liors_elephant"),
+  reduction = c("calculate", "pca", "umap", "harmony", "Liors_elephant"),
   min.cells = 30,
   nfeatures = 2000,
   pca.dim = 30,
