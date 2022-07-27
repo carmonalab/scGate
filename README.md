@@ -15,7 +15,6 @@ scGate evaluates the strength of signature marker expression in each cell using 
 
 ```r
 install.packages("remotes")
-remotes::install_github("carmonalab/UCell", ref="v1.3")
 remotes::install_github("carmonalab/scGate")
 ```
 
@@ -72,6 +71,17 @@ You can use the `plot_tree` function to visualize the hierarchical structure of 
 install.packages("ggparty")
 scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
 ```
+
+### scGate as a multi-class classifier
+
+scGate can also be used a cell type classifier, to annotate multiple cell types in a dataset. To annotate a dataset with marker-based cell type definitions, simply provide a list of models to scGate, e.g.:
+
+```r
+obj <- scGate(obj, model = models.list)
+```
+
+See an example of scGate as a classifier at: [scGate multi-class](https://carmonalab.github.io/scGate.demo/#scgate-as-a-multi-class-classifier)
+
 
 ### Other single-cell modalities
 scGate can be applied to modalities other than RNA-seq, such as ATAC-seq ([scATAC-seq demo](https://carmonalab.github.io/scGate.demo/scGate.ATAC-seq.html)) and antibody-derived tags (ADT) ([CITE-seq demo](https://carmonalab.github.io/scGate.demo/scGate.CITE-seq.html)).
