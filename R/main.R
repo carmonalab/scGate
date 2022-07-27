@@ -643,7 +643,7 @@ plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
 #' scGate.model.db <- get_scGateDB()
 #' model <- scGate.model.db$human$generic$Tcell
 #' # Apply scGate with this model
-#' query <- scGate(query, model=model)
+#' query <- scGate(query, model=model, save.levels=T)
 #' # View UCell score distribution
 #' plot_UCell_scores(query, model)
 #' @return Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
@@ -654,6 +654,7 @@ plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
 #' @export
 #' 
 plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2, neg.thr=0.2, ncol=NULL, combine=T) {
+  
   u_cols <- grep('_UCell', colnames(obj@meta.data), value = T)
   
   levs <- unique(model$levels)
@@ -661,6 +662,15 @@ plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2, neg.thr=0.2, n
   
   palette <- c("#00fd0c","#f4340e")
   names(palette) <- c("Positive","Negative")
+  
+  if (sum(grepl("is.pure.level", colnames(obj@meta.data)))==0) {
+     obj$is.pure.level1 <- obj$is.pure
+     
+     if (length(levs)>1) {
+       warning("scGate levels were not stored in this object. Showing results only for top level.")
+       levs <- "level1"
+     }
+  }
   
   for (l in seq_along(levs)) {
     

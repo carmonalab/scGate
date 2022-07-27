@@ -40,7 +40,7 @@ library(scGate)
 scGate.model.db <- get_scGateDB()
 model <- scGate.model.db$human$generic$Tcell
 # Apply scGate with this model
-query <- scGate(query, model=model)
+query <- scGate(query, model=model, save.levels=T)
 # View UCell score distribution
 plot_UCell_scores(query, model)
 }
