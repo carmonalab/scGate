@@ -80,7 +80,7 @@ scGate can also be used a cell type classifier, to annotate multiple cell types 
 obj <- scGate(obj, model = models.list)
 ```
 
-See an example of scGate as a classifier at: [scGate multi-class](https://carmonalab.github.io/scGate.demo/#scgate-as-a-multi-class-classifier)
+See examples of scGate as a classifier at: [scGate multi-class](https://carmonalab.github.io/scGate.demo/#scgate-as-a-multi-class-classifier) and [scGate on integrated objects](https://carmonalab.github.io/scGate.demo/scGate.integrated.html)
 
 
 ### Other single-cell modalities

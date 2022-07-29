@@ -1,7 +1,7 @@
 Package: scGate
 Type: Package
 Title: Cell-type filter for single-cell sequencing data
-Version: 1.1.1
+Version: 1.2.0
 Authors@R: c(
   person(given = 'Massimo', family = 'Andreatta', email = 'massimo.andreatta@unil.ch', role = c('aut','cre'), comment = c(ORCID = '0000-0002-8036-2647')),
   person(given = 'Ariel', family = 'Berenstein', email = 'arieljberenstein@gmail.com', role = c('aut'), comment = c(ORCID = '0000-0001-8540-5389')), 
