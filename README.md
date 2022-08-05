@@ -1,7 +1,7 @@
 # scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets
 
 <p align="center">
-  <img height="80" src="docs/RSticker_STACAS.png">
+  <img height="80" src="docs/RSticker_SCGATE.png">
 </p>
 
 **scGate** is an R package that automatizes the typical manual marker-based approach to cell type annotation, to enable accurate and intuitive purification of a cell population of interest from a complex scRNA-seq dataset, **without requiring reference gene expression profiles or training data**. scGate works with any scRNA-seq technology and with other single-cell modalities.
@@ -95,5 +95,5 @@ scGate can be applied to modalities other than RNA-seq, such as ATAC-seq ([scATA
 Massimo Andreatta, Ariel J Berenstein, Santiago J Carmona, scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets, Bioinformatics, Volume 38, Issue 9, 1 May 2022, Pages 2642–2644, https://doi.org/10.1093/bioinformatics/btac141
 
 <p align="center">
-  <img height="80" src="docs/RSticker_STACAS.png">
+  <img height="80" src="docs/RSticker_SCGATE.png">
 </p>
