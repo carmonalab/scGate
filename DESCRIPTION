@@ -18,9 +18,11 @@ Imports: Seurat(>= 4.0.0),
     patchwork,
     ggridges,
     reshape2,
-    ggplot2
+    ggplot2,
+    BiocFileCache,
+    tools
 Suggests: ggparty
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.2.0
+RoxygenNote: 7.2.1

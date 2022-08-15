@@ -16,5 +16,5 @@ Helper function to obtain some sample data
 }
 \examples{
 library(scGate)
-testing.datasets <- get_testing_data(version = 'hsa.latest')
+testing.datasets <- get_testing_data(version='hsa.latest')
 }

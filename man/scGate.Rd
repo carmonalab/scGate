@@ -12,7 +12,6 @@ scGate(
   assay = NULL,
   slot = "data",
   ncores = 1,
-  seed = 123,
   keep.ranks = FALSE,
   reduction = c("calculate", "pca", "umap", "harmony", "Liors_elephant"),
   min.cells = 30,
@@ -32,9 +31,11 @@ scGate(
 )
 }
 \arguments{
-\item{data}{Seurat object containing a query data set - filtering will be applied to this object}
+\item{data}{Seurat object containing a query data set - filtering will be
+applied to this object}
 
-\item{model}{A single scGate model, or a list of scGate models. See Details for this format}
+\item{model}{A single scGate model, or a list of scGate models. See Details
+for this format}
 
 \item{pos.thr}{Minimum UCell score value for positive signatures}
 
@@ -46,12 +47,13 @@ scGate(
 
 \item{ncores}{Number of processors for parallel processing}
 
-\item{seed}{Integer seed for random number generator}
+\item{keep.ranks}{Store UCell rankings in Seurat object. This will speed up
+calculations if the same object is applied again with new signatures.}
 
-\item{keep.ranks}{Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.}
-
-\item{reduction}{Dimensionality reduction to use for knn smoothing. By default, calculates a new reduction
-based on the given \code{assay}; otherwise you may specify a precalculated dimensionality reduction (e.g.
+\item{reduction}{Dimensionality reduction to use for knn smoothing. By
+default, calculates a new reduction
+based on the given \code{assay}; otherwise you may specify a
+precalculated dimensionality reduction (e.g. 
 in the case of an integrated dataset after batch-effect correction)}
 
 \item{min.cells}{Minimum number of cells to cluster or define cell types}
@@ -62,8 +64,10 @@ in the case of an integrated dataset after batch-effect correction)}
 
 \item{resol}{Resolution for cluster analysis (if \code{by.knn=FALSE})}
 
-\item{param_decay}{Controls decrease in parameter complexity at each iteration, between 0 and 1.
-\code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay}
+\item{param_decay}{Controls decrease in parameter complexity at each
+iteration, between 0 and 1.
+\code{param_decay == 0} gives no decay, increasingly higher
+\code{param_decay} gives increasingly stronger decay}
 
 \item{maxRank}{Maximum number of genes that UCell will rank per cell}
 
@@ -73,44 +77,52 @@ in the case of an integrated dataset after batch-effect correction)}
 
 \item{k.param}{Number of nearest neighbors for knn smoothing}
 
-\item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
+\item{genes.blacklist}{Genes blacklisted from variable features. The default
+loads the list of genes in \code{scGate::genes.blacklist.default};
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
 
-\item{multi.asNA}{How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)}
+\item{multi.asNA}{How to label cells that are "Pure" for multiple
+annotations: "Multi" (FALSE) or NA (TRUE)}
 
-\item{additional.signatures}{A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
-list of signatures will be returned but not used for filtering.}
+\item{additional.signatures}{A list of additional signatures, not included
+in the model, to be evaluated (e.g. a cycling signature). The scores for
+this list of signatures will be returned but not used for filtering.}
 
-\item{save.levels}{Whether to save in metadata the filtering output for each gating model level}
+\item{save.levels}{Whether to save in metadata the filtering output for each
+gating model level}
 
 \item{verbose}{Verbose output}
 }
 \value{
-A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
+A new metadata column \code{is.pure} is added to the query Seurat
+    object, indicating which cells correspond to the desidered cell type(s).
     The \code{active.ident} is also set to this variable.
 }
 \description{
 Apply scGate to filter specific cell types in a query dataset
 }
 \details{
-Models for scGate are dataframes where each line is a signature for a given filtering level.
-    A database of models can be downloaded using the function \code{get_scGateDB}.
-    You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
-    
-    Multiple models can also be evaluated at once, by running scGate with a list of models. Gating for each individual model is
-    returned as metadata, with a consensus annotation stored in \code{scGate_multi} metadata field. This allows using scGate as a
-    multi-class classifier, where only cells that are "Pure" for a single model are assigned a label, cells that are "Pure" for
-    more than one gating model are labeled as "Multi", all others cells are annotated as NA.
+Models for scGate are dataframes where each line is a signature for
+    a given filtering level. A database of models can be downloaded using the
+    function \code{get_scGateDB}. You may directly use the models from the
+    database, or edit one of these models to generate your own custom gating
+    model. Multiple models can also be evaluated at once, by running scGate
+    with a list of models. Gating for each individual model is returned as
+    metadata, with a consensus annotation stored in \code{scGate_multi}
+    metadata field. This allows using scGate as a multi-class classifier,
+    where only cells that are "Pure" for a single model are assigned a label,
+    cells that are "Pure" for more than one gating model are labeled as
+    "Multi", all others cells are annotated as NA.
 }
 \examples{
 library(scGate)
-testing.datasets <- get_testing_data(version = 'hsa.latest') # get some testing datasets
+testing.datasets <- get_testing_data(version='hsa.latest') # get some testing datasets
 seurat_object <- testing.datasets[["Satija"]]
-my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) # define basic gating model for B cells
-seurat_object <- scGate(data = seurat_object, model = my_scGate_model) # gate it!
+my_scGate_model <- gating_model(name="Bcell", signature=c("MS4A1")) # define basic gating model for B cells
+seurat_object <- scGate(data=seurat_object, model=my_scGate_model) # gate it!
 table(seurat_object$is.pure)
 DimPlot(seurat_object)
-seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure") # create a subsetted Seurat object with gated population
+seurat_object_filtered <- subset(seurat_object, subset=is.pure == "Pure") # create a subsetted Seurat object with gated population
 
 ############
 # Using pre-defined models
@@ -118,7 +130,7 @@ seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure") # create
 models <- get_scGateDB()
 seurat_object <- scGate(seurat_object, model=models$human$generic$PanBcell)
 DimPlot(seurat_object)
-seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
+seurat_object_filtered <- subset(seurat_object, subset=is.pure == "Pure")
 
 ############
 # Tree-like model visualization
@@ -130,15 +142,15 @@ plot_tree(models$human$generic$PanBcell)
 
 my_scGate_model <- load_scGate_model("custom_model.tsv")
 seurat_object <- scGate(seurat_object, model=my_scGate_model)
-seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
+seurat_object_filtered <- subset(seurat_object, subset=is.pure == "Pure")
 
 ############
 # Run multiple models at once
 models <- get_scGateDB()
-model.list <- list("Bcell" = models$human$generic$Bcell,
-                   "Tcell" = models$human$generic$Tcell)
-seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
-DimPlot(seurat_object, group.by = "scGate_multi")
+model.list <- list("Bcell"=models$human$generic$Bcell,
+                   "Tcell"=models$human$generic$Tcell)
+seurat_object <- scGate(seurat_object, model=model.list, verbose=TRUE)
+DimPlot(seurat_object, group.by="scGate_multi")
 
 ###########
 # Run on pre-integrated space (e.g. using harmony)

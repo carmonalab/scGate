@@ -389,43 +389,76 @@ load_scGate_model <- function(model_file, master.table="master_table.tsv"){
 #' @seealso \code{\link{scGate}} \code{\link{load_scGate_model}}
 #' @importFrom dplyr %>%
 #' @importFrom utils download.file unzip read.table
+#' @importFrom tools R_user_dir
+#' @importFrom BiocFileCache BiocFileCache bfcquery bfcadd bfcneedsupdate bfcdownload
 #' @export
 
-get_scGateDB <- function(destination="./scGateDB",
-                         force_update=FALSE,
+get_scGateDB <- function(force_update=FALSE,
                          version="latest",
                          repo_url="https://github.com/carmonalab/scGate_models"){
     
+    cache_dir <- R_user_dir(package = "scGate", which="cache")
+    bfc <- BiocFileCache(cache = cache_dir, ask = FALSE)
+    bfc_info <- bfcquery(bfc, "scGateDB", "rname")
+
     if (version == "latest") {
-        repo_url_zip=sprintf("%s/archive/master.zip", repo_url)
-        repo.name <- "scGate_models-master"
-        repo.name.v <- repo.name
-    } else {
-        repo_url_zip=sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
-        repo.name=sprintf("scGate_models-%s", version)
-        repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl=TRUE)) #for some reason GitHub remove the 'v' from repo name after unzipping
-    }
-    
-    repo_path=file.path(destination,repo.name)
-    repo_path.v=file.path(destination,repo.name.v)
-    temp <- tempfile()
-    
-    if(!dir.exists(repo_path)){
-        if(!dir.exists(destination)) {
-            dir.create(destination)
+        repo_url_zip <- sprintf("%s/archive/master.zip", repo_url)
+        rid <- bfc_info$rid[bfc_info$fpath == repo_url_zip]
+        if (length(rid) == 0) { # initial download
+            message("Caching newest version of scGate models DB.")
+            file_path <- unname(bfcadd(bfc, "scGateDB", repo_url_zip))
+            unzip(file_path, exdir = cache_dir)
+        } else {
+            file_path <- bfc_info$rpath[bfc_info$rid == rid]
+            if (!isFALSE(bfcneedsupdate(bfc, rid))) { #check for updates
+                if(!force_update){
+                    update <- readline(prompt="A new version of scGate models DB was detected. Do you want to update? (y/n): ")
+                    while (!(update %in% c('y', 'n'))) {
+                        update <- readline(prompt="Oops! I don't understand. Do you want to update? (y/n): ")
+                    }
+                    if (update == 'y') {
+                        bfcdownload(bfc, rid, ask = FALSE)
+                        unzip(file_path, exdir = cache_dir, overwrite = TRUE)
+                    } else {
+                        message("Using cached repo. (If you want update it anyway, set option force_update=TRUE)")
+                    }
+                }
+            } else {
+                if (force_update) {
+                    message("Enforced update of cached repo...")
+                    bfcdownload(bfc, rid, ask = FALSE)
+                    unzip(file_path, exdir = cache_dir, overwrite = TRUE)
+                } else {
+                    message("Using cached repo. The local repo is up-to-date")
+                }
+            }
         }
-        download.file(repo_url_zip,temp)
-        unzip(temp,exdir=destination)
-        unlink(temp)
-    }else if(force_update){
-        download.file(repo_url_zip,temp)
-        system2(sprintf("rm -r %s",repo_path)) # this ensure that db would be completely overwritten and old model will not persist. 
-        unzip(temp,exdir=destination, overwrite=force_update)
-        unlink(temp)
-    }else{
-        message("Using local version of repo ",
-                repo.name,
-                ". If you want update it, set option force_update=TRUE")
+        repo_path.v <- file.path(cache_dir, "scGate_models-master")
+    } else {
+        repo_url_zip <- sprintf("%s/archive/refs/tags/%s.zip", 
+                                repo_url, 
+                                version)
+        repo_path <- file.path(cache_dir,
+                               sprintf("scGate_models-%s",
+                                       gsub("^v","",version, perl=TRUE)))
+        temp <- tempfile()
+        
+        if(!dir.exists(repo_path)){
+            if(!dir.exists(cache_dir)) {
+                dir.create(cache_dir)
+            }
+            download.file(repo_url_zip,temp)
+            unzip(temp,exdir=cache_dir)
+            unlink(temp)
+        }else if(force_update){
+            download.file(repo_url_zip,temp)
+            unzip(temp,exdir=cache_dir, overwrite=force_update)
+            unlink(temp)
+        }else{
+            message("Using local version of repo ",
+                    version,
+                    ". If you want update it, set option force_update=TRUE")
+        }
     }
     
     #Now load the models into a list structure
@@ -452,7 +485,6 @@ get_scGateDB <- function(destination="./scGateDB",
         } 
     }
     return(model_db)
-    
 }
 
 

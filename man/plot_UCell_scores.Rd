@@ -11,7 +11,7 @@ plot_UCell_scores(
   pos.thr = 0.2,
   neg.thr = 0.2,
   ncol = NULL,
-  combine = T
+  combine = TRUE
 )
 }
 \arguments{
@@ -30,7 +30,7 @@ plot_UCell_scores(
 \item{combine}{Whether to combine plots into a single object, or to return a list of plots}
 }
 \value{
-Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
+Either a plot combined by patchwork (combine=TRUE) or a list of plots (combine=FALSE)
 }
 \description{
 Show distribution of UCell scores for each level of a given scGate model
@@ -40,7 +40,7 @@ library(scGate)
 scGate.model.db <- get_scGateDB()
 model <- scGate.model.db$human$generic$Tcell
 # Apply scGate with this model
-query <- scGate(query, model=model, save.levels=T)
+query <- scGate(query, model=model, save.levels=TRUE)
 # View UCell score distribution
 plot_UCell_scores(query, model)
 }

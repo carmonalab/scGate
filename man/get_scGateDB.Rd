@@ -5,20 +5,19 @@
 \title{Load scGate model database}
 \usage{
 get_scGateDB(
-  destination = "./scGateDB",
   force_update = FALSE,
   version = "latest",
   repo_url = "https://github.com/carmonalab/scGate_models"
 )
 }
 \arguments{
-\item{destination}{destination path for db storage. The default is current location.}
-
 \item{force_update}{Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten .}
 
 \item{version}{Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.}
 
 \item{repo_url}{URL path to scGate model repository database}
+
+\item{destination}{destination path for db storage. The default is current location.}
 }
 \value{
 A list of models, organized according to the folder structure of the database. See the examples below.
