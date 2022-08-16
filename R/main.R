@@ -391,45 +391,55 @@ load_scGate_model <- function(model_file, master.table="master_table.tsv"){
 #' @importFrom utils download.file unzip read.table
 #' @importFrom tools R_user_dir
 #' @importFrom BiocFileCache BiocFileCache bfcquery bfcadd bfcneedsupdate bfcdownload
+#' @importFrom R.utils withTimeout
 #' @export
 
 get_scGateDB <- function(force_update=FALSE,
                          version="latest",
                          repo_url="https://github.com/carmonalab/scGate_models"){
     
-    cache_dir <- R_user_dir(package = "scGate", which="cache")
-    bfc <- BiocFileCache(cache = cache_dir, ask = FALSE)
+    cache_dir <- R_user_dir(package="scGate", which="cache")
+    bfc <- BiocFileCache(cache=cache_dir, ask=FALSE)
     bfc_info <- bfcquery(bfc, "scGateDB", "rname")
 
     if (version == "latest") {
         repo_url_zip <- sprintf("%s/archive/master.zip", repo_url)
         rid <- bfc_info$rid[bfc_info$fpath == repo_url_zip]
         if (length(rid) == 0) { # initial download
-            message("Caching newest version of scGate models DB.")
-            file_path <- unname(bfcadd(bfc, "scGateDB", repo_url_zip))
-            unzip(file_path, exdir = cache_dir)
+            message("Caching the newest version of scGate models DB.")
+            file_path <- tryCatch(expr=withTimeout(unname(bfcadd(bfc, "scGateDB", repo_url_zip)),
+                                                   timeout=5),
+                                  error=function(cond){
+                                      message("Failed to fetch scGate models DB online. Please check your Internet connection")
+                                  })
+            unzip(file_path, exdir=cache_dir)
         } else {
             file_path <- bfc_info$rpath[bfc_info$rid == rid]
-            if (!isFALSE(bfcneedsupdate(bfc, rid))) { #check for updates
+            needs_update <- tryCatch(expr=withTimeout(bfcneedsupdate(bfc, rid),
+                                                 timeout=5),
+                                     error=function(cond){
+                                         message("Failed to check updates online, using local cache.")
+                                         })
+            if (isTRUE(needs_update)) { #check for updates
                 if(!force_update){
                     update <- readline(prompt="A new version of scGate models DB was detected. Do you want to update? (y/n): ")
                     while (!(update %in% c('y', 'n'))) {
                         update <- readline(prompt="Oops! I don't understand. Do you want to update? (y/n): ")
                     }
                     if (update == 'y') {
-                        bfcdownload(bfc, rid, ask = FALSE)
-                        unzip(file_path, exdir = cache_dir, overwrite = TRUE)
+                        bfcdownload(bfc, rid, ask=FALSE)
+                        unzip(file_path, exdir=cache_dir, overwrite=TRUE)
                     } else {
-                        message("Using cached repo. (If you want update it anyway, set option force_update=TRUE)")
+                        message("Using cached repo. The local repo is NOT up-to-date.")
                     }
                 }
-            } else {
+            } else if (isFALSE(needs_update)) {
                 if (force_update) {
                     message("Enforced update of cached repo...")
-                    bfcdownload(bfc, rid, ask = FALSE)
-                    unzip(file_path, exdir = cache_dir, overwrite = TRUE)
+                    bfcdownload(bfc, rid, ask=FALSE)
+                    unzip(file_path, exdir=cache_dir, overwrite=TRUE)
                 } else {
-                    message("Using cached repo. The local repo is up-to-date")
+                    message("Using cached repo. The local repo is up-to-date. (If you want update it anyway, set option force_update=TRUE)")
                 }
             }
         }
@@ -641,9 +651,9 @@ test_my_model <- function(model,testing.version='hsa.latest', custom.dataset=NUL
         
         if(performance.computation){
             if(!custom){
-                performance=scGate::performance_metrics(actual=obj@meta.data[,target], pred=obj$is.pure == "Pure")
+                performance <- scGate::performance_metrics(actual=obj@meta.data[,target], pred=obj$is.pure == "Pure")
             }else{
-                performance=scGate::performance_metrics(actual=obj@cell_type %in% target, pred=obj$is.pure == "Pure")
+                performance <- scGate::performance_metrics(actual=obj@cell_type %in% target, pred=obj$is.pure == "Pure")
             }
             perf.out[[dset]] <- performance 
         }
@@ -864,7 +874,7 @@ gating_model <- function(model=NULL, level= 1, name, signature, positive=TRUE, n
 #' @export
 
 get_testing_data <- function(version='hsa.latest', destination="./scGateDB"){
-    data.folder=file.path(destination,"testing.data")
+    data.folder <- file.path(destination,"testing.data")
     if(!dir.exists(data.folder)){
         dir.create(data.folder,recursive=TRUE)
     }
