@@ -16,7 +16,6 @@
 #'     based on the given \code{assay}; otherwise you may specify a precalculated dimensionality reduction (e.g.
 #'     in the case of an integrated dataset after batch-effect correction)
 #' @param pca.dim Number of principal components for dimensionality reduction
-#' @param resol Resolution for cluster analysis (if \code{by.knn=FALSE})
 #' @param param_decay Controls decrease in parameter complexity at each iteration, between 0 and 1.
 #'     \code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay
 #' @param ncores Number of processors for parallel processing
@@ -25,7 +24,6 @@
 #' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
 #'     list of signatures will be returned but not used for filtering.
 #' @param save.levels Whether to save in metadata the filtering output for each gating model level
-#' @param by.knn Perform k-nearest neighbor smoothing for UCell scores
 #' @param keep.ranks Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
@@ -91,7 +89,7 @@
 #' @import Seurat
 #' @import ggplot2
 #' @importFrom dplyr %>% distinct bind_rows
-#' @importFrom UCell AddModuleScore_UCell
+#' @importFrom UCell AddModuleScore_UCell SmoothKNN
 #' @export
 
 scGate <- function(data,
@@ -107,12 +105,10 @@ scGate <- function(data,
                    min.cells=30,
                    nfeatures=2000,
                    pca.dim=30,
-                   resol=3,
                    param_decay=0.25,
                    maxRank=1500,
                    output.col.name='is.pure',
-                   by.knn = TRUE,
-                   k.param=10,
+                   k.param=30,
                    genes.blacklist="default",
                    multi.asNA = FALSE,
                    additional.signatures=NULL,
@@ -179,8 +175,8 @@ scGate <- function(data,
     col.id <- paste0(output.col.name, "_", m)
 
     data <- run_scGate_singlemodel(data, model=model[[m]], k.param=k.param,
-                           param_decay=param_decay, pca.dim=pca.dim, resol=resol,
-                           nfeatures=nfeatures, by.knn=by.knn, min.cells=min.cells,
+                           param_decay=param_decay, pca.dim=pca.dim,
+                           nfeatures=nfeatures, min.cells=min.cells,
                            assay=assay, slot=slot, genes.blacklist=genes.blacklist,
                            pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
                            reduction=reduction, colname=col.id, save.levels=save.levels)

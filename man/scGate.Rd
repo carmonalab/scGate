@@ -18,12 +18,10 @@ scGate(
   min.cells = 30,
   nfeatures = 2000,
   pca.dim = 30,
-  resol = 3,
   param_decay = 0.25,
   maxRank = 1500,
   output.col.name = "is.pure",
-  by.knn = TRUE,
-  k.param = 10,
+  k.param = 30,
   genes.blacklist = "default",
   multi.asNA = FALSE,
   additional.signatures = NULL,
@@ -60,16 +58,12 @@ in the case of an integrated dataset after batch-effect correction)}
 
 \item{pca.dim}{Number of principal components for dimensionality reduction}
 
-\item{resol}{Resolution for cluster analysis (if \code{by.knn=FALSE})}
-
 \item{param_decay}{Controls decrease in parameter complexity at each iteration, between 0 and 1.
 \code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay}
 
 \item{maxRank}{Maximum number of genes that UCell will rank per cell}
 
 \item{output.col.name}{Column name with 'pure/impure' annotation}
-
-\item{by.knn}{Perform k-nearest neighbor smoothing for UCell scores}
 
 \item{k.param}{Number of nearest neighbors for knn smoothing}
 

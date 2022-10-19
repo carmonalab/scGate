@@ -1,6 +1,6 @@
 run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data",
-                                   reduction="calculate", nfeatures=2000, pca.dim=30, resol=3,
-                                   param_decay=0.25, min.cells=30, by.knn = TRUE, k.param=10, 
+                                   reduction="calculate", nfeatures=2000, pca.dim=30,
+                                   param_decay=0.25, min.cells=30, k.param=30, 
                                    genes.blacklist="default", verbose=FALSE,
                                    colname="is.pure", save.levels=FALSE) {
   
@@ -18,7 +18,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   dim(output_by_level) <- c(tot.cells,length(list.model))
   colnames(output_by_level) <- names(list.model)
   output_by_level <- data.frame(output_by_level)
-  rownames(output_by_level) <- data@meta.data %>% rownames()
+  rownames(output_by_level) <- data@meta.data |> rownames()
   
   for (lev in 1:length(list.model)) {
     if (verbose) {
@@ -27,29 +27,29 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
 
     pos.names <- sprintf("%s_UCell", names(list.model[[lev]]$positive))
     neg.names <- sprintf("%s_UCell", names(list.model[[lev]]$negative))
+    all.names <- c(pos.names, neg.names)
     
     ##Reduce parameter complexity at each iteration
     if (param_decay < 0 | param_decay > 1) {
       stop("Parameter param_decay must be a number between 0 and 1")
     }
     
+    k.use <- round((1-param_decay)**(lev-1) * k.param)
     if (reduction=="calculate") {
       pca.use <- round((1-param_decay)**(lev-1) * pca.dim)
       nfeat.use <- round((1-param_decay)**(lev-1) * nfeatures)
-      res.use <- round((1-param_decay)**(lev-1) * resol)
     } else {
       pca.use <- pca.dim
     }
-    q <- find.nn(q, by.knn=by.knn, assay=assay, slot=slot, min.cells=min.cells, nfeatures=nfeat.use, 
-                 reduction=reduction, npca=pca.use, k.param=k.param, genes.blacklist=genes.blacklist)
+    q <- find.nn(q, assay=assay, slot=slot, signatures=all.names,min.cells=min.cells,
+                 nfeatures=nfeat.use, reduction=reduction, npca=pca.use, k.param=k.use,
+                 genes.blacklist=genes.blacklist)
     
-    if(!by.knn){
-      q  <- FindClusters(q, resolution = res.use, verbose = FALSE)
-      q$clusterCT <- q@active.ident
-    }
+    pos.names <- paste0(pos.names,"_kNN")
+    neg.names <- paste0(neg.names,"_kNN")
     
-    q <- filter_bymean(q, positive=pos.names, negative=neg.names, pos.thr=pos.thr, assay=assay,
-                       min.cells=min.cells, neg.thr=neg.thr, by.knn = by.knn)
+    q <- filter_bymean(q, positive=pos.names, negative=neg.names, assay=assay,
+                       pos.thr=pos.thr, neg.thr=neg.thr)
     
     n_rem <- sum(q$is.pure=="Impure")
     frac.to.rem <- n_rem/tot.cells
@@ -91,16 +91,23 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
 }
 
 
-find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.param=10,
-                    min.cells=30, by.knn = F, reduction="calculate", genes.blacklist=NULL) {
+find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
+                    nfeatures=2000, k.param=10,
+                    min.cells=30, reduction="calculate", genes.blacklist=NULL) {
   
   DefaultAssay(q) <- assay
   ncells <- length(Cells(q))
   ngenes <- nrow(q)
   
+  notfound <- signatures[!signatures %in% colnames(q[[]])]
+  signatures <- signatures[signatures %in% colnames(q[[]])]
+  
+  if (length(notfound)>0) {
+    message(paste0("Warning: signatures not found: ", notfound))
+  }
+  
   if (reduction=="calculate") {
     if(ncells < min.cells){
-      q$clusterCT <- 0    #with very few cells, consider them as a single cluster
       return(q)
     }  
     if (ngenes < nfeatures) {
@@ -129,99 +136,53 @@ find.nn <- function(q, assay = "RNA", slot="data", npca=30, nfeatures=2000, k.pa
     red.use <- reduction
   }
   
-  q <- suppressMessages(FindNeighbors(q, reduction = red.use, dims = 1:npca, k.param = k.param, verbose=FALSE,
-                                      return.neighbor = by.knn))
+  #Smooth scores by kNN neighbors
+  q <- SmoothKNN(q, signature.names=signatures, reduction=red.use,
+                 k=k.param, suffix = "_kNN")
+  
   return(q)
   
 }
 
 ## Filter by mean
-filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2,  min.cells=30,
-                          assay="RNA", return_object = T, by.knn = F) {
+filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2, assay="RNA") {
   
   DefaultAssay(q) <- assay
-  ncells <- dim(q)[2]
-  notfound <- c(positive[!positive %in% colnames(q@meta.data)], negative[!negative %in% colnames(q@meta.data)])
+  ncells <- ncol(q)
   
-  if (length(notfound)>0) {
-    message(paste0("Warning: signatures not found: ", notfound))
-  }
-  positive <- positive[positive %in% colnames(q@meta.data)]
-  negative <- negative[negative %in% colnames(q@meta.data)]
+  positive <- positive[positive %in% colnames(q[[]])]
+  negative <- negative[negative %in% colnames(q[[]])]
   
   cols <- c(positive, negative)
   means <- list()
   
-  if(!by.knn){
-    for (col in cols) {
-      means[[col]] <- sapply(levels(q$clusterCT), function(x) {
-        mean(q@meta.data[q$clusterCT == x, col])
-      })
-    }
-    meds <- Reduce(rbind, means)
-    if(is.null(dim(meds))){
-      dim(meds) <- c(1,length(meds))
-    }
-    rownames(meds) <- cols
-    
-    pos <- vector(length=dim(meds)[2])
-    neg <- vector(length=dim(meds)[2])
-    for (j in 1:dim(meds)[2]) {
-      pos[j] <- max(meds[positive,j])
-      neg[j] <- max(meds[negative,j])
-    }
-    
-    if(length(negative)>0){
-      indices <- intersect(which(pos > pos.thr), which(neg < neg.thr))
-    }else{
-      indices <- which(pos > pos.thr) # case without negative signature
-    }
-    select.pures <- colnames(meds)[indices]
-    ispure <- ifelse(q$clusterCT %in% select.pures,"Pure","Impure")
-    
-    
-  } else{
-    for (col in cols) {
-      meta.nn <- sprintf("%s.nn", assay)
-      if (ncells < min.cells) {   #very small dataset. Use all cells together
-        neigs <- t(matrix(data = rep(1:ncells,ncells), nrow = ncells, ncol = ncells))
-      } else {
-        neigs <- q@neighbors[[meta.nn]]@nn.idx
-      }
-      m <- q[[col]][[1]][neigs]
-      dim(m) <- dim(neigs)
-      means[[col]] <- apply(m,1,mean)
-    }
-    meds <- Reduce(rbind, means)
-    if(is.null(dim(meds))){
-      dim(meds) <- c(1,length(meds))
-    }
-    rownames(meds) <- cols
-    
-    if(length(positive)>1){
-      pos <- meds[positive,]%>%apply(2,max)
-    }else{
-      pos <- meds[positive,]
-    }
-    if(length(negative)>1){
-      neg <- meds[negative,]%>%apply(2,max)
-    }else{
-      neg<- meds[negative,]
-    }
-    ispure <- rep("Impure",dim(q)[2])
-    if(length(negative)>0){
-      ispure[(pos > pos.thr)&(neg < neg.thr)] <- "Pure"
-    }else{
-      ispure[pos > pos.thr] <- "Pure"  # case without negative signature
-    }
-      
+  scores <- q[[]][,cols, drop=FALSE]
+
+  if(length(positive)>1){
+    pos <- scores[,positive] |> apply(1,max)
+  }else{
+    pos <- scores[,positive]
   }
+  if(length(negative)>1){
+    neg <- scores[,negative] |> apply(1,max)
+  }else{
+    neg <- scores[,negative]
+  }
+  ispure <- rep("Impure", ncol(q))
   
+  if(length(positive)>0 & length(negative)>0) {
+    ispure[pos>pos.thr & neg<neg.thr] <- "Pure"
+  } else if (length(positive)>0) {
+    ispure[pos>pos.thr] <- "Pure"
+  } else if (length(negative)>0) {
+    ispure[neg<neg.thr] <- "Pure"
+  } else {
+    stop("No valid signatures were provided.")
+  }
+      
   q$is.pure <- ispure
-  if(return_object) {return(q)}
   
-  return(ispure)
-  
+  return(q)
 }
 
 score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot="data",
