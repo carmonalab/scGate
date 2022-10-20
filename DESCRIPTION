@@ -20,14 +20,15 @@ Description: scGate purifies specific cell types from sigle-cell data. Given a q
 biocViews:
 Depends: R(>= 4.2.0)
 Imports: Seurat(>= 4.0.0),
-    UCell(>= 2.0.0),
+    UCell(>= 2.1.3),
     dplyr,
     stats,
     utils,
     patchwork,
     ggridges,
     reshape2,
-    ggplot2
+    ggplot2,
+    BiocParallel
 Suggests: ggparty
 License: GPL-3
 Encoding: UTF-8

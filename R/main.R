@@ -90,6 +90,7 @@
 #' @import ggplot2
 #' @importFrom dplyr %>% distinct bind_rows
 #' @importFrom UCell AddModuleScore_UCell SmoothKNN
+#' @import BiocParallel
 #' @export
 
 scGate <- function(data,
@@ -163,11 +164,17 @@ scGate <- function(data,
     names(model) <- paste(output.col.name, seq_along(model), sep = ".")
   }
   
+  if (ncores>1) {
+    bpp <- MulticoreParam(workers=ncores)
+  } else {
+    bpp <- SerialParam()
+  }
+  
   # compute signature scores using UCell
   if (verbose) {
     message(sprintf("Computing UCell scores for all signatures using %s assay...\n", assay.ucell))
   }
-  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay.ucell, slot=slot, maxRank=maxRank, 
+  data <- score.computing.for.scGate(data, model, bpp=bpp, assay=assay.ucell, slot=slot, maxRank=maxRank, 
                                      keep.ranks=keep.ranks, add.sign=additional.signatures)
   
   for (m in names(model)) {
@@ -176,7 +183,7 @@ scGate <- function(data,
 
     data <- run_scGate_singlemodel(data, model=model[[m]], k.param=k.param,
                            param_decay=param_decay, pca.dim=pca.dim,
-                           nfeatures=nfeatures, min.cells=min.cells,
+                           nfeatures=nfeatures, min.cells=min.cells, bpp=bpp,
                            assay=assay, slot=slot, genes.blacklist=genes.blacklist,
                            pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
                            reduction=reduction, colname=col.id, save.levels=save.levels)

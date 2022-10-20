@@ -1,6 +1,6 @@
 run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data",
                                    reduction="calculate", nfeatures=2000, pca.dim=30,
-                                   param_decay=0.25, min.cells=30, k.param=30, 
+                                   param_decay=0.25, min.cells=30, k.param=30, bpp=SerialParam(),
                                    genes.blacklist="default", verbose=FALSE,
                                    colname="is.pure", save.levels=FALSE) {
   
@@ -43,7 +43,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     }
     q <- find.nn(q, assay=assay, slot=slot, signatures=all.names,min.cells=min.cells,
                  nfeatures=nfeat.use, reduction=reduction, npca=pca.use, k.param=k.use,
-                 genes.blacklist=genes.blacklist)
+                 bpp=bpp, genes.blacklist=genes.blacklist)
     
     pos.names <- paste0(pos.names,"_kNN")
     neg.names <- paste0(neg.names,"_kNN")
@@ -92,7 +92,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
 
 
 find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
-                    nfeatures=2000, k.param=10,
+                    nfeatures=2000, k.param=10, bpp=SerialParam(),
                     min.cells=30, reduction="calculate", genes.blacklist=NULL) {
   
   DefaultAssay(q) <- assay
@@ -138,7 +138,7 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
   
   #Smooth scores by kNN neighbors
   q <- SmoothKNN(q, signature.names=signatures, reduction=red.use,
-                 k=k.param, suffix = "_kNN")
+                 k=k.param, suffix = "_kNN", BPPARAM=bpp)
   
   return(q)
   
@@ -185,7 +185,7 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2, assay
   return(q)
 }
 
-score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot="data",
+score.computing.for.scGate <- function(data, model, bpp=SerialParam(), assay="RNA", slot="data",
                                        add.sign=NULL, keep.ranks=FALSE, maxRank=1500) {
   
   comb <- dplyr::bind_rows(model, .id = "Model_ID")
@@ -211,8 +211,8 @@ score.computing.for.scGate <- function(data, model, ncores=1, assay="RNA", slot=
     signatures <- append(signatures, add.sign)
   }
   
-  data <- UCell::AddModuleScore_UCell(data, features = signatures, assay=assay, slot=slot,
-                                      ncores=ncores, storeRanks = keep.ranks, maxRank = maxRank)
+  data <- AddModuleScore_UCell(data, features = signatures, assay=assay, slot=slot,
+                                      BPPARAM = bpp, storeRanks = keep.ranks, maxRank = maxRank)
   
   return(data)
 }
