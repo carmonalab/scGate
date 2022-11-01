@@ -58,7 +58,7 @@ A database of gating models for scGate is available on [scGate_models](https://g
 scGate_models_DB <- get_scGateDB()
 
 #For example, filter abT cells using one of scGate pre-defined gating models
-seurat_object <- scGate(seurat_object, model = models.DB$human$generic$Tcell.alphabeta)
+seurat_object <- scGate(seurat_object, model = scGate_models_DB$human$generic$Tcell.alphabeta)
 
 DimPlot(seurat_object)
 ```
@@ -73,7 +73,7 @@ You can use the `plot_tree` function to visualize the hierarchical structure of 
 
 ```r
 install.packages("ggparty")
-scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
+scGate::plot_tree(scGate_models_DB$human$generic$Tcell.alphabeta)
 ```
 
 ### scGate as a multi-class classifier
@@ -81,6 +81,7 @@ scGate::plot_tree(models.DB$human$generic$Tcell.alphabeta)
 scGate can also be used a cell type classifier, to annotate multiple cell types in a dataset. To annotate a dataset with marker-based cell type definitions, simply provide a list of models to scGate, e.g.:
 
 ```r
+models.list <- scGate_models_DB$human$generic[c("Bcell","MoMacDC","CD8T","CD4T","Erythrocyte")]
 obj <- scGate(obj, model = models.list)
 ```
 
