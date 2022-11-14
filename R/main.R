@@ -189,10 +189,10 @@ scGate <- function(data,
                            reduction=reduction, colname=col.id, save.levels=save.levels)
     
     Idents(data) <- col.id
-    n_pure <- sum(data[[col.id]]=="Impure")
-    frac.to.rem <- n_pure/ncol(data)
+    n_pure <- sum(data[[col.id]]=="Pure")
+    frac.to.keep <- n_pure/ncol(data)
     mess <- sprintf("\n### Detected a total of %i pure '%s' cells (%.2f%% of total)",
-                    n_pure, m, 100*frac.to.rem)
+                    n_pure, m, 100*frac.to.keep)
     message(mess)
   }
  
