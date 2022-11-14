@@ -8,6 +8,8 @@ get_scGateDB(
   destination = "./scGateDB",
   force_update = FALSE,
   version = "latest",
+  branch = c("master", "dev"),
+  verbose = F,
   repo_url = "https://github.com/carmonalab/scGate_models"
 )
 }
@@ -17,6 +19,10 @@ get_scGateDB(
 \item{force_update}{Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten .}
 
 \item{version}{Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.}
+
+\item{branch}{branch of the scGate model repository, either 'master' (default) or 'dev' for the latest models}
+
+\item{verbose}{display progress messages}
 
 \item{repo_url}{URL path to scGate model repository database}
 }

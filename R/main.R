@@ -353,6 +353,8 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 #' @param force_update  Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten . 
 #' @param version Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.
 #' @param repo_url  URL path to scGate model repository database
+#' @param branch  branch of the scGate model repository, either 'master' (default) or 'dev' for the latest models 
+#' @param verbose  display progress messages
 #' @return A list of models, organized according to the folder structure of the database. See the examples below.
 #' @details Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
 #'     \code{get_scGateDB}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.  
