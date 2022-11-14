@@ -189,10 +189,10 @@ scGate <- function(data,
                            reduction=reduction, colname=col.id, save.levels=save.levels)
     
     Idents(data) <- col.id
-    n_rem <- sum(data[[col.id]]=="Impure")
-    frac.to.rem <- n_rem/ncol(data)
-    mess <- sprintf("\n### Detected a total of %i non-pure cells for %s (%.2f%% of total)",
-                    n_rem, m, 100*frac.to.rem)
+    n_pure <- sum(data[[col.id]]=="Impure")
+    frac.to.rem <- n_pure/ncol(data)
+    mess <- sprintf("\n### Detected a total of %i pure '%s' cells (%.2f%% of total)",
+                    n_pure, m, 100*frac.to.rem)
     message(mess)
   }
  
@@ -371,11 +371,13 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 get_scGateDB <- function(destination = "./scGateDB",
                          force_update = FALSE,
                          version = "latest",
+                         branch=c("master","dev"), 
+                         verbose=F,
                          repo_url = "https://github.com/carmonalab/scGate_models"){
   
-  if (version=="latest") {
-    repo_url_zip = sprintf("%s/archive/master.zip", repo_url)
-    repo.name <- "scGate_models-master"
+  if (version == "latest") {
+    repo_url_zip = sprintf("%s/archive/%s.zip", repo_url,branch)
+    repo.name <- paste0("scGate_models-",branch)
     repo.name.v <- repo.name
   } else {
     repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
@@ -415,11 +417,14 @@ get_scGateDB <- function(destination = "./scGateDB",
     sub <- strsplit(tmp, split="/")[[1]]
     
     if (length(sub)==1) {
-      model_db[[sub[1]]] <- load.model.helper(dir)
+      if(verbose) message(paste("loading ",dir))
+      model_db[[sub[1]]] <- load.model.helper(dir,verbose=verbose)
     } else if (length(sub)==2) {
-      model_db[[sub[1]]][[sub[2]]] <- load.model.helper(dir)
+      if(verbose) message(paste("loading ",dir))
+      model_db[[sub[1]]][[sub[2]]] <- load.model.helper(dir,verbose=verbose)
     } else if (length(sub)==2) {
-      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(dir)
+      if(verbose) message(paste("loading ",dir))
+      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(dir,verbose=verbose)
     } else {
       message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", dir))
     } 

@@ -21,6 +21,9 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   rownames(output_by_level) <- data@meta.data |> rownames()
   
   for (lev in 1:length(list.model)) {
+    
+    if (ncol(q) < 2)  break  # if at any level we reach a number of cells below this threshold, we skip computation, considering 'Impure' by default
+
     if (verbose) {
       message(sprintf("Running scGate on level %i...", lev))
     }
@@ -106,10 +109,11 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
     message(paste0("Warning: signatures not found: ", notfound))
   }
   
+  if(ncells < min.cells){
+    return(q)
+  }  
+  
   if (reduction=="calculate") {
-    if(ncells < min.cells){
-      return(q)
-    }  
     if (ngenes < nfeatures) {
       nfeatures <- ngenes
     }
@@ -279,7 +283,7 @@ table.to.model <- function(scGate.table){
 }
 
 
-load.model.helper <- function(models_path, master.table = "master_table.tsv") {
+load.model.helper <- function(models_path, master.table = "master_table.tsv",  verbose=verbose) {
 
   df.models.toimpute <- list()
   files.to.impute <- list.files(file.path(models_path),"_scGate_Model.tsv")
@@ -289,6 +293,7 @@ load.model.helper <- function(models_path, master.table = "master_table.tsv") {
   # load models to impute
   for(f in files.to.impute){
     model.name <- strsplit(f,"_scGate_Model.tsv")[[1]][1]
+    if(verbose) message(paste0("loading ",model.name))
     df.models.toimpute[[model.name]] <- read.table(file.path(models_path,f),sep ="\t",header =T)
   }
   # signature imputing
