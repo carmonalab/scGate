@@ -14,8 +14,10 @@ plot_tree(model, box.size = 8, edge.text.size = 4)
 \item{edge.text.size}{Edge text size}
 }
 \value{
-A plot of the model as a decision tree. At each level, green boxes indicate the 'positive' (accepted) cell types, red boxed indicate the
-    'negative' cell types (filtered out). The final Pure population is the bottom right subset in the tree.
+A plot of the model as a decision tree. At each level, green boxes
+    indicate the 'positive' (accepted) cell types, red boxed indicate the
+    'negative' cell types (filtered out). The final Pure population is the
+    bottom right subset in the tree.
 }
 \description{
 View scGate model as a decision tree

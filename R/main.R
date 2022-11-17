@@ -174,8 +174,10 @@ scGate <- function(data,
   if (verbose) {
     message(sprintf("Computing UCell scores for all signatures using %s assay...\n", assay.ucell))
   }
-  data <- score.computing.for.scGate(data, model, bpp=bpp, assay=assay.ucell, slot=slot, maxRank=maxRank, 
-                                     keep.ranks=keep.ranks, add.sign=additional.signatures)
+  data <- score.computing.for.scGate(data, model, bpp=bpp, assay=assay.ucell,
+                                     slot=slot, maxRank=maxRank, 
+                                     keep.ranks=keep.ranks,
+                                     add.sign=additional.signatures)
   
   for (m in names(model)) {
     
@@ -226,8 +228,10 @@ scGate <- function(data,
 #' @param model A scGate model to be visualized
 #' @param box.size Box size
 #' @param edge.text.size Edge text size
-#' @return A plot of the model as a decision tree. At each level, green boxes indicate the 'positive' (accepted) cell types, red boxed indicate the
-#'     'negative' cell types (filtered out). The final Pure population is the bottom right subset in the tree.
+#' @return A plot of the model as a decision tree. At each level, green boxes
+#'     indicate the 'positive' (accepted) cell types, red boxed indicate the
+#'     'negative' cell types (filtered out). The final Pure population is the
+#'     bottom right subset in the tree.
 #' @examples
 #' plot_tree(model)
 #' @export
@@ -322,7 +326,8 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 
 #' Load a single scGate model
 #'
-#' Loads a custom scGate model into R. For the format of these models, have a look or edit one of the default models obtained with \code{\link{get_scGateDB}}
+#' Loads a custom scGate model into R. For the format of these models, have a
+#' look or edit one of the default models obtained with \code{\link{get_scGateDB}}
 #'
 #' @param model_file scGate model file, in .tsv format.
 #' @param master.table File name of the master table (in repo_path folder) that contains cell type signatures.
@@ -377,6 +382,7 @@ get_scGateDB <- function(destination = "./scGateDB",
                          verbose=F,
                          repo_url = "https://github.com/carmonalab/scGate_models"){
   
+  branch = branch[1]
   if (version == "latest") {
     repo_url_zip = sprintf("%s/archive/%s.zip", repo_url,branch)
     repo.name <- paste0("scGate_models-",branch)
@@ -384,7 +390,8 @@ get_scGateDB <- function(destination = "./scGateDB",
   } else {
     repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
     repo.name = sprintf("scGate_models-%s", version)
-    repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl = T))  #for some reason GitHub remove the 'v' from repo name after unzipping
+    repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl = T)) 
+    #for some reason GitHub remove the 'v' from repo name after unzipping
   }
   
   repo_path = file.path(destination,repo.name)
@@ -444,7 +451,8 @@ get_scGateDB <- function(destination = "./scGateDB",
 #' @param pred  Logical or numeric binary vector giving the predicted cell labels. 
 #' @param return_contingency  Logical indicating if contingency table must be returned. Default is FALSE
 #' @examples
-#' results <- performance.metrics(actual= sample(c(1,0),20,replace =T),pred =  sample(c(1,0),20,replace = T,prob = c(0.65,0.35) ) )
+#' results <- performance.metrics(actual= sample(c(1,0),20,replace =T),
+#'     pred =  sample(c(1,0),20,replace = T,prob = c(0.65,0.35) ) )
 #' @export
 
 performance.metrics <- function(actual,pred,return_contingency =F){
@@ -482,10 +490,21 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' Wrapper for fast model testing on 3 sampled datasets 
 #' 
 #' @param model scGate model in data.frame format 
-#' @param testing.version  Character indicating the version of testing tatasets to be used. By default "hsa-latest" will be used. It will be ignored if custom.dataset variable is provied in Seurat format. Check available version in "https://figshare.com/XXXX/". 
-#' @param custom.dataset  Seurat object to be used as a testing dataset. For testing purposes, metadata seurat object must contain a column named 'cell_type' to be used as a gold standard. Also a set of positive targets mut be provided in the target variable. 
-#' @param target Positive target cell types. If default testing version is used this variable must be a character indicating one of the available target models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell'). 
-#'     If a custom.dataset is provided in seurat format, this variable must be a vector of positive cell types in your data. The last case also require that such labels were named as in your cell_type meta.data column. 
+#' @param testing.version  Character indicating the version of testing tatasets
+#'     to be used. By default "hsa-latest" will be used. It will be ignored if
+#'     custom.dataset variable is provied in Seurat format. Check available
+#'     version in "https://figshare.com/XXXX/". 
+#' @param custom.dataset  Seurat object to be used as a testing dataset. For
+#'     testing purposes, metadata seurat object must contain a column named
+#'     'cell_type' to be used as a gold standard. Also a set of positive
+#'     targets must be provided in the target variable. 
+#' @param target Positive target cell types. If default testing version is used
+#'     this variable must be a character indicating one of the available target
+#'     models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T',
+#'     'NK','MoMacDC','Plasma_cell','PanBcell'). 
+#'     If a custom.dataset is provided in seurat format, this variable must be
+#'     a vector of positive cell types in your data. The last case also require
+#'     that such labels were named as in your cell_type meta.data column. 
 #' @param plot Whether to return plots to device 
 #' @examples
 #' library(scGate)
@@ -497,9 +516,10 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' model.Myeloid <-  scGate.model.db$human$generic$Myeloid
 #' myeloid.performance <- test_my_model(model.Myeloid, testing.version = 'hsa.latest',target = "Myeloid")
 #' # Case 2: use your own dataset for testing purposes. 
-#' your.own.seurat.object <- readRDS(path.to.your.custom.dataset)
-#' your.own.seurat.object$cell_type <- your.own.seurat.object$your.gold.standard.column   ## This make a copy of the cell_type reference column as required for scGate
-#' performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model, custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))  # notice that 'Bcell' and 'PlasmaCell' must be celltypes present in your custom.dataset
+#' my.seurat.object <- readRDS(path.to.your.custom.dataset)
+#' my.seurat.object$cell_type <- my.object$your.gold.standard.column
+#' performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model,
+#'     custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))
 #' @importFrom utils download.file
 #' @export
 
