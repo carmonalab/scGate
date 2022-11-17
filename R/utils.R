@@ -22,7 +22,8 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   
   for (lev in 1:length(list.model)) {
     
-    if (ncol(q) < 2)  break  # if at any level we reach a number of cells below this threshold, we skip computation, considering 'Impure' by default
+    if (ncol(q) < 2)  break  # if at any level we reach a number of cells below this threshold,
+                                # we skip computation, considering 'Impure' by default
 
     if (verbose) {
       message(sprintf("Running scGate on level %i...", lev))
@@ -47,9 +48,6 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     q <- find.nn(q, assay=assay, slot=slot, signatures=all.names,min.cells=min.cells,
                  nfeatures=nfeat.use, reduction=reduction, npca=pca.use, k.param=k.use,
                  bpp=bpp, genes.blacklist=genes.blacklist)
-    
-    pos.names <- paste0(pos.names,"_kNN")
-    neg.names <- paste0(neg.names,"_kNN")
     
     q <- filter_bymean(q, positive=pos.names, negative=neg.names, assay=assay,
                        pos.thr=pos.thr, neg.thr=neg.thr)
@@ -142,7 +140,7 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
   
   #Smooth scores by kNN neighbors
   q <- SmoothKNN(q, signature.names=signatures, reduction=red.use,
-                 k=k.param, suffix = "_kNN", BPPARAM=bpp)
+                 k=k.param, suffix = NULL, BPPARAM=bpp)
   
   return(q)
   
