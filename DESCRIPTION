@@ -1,6 +1,6 @@
 Package: scGate
 Type: Package
-Title: Cell-Type Purification for Single-Cell Sequencing Data
+Title: Marker-Based Cell Type Purification for Single-Cell Sequencing Data
 Version: 1.4.0
 Authors@R: c(
   person('Massimo', 'Andreatta',
