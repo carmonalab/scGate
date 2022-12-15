@@ -17,6 +17,6 @@ performance.metrics(actual, pred, return_contingency = F)
 Evaluate model performance for binary tasks
 }
 \examples{
-results <- performance.metrics(actual= sample(c(1,0),20,replace =T),
-    pred =  sample(c(1,0),20,replace = T,prob = c(0.65,0.35) ) )
+results <- performance.metrics(actual= sample(c(1,0),20,replace=TRUE),
+    pred =  sample(c(1,0),20,replace=TRUE,prob = c(0.65,0.35) ) )
 }

@@ -29,7 +29,3 @@ combine_scGate_multiclass(
 \description{
 If a single-cell dataset has precomputed results for multiple scGate models, combined them in multi-class annotation
 }
-\examples{
-library(scGate)
-obj <- combine_scGate_multiclass(obj)
-}

@@ -9,7 +9,7 @@ get_scGateDB(
   force_update = FALSE,
   version = "latest",
   branch = c("master", "dev"),
-  verbose = F,
+  verbose = FALSE,
   repo_url = "https://github.com/carmonalab/scGate_models"
 )
 }
@@ -38,12 +38,13 @@ Models for scGate are dataframes where each line is a signature for a given filt
     \code{get_scGateDB}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
 }
 \examples{
-library(scGate)
+\dontrun{ 
 scGate.model.db <- get_scGateDB()
 # To see a specific model, browse the list of models:
 scGate.model.db$human$generic$Myeloid
 # Apply scGate with this model
 query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
+}
 }
 \seealso{
 \code{\link{scGate}} \code{\link{load_scGate_model}}

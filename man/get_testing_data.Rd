@@ -15,6 +15,7 @@ get_testing_data(version = "hsa.latest", destination = "./scGateDB")
 Helper function to obtain some sample data
 }
 \examples{
-library(scGate)
+\dontrun{
 testing.datasets <- get_testing_data(version = 'hsa.latest')
+}
 }

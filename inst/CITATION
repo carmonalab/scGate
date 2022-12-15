@@ -1,0 +1,12 @@
+bibentry(
+    bibtype = "article",
+    author = c(
+        person("Massimo", "Andreatta"),
+        person(c("Ariel", "J."), "Berenstein"),
+        person(c("Santiago", "J."), "Carmona")),
+    title="scGate: marker-based purification of cell types from heterogeneous single-cell RNA-seq datasets",
+    journal=" Bioinformatics",
+    year="2022",
+    volume="38",
+    pages="2642-2644"
+)

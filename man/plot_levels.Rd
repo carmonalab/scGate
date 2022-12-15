@@ -17,11 +17,12 @@ plot_levels(obj, pure.col = "green", impure.col = "gray")
 Fast plotting of gating results over each model level.
 }
 \examples{
-library(scGate)
+\dontrun{
 scGate.model.db <- get_scGateDB()
 # To see a specific model, browse the list of models:
 scGate.model.db$human$generic$Myeloid
 # Apply scGate with this model
 query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
 plot_levels(query)
+}
 }

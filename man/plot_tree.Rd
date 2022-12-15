@@ -20,8 +20,12 @@ A plot of the model as a decision tree. At each level, green boxes
     bottom right subset in the tree.
 }
 \description{
-View scGate model as a decision tree
+View scGate model as a decision tree (require ggparty package)
 }
 \examples{
-plot_tree(model)
+\dontrun{
+library(ggparty)
+models <- get_scGateDB()
+plot_tree(models$human$generic$Tcell)
+}
 }

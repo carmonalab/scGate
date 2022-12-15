@@ -39,17 +39,18 @@ that such labels were named as in your cell_type meta.data column.}
 Wrapper for fast model testing on 3 sampled datasets
 }
 \examples{
-library(scGate)
+\dontrun{
 scGate.model.db <- get_scGateDB()
 # Browse the list of models and select one:
 model.panBcell <-  scGate.model.db$human$generic$PanBcell
 # Case 1: test the model with available testing datasets
-panBcell.performance <- test_my_model(model.panBcell, testing.version = 'hsa.latest',target = "PanBcell")
+panBcell.performance <- test_my_model(model.panBcell, target = "PanBcell")
 model.Myeloid <-  scGate.model.db$human$generic$Myeloid
-myeloid.performance <- test_my_model(model.Myeloid, testing.version = 'hsa.latest',target = "Myeloid")
-# Case 2: use your own dataset for testing purposes. 
+myeloid.performance <- test_my_model(model.Myeloid, target = "Myeloid")
+# Case 2: use your own dataset for testing purposes.
 my.seurat.object <- readRDS(path.to.your.custom.dataset)
 my.seurat.object$cell_type <- my.object$your.gold.standard.column
 performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model,
     custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))
+}     
 }

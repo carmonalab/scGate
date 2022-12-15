@@ -9,9 +9,9 @@ gating_model(
   level = 1,
   name,
   signature,
-  positive = T,
-  negative = F,
-  remove = F
+  positive = TRUE,
+  negative = FALSE,
+  remove = FALSE
 )
 }
 \arguments{
@@ -33,12 +33,10 @@ gating_model(
 Generate an scGate model from scratch or edit an existing one
 }
 \examples{
-library(scGate)
 # create a simple gating model
-my_model <- gating_model(model = my_model, 
-                       level = 1, positive = T, name = "immune", signature = c("PTPRC"))
-my_model <- gating_model(model = my_model, 
-                       level = 1, positive = F, name = "Epithelial", signature = c("CDH1","FLT1") )
+my_model <- gating_model(level = 1, name = "immune", signature = c("PTPRC"))
+my_model <- gating_model(model = my_model, level = 1, positive = FALSE,
+    name = "Epithelial", signature = c("CDH1","FLT1") )
 # Remove an existing signature
 dropped_model <- gating_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
 }

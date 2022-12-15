@@ -97,14 +97,19 @@ Models for scGate are dataframes where each line is a signature for a given filt
     more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 }
 \examples{
+\dontrun{
 library(scGate)
+library(Seurat)
 testing.datasets <- get_testing_data(version = 'hsa.latest') # get some testing datasets
 seurat_object <- testing.datasets[["Satija"]]
-my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) # define basic gating model for B cells
-seurat_object <- scGate(data = seurat_object, model = my_scGate_model) # gate it!
+# Define basic gating model for B cells
+my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1"))
+# Apply the model
+seurat_object <- scGate(data = seurat_object, model = my_scGate_model)
 table(seurat_object$is.pure)
 DimPlot(seurat_object)
-seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure") # create a subsetted Seurat object with gated population
+# Subset object after gating
+seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 
 ############
 # Using pre-defined models
@@ -121,7 +126,6 @@ plot_tree(models$human$generic$PanBcell)
 
 ############
 # Using a manually edited model
-
 my_scGate_model <- load_scGate_model("custom_model.tsv")
 seurat_object <- scGate(seurat_object, model=my_scGate_model)
 seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
@@ -131,15 +135,15 @@ seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 models <- get_scGateDB()
 model.list <- list("Bcell" = models$human$generic$Bcell,
                    "Tcell" = models$human$generic$Tcell)
-seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
+seurat_object <- scGate(seurat_object, model=model.list)
 DimPlot(seurat_object, group.by = "scGate_multi")
 
 ###########
-# Run on pre-integrated space (e.g. using harmony)
+# Run on pre-integrated space (e.g. using harmony reduction)
 models <- get_scGateDB()
 seurat_object <- scGate(seurat_object, model=models$human$generic$Tcell, reduction="harmony")
 DimPlot(seurat_object)
-
+}
 }
 \seealso{
 \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}}

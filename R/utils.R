@@ -18,7 +18,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   dim(output_by_level) <- c(tot.cells,length(list.model))
   colnames(output_by_level) <- names(list.model)
   output_by_level <- data.frame(output_by_level)
-  rownames(output_by_level) <- data@meta.data |> rownames()
+  rownames(output_by_level) <- rownames(q@meta.data)
   
   for (lev in 1:length(list.model)) {
     
@@ -52,17 +52,19 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     q <- filter_bymean(q, positive=pos.names, negative=neg.names, assay=assay,
                        pos.thr=pos.thr, neg.thr=neg.thr)
     
-    n_rem <- sum(q$is.pure=="Impure")
+    Idents(q) <- "is.pure"
+    n_rem <- sum(Idents(q)=="Impure")
     frac.to.rem <- n_rem/tot.cells
     mess <- sprintf("scGate: Detected %i non-pure cells at level %i", n_rem, lev)
     if (verbose) { message(mess) }
     
-    ## retain pure cells will give us info in case of all cell where filtered
-    retain_pure_cells <- q$is.pure=="Pure"
+    ## How many cells passed the filter
+    pure.cells <- colnames(q)[Idents(q)=="Pure"]
     
-    if(any(retain_pure_cells)){
-      output_by_level[names(retain_pure_cells[retain_pure_cells==T]),lev] <- "Pure"  # save layer output
-      q <- subset(q, subset=`is.pure`=="Pure")
+    if(length(pure.cells)>0){
+      # save layer output
+      output_by_level[pure.cells, lev] <- "Pure"
+      q <- subset(q, idents="Pure")
     } else {
       break  # in case of all cells became filtered, we do not continue with the next layer
     }
@@ -71,8 +73,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   #Add 'pure' labels to metadata
   data <- AddMetaData(data,col.name = colname, metadata = rep("Impure",tot.cells))
   
-  if(any(retain_pure_cells)){  
-    pure.cells <- colnames(q)
+  if(length(pure.cells)>0){
     data@meta.data[pure.cells, colname] <- "Pure"
   } else {
     message(sprintf("Warning, all cells were removed at level %i. Consider reviewing signatures or model layout...", lev))
@@ -107,7 +108,7 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
     message(paste0("Warning: signatures not found: ", notfound))
   }
   
-  if(ncells < min.cells){
+  if(ncells < min.cells){  #Do not do knn-smoothing
     return(q)
   }  
   
@@ -182,7 +183,7 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2, assay
     stop("No valid signatures were provided.")
   }
       
-  q$is.pure <- ispure
+  q@meta.data[,"is.pure"] <- ispure
   
   return(q)
 }

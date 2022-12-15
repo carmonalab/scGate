@@ -16,10 +16,12 @@ Loads a custom scGate model into R. For the format of these models, have a
 look or edit one of the default models obtained with \code{\link{get_scGateDB}}
 }
 \examples{
+\dontrun{
 library(scGate)
 my.model <- load_scGate_model("my_model.tsv")
 plot_tree(my.model)
 query <- scGate(query, model=my.model)
+}
 }
 \seealso{
 \code{\link{scGate}} \code{\link{get_scGateDB}}
