@@ -11,7 +11,7 @@ plot_UCell_scores(
   pos.thr = 0.2,
   neg.thr = 0.2,
   ncol = NULL,
-  combine = T
+  combine = TRUE
 )
 }
 \arguments{
@@ -40,7 +40,7 @@ Show distribution of UCell scores for each level of a given scGate model
 scGate.model.db <- get_scGateDB()
 model <- scGate.model.db$human$generic$Tcell
 # Apply scGate with this model
-query <- scGate(query, model=model, save.levels=T)
+query <- scGate(query, model=model)
 # View UCell score distribution
 plot_UCell_scores(query, model)
 }

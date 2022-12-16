@@ -9,7 +9,7 @@ test_my_model(
   testing.version = "hsa.latest",
   custom.dataset = NULL,
   target = NULL,
-  plot = T
+  plot = TRUE
 )
 }
 \arguments{
@@ -17,8 +17,7 @@ test_my_model(
 
 \item{testing.version}{Character indicating the version of testing tatasets
 to be used. By default "hsa-latest" will be used. It will be ignored if
-custom.dataset variable is provied in Seurat format. Check available
-version in "https://figshare.com/XXXX/".}
+a custom dataset is provided (in Seurat format).}
 
 \item{custom.dataset}{Seurat object to be used as a testing dataset. For
 testing purposes, metadata seurat object must contain a column named
@@ -29,7 +28,7 @@ targets must be provided in the target variable.}
 this variable must be a character indicating one of the available target
 models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T',
 'NK','MoMacDC','Plasma_cell','PanBcell'). 
-If a custom.dataset is provided in seurat format, this variable must be
+If a custom dataset is provided in Seurat format, this variable must be
 a vector of positive cell types in your data. The last case also require
 that such labels were named as in your cell_type meta.data column.}
 

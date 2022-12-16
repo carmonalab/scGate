@@ -5,7 +5,7 @@
 \title{Load scGate model database}
 \usage{
 get_scGateDB(
-  destination = "./scGateDB",
+  destination = tempdir(),
   force_update = FALSE,
   version = "latest",
   branch = c("master", "dev"),
@@ -14,7 +14,8 @@ get_scGateDB(
 )
 }
 \arguments{
-\item{destination}{destination path for db storage. The default is current location.}
+\item{destination}{Destination path for storing the DB. The default is tempdir(); if you wish to edit locally the models and
+link them to the current project, set this parameter to a new directory name, e.g. scGateDB}
 
 \item{force_update}{Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten .}
 
@@ -38,13 +39,11 @@ Models for scGate are dataframes where each line is a signature for a given filt
     \code{get_scGateDB}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
 }
 \examples{
-\dontrun{ 
 scGate.model.db <- get_scGateDB()
 # To see a specific model, browse the list of models:
 scGate.model.db$human$generic$Myeloid
 # Apply scGate with this model
 query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
-}
 }
 \seealso{
 \code{\link{scGate}} \code{\link{load_scGate_model}}

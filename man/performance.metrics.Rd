@@ -4,7 +4,7 @@
 \alias{performance.metrics}
 \title{Performance metrics}
 \usage{
-performance.metrics(actual, pred, return_contingency = F)
+performance.metrics(actual, pred, return_contingency = FALSE)
 }
 \arguments{
 \item{actual}{Logical or numeric binary vector giving the actual cell labels.}

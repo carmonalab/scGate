@@ -354,7 +354,7 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 
 load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
   
-  model <- read.table(model_file, sep ="\t",header =T)
+  model <- read.table(model_file, sep ="\t",header =TRUE)
   model <- use_master_table(model, master.table = master.table)
   
   return(model)
@@ -366,8 +366,9 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 #' Download, update or load local version of the scGate model database. These are stored in a GitHub repository, from where you can download specific 
 #' versions of the database.
 #' 
-#' @param destination destination path for db storage. The default is current location. 
-#' @param force_update  Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten . 
+#' @param destination Destination path for storing the DB. The default is tempdir(); if you wish to edit locally the models and
+#'    link them to the current project, set this parameter to a new directory name, e.g. scGateDB
+#' @param force_update  Whether to update an existing database.
 #' @param version Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.
 #' @param repo_url  URL path to scGate model repository database
 #' @param branch  branch of the scGate model repository, either 'master' (default) or 'dev' for the latest models 
@@ -376,19 +377,17 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 #' @details Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
 #'     \code{get_scGateDB}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.  
 #' @examples
-#' \dontrun{ 
 #' scGate.model.db <- get_scGateDB()
 #' # To see a specific model, browse the list of models:
 #' scGate.model.db$human$generic$Myeloid
 #' # Apply scGate with this model
 #' query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
-#' }
 #' @seealso \code{\link{scGate}} \code{\link{load_scGate_model}}
 #' @importFrom dplyr %>%  
 #' @importFrom utils download.file unzip read.table
 #' @export
 
-get_scGateDB <- function(destination = "./scGateDB",
+get_scGateDB <- function(destination = tempdir(),
                          force_update = FALSE,
                          version = "latest",
                          branch=c("master","dev"), 
@@ -403,8 +402,8 @@ get_scGateDB <- function(destination = "./scGateDB",
   } else {
     repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
     repo.name = sprintf("scGate_models-%s", version)
-    repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl=TRUE)) 
     #for some reason GitHub remove the 'v' from repo name after unzipping
+    repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl=TRUE)) 
   }
   
   repo_path = file.path(destination,repo.name)
@@ -467,7 +466,7 @@ get_scGateDB <- function(destination = "./scGateDB",
 #'     pred =  sample(c(1,0),20,replace=TRUE,prob = c(0.65,0.35) ) )
 #' @export
 
-performance.metrics <- function(actual,pred,return_contingency =F){
+performance.metrics <- function(actual,pred,return_contingency=FALSE){
   actual <- as.numeric(actual +0)  
   pred <- as.numeric(pred +0)  
   tp <- sum(actual&pred)
@@ -488,8 +487,8 @@ performance.metrics <- function(actual,pred,return_contingency =F){
   }else{
     ct <- table(actual,pred)
     ## ordering contingency table, but avoiding errors when all predictions (or all actual cells) are equals
-    nam.act <- unique(actual)%>%sort(decreasing = T)%>%as.character()  # 
-    nam.pred <- unique(pred)%>%sort(decreasing = T)%>%as.character()
+    nam.act <- unique(actual)%>%sort(decreasing = TRUE)%>%as.character()  # 
+    nam.pred <- unique(pred)%>%sort(decreasing = TRUE)%>%as.character()
     ct <- ct[nam.act,nam.pred]  
     return(list('conting' = ct,
                 'summary' = res.Summary ))
@@ -504,8 +503,7 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' @param model scGate model in data.frame format 
 #' @param testing.version  Character indicating the version of testing tatasets
 #'     to be used. By default "hsa-latest" will be used. It will be ignored if
-#'     custom.dataset variable is provied in Seurat format. Check available
-#'     version in "https://figshare.com/XXXX/". 
+#'     a custom dataset is provided (in Seurat format). 
 #' @param custom.dataset  Seurat object to be used as a testing dataset. For
 #'     testing purposes, metadata seurat object must contain a column named
 #'     'cell_type' to be used as a gold standard. Also a set of positive
@@ -514,7 +512,7 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #'     this variable must be a character indicating one of the available target
 #'     models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T',
 #'     'NK','MoMacDC','Plasma_cell','PanBcell'). 
-#'     If a custom.dataset is provided in seurat format, this variable must be
+#'     If a custom dataset is provided in Seurat format, this variable must be
 #'     a vector of positive cell types in your data. The last case also require
 #'     that such labels were named as in your cell_type meta.data column. 
 #' @param plot Whether to return plots to device 
@@ -537,10 +535,11 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' @importFrom methods is
 #' @export
 
-test_my_model <- function(model,testing.version = 'hsa.latest',
-                          custom.dataset = NULL,target = NULL, plot = T){
+test_my_model <- function(model, testing.version = 'hsa.latest',
+                          custom.dataset = NULL,target = NULL,
+                          plot = TRUE){
   
-  performance.computation  <- ifelse (is.null(target), F, T)
+  performance.computation  <- ifelse (is.null(target), FALSE, TRUE)
   
   if (is(custom.dataset, "Seurat")){
     testing.datasets <- list()
@@ -555,7 +554,7 @@ test_my_model <- function(model,testing.version = 'hsa.latest',
     
     if(is.null(target)){
       message("warning: target cell_type not provided. Avoiding performance computation")  
-      performace.computation = F
+      performace.computation = FALSE
     }else if(!target %in% targets){
       stop(sprintf("target must be one of %s; or NULL for avoiding performance computation",paste(targets,collapse = "';'")))
     }
@@ -563,14 +562,13 @@ test_my_model <- function(model,testing.version = 'hsa.latest',
     ## check dataset version
     available.datasets = c("hsa.latest")
     if(!testing.version %in% available.datasets){
-      stop("please, provide a valid testing.version paramter or provide a custom.dataset in seurat format")
+      stop("Please provide a valid testing.version parameter or provide a custom.dataset in seurat format")
     }
     
     # load testing datasets
     if(testing.version == "hsa.latest"){
       testing.datasets <- get_testing_data(version = testing.version)
     }
-    
   }  
   
   if(custom){
@@ -594,7 +592,7 @@ test_my_model <- function(model,testing.version = 'hsa.latest',
     obj <- testing.datasets[[dset]]
     plt <- list()
     cols <- colnames(obj@meta.data)
-    dropcols = grep("^is.pure",cols,value =T) %>% unique()
+    dropcols = grep("^is.pure",cols,value =TRUE) %>% unique()
     if(length(dropcols)>0){
       for(col in dropcols){
         obj[[col]] <- NULL   
@@ -606,7 +604,8 @@ test_my_model <- function(model,testing.version = 'hsa.latest',
 
     # add annotation plot
     nname <- sprintf("%s manual annot",dset)
-    plt <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + 
+    plt <- DimPlot(obj, group.by = "cell_type", label = TRUE,
+                   repel =TRUE, label.size = 3) + 
       ggtitle(nname) + NoLegend() +  theme(aspect.ratio = 1)
 
     # add one DimPlot by model level
@@ -705,9 +704,10 @@ plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
 #' @importFrom patchwork wrap_plots
 #' @export
 #' 
-plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2, neg.thr=0.2, ncol=NULL, combine=T) {
+plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2,
+                              neg.thr=0.2, ncol=NULL, combine=TRUE) {
   
-  u_cols <- grep('_UCell', colnames(obj@meta.data), value = T)
+  u_cols <- grep('_UCell', colnames(obj@meta.data), value = TRUE)
   
   levs <- unique(model$levels)
   pll <- list()
@@ -806,7 +806,7 @@ gating_model <- function(model=NULL, level= 1, name, signature,
   template <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("levels","use_as", "name", "signature"))
   
   if(negative){
-    positive <-  F
+    positive <- FALSE
   }
   
   if(is.null(model)){
@@ -820,13 +820,10 @@ gating_model <- function(model=NULL, level= 1, name, signature,
                                 signature = ifelse(length(signature) >1, paste(signature,collapse = ";") ,signature))
     model <- rbind(model,new.signature)
   }else{
-    L <- paste0("level",level)
+    lev <- paste0("level",level)
     
-    model <- model[!((model$levels == L) & (model$name == name)),]
+    model <- model[!((model$levels == lev) & (model$name == name)),]
   }
-  
-  
-  
   return(model)
 }
 
@@ -842,25 +839,17 @@ gating_model <- function(model=NULL, level= 1, name, signature,
 #' }
 #' @export
 
-get_testing_data <- function(version = 'hsa.latest', destination = "./scGateDB"){
+get_testing_data <- function(version = 'hsa.latest', destination = tempdir()){
   data.folder = file.path(destination,"testing.data")
   if(!dir.exists(data.folder)){
-    dir.create(data.folder,recursive = T)
+    dir.create(data.folder,recursive = TRUE)
   }
   if(version == 'hsa.latest'){
-    testing.data.url =   "https://figshare.com/ndownloader/files/31114669?private_link=75b1193bd4c705ffb50b"  ## When testing the dataset became public, this line must be replaced with the corresponding DOI
+    testing.data.url = "https://figshare.com/ndownloader/files/31114669?private_link=75b1193bd4c705ffb50b"
     testing.data.path = file.path(data.folder,"testing.dataset.2k.rds")
   }
   if(!file.exists(testing.data.path)){
-    # for low speed conections, avoid tout limit error
-    tout.curr <- getOption('timeout')
-    if(tout.curr <500){
-      options(timeout=500)
       download.file(url = testing.data.url,destfile = testing.data.path)
-      options(timeout = tout.curr)
-    }else{
-      download.file(url = testing.data.url,destfile = testing.data.path)
-    }
   }
   
   testing.data <- readRDS(testing.data.path)

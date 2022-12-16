@@ -322,7 +322,6 @@ use_master_table <- function(df.model, master.table, name = "name",descript = "s
   complete.from.master.table <- as.vector(is.null(input.sign)|input.sign == "" | is.na(input.sign))
   
   if(!any(complete.from.master.table)){
-    message("nothing to do, the model signatures are already provided")
     return(df.model)
   }
   

@@ -4,7 +4,7 @@
 \alias{get_testing_data}
 \title{Download sample data}
 \usage{
-get_testing_data(version = "hsa.latest", destination = "./scGateDB")
+get_testing_data(version = "hsa.latest", destination = tempdir())
 }
 \arguments{
 \item{version}{Which sample dataset}
