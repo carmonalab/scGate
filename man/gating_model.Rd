@@ -29,6 +29,9 @@ gating_model(
 
 \item{remove}{Whether to remove the given signature from the model}
 }
+\value{
+A scGate model that can be used by \code{\link{scGate}} to filter target cell types.
+}
 \description{
 Generate an scGate model from scratch or edit an existing one
 }

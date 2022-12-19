@@ -23,9 +23,7 @@ A plot of the model as a decision tree. At each level, green boxes
 View scGate model as a decision tree (require ggparty package)
 }
 \examples{
-\dontrun{
 library(ggparty)
 models <- get_scGateDB()
 plot_tree(models$human$generic$Tcell)
-}
 }

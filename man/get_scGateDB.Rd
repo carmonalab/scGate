@@ -17,7 +17,7 @@ get_scGateDB(
 \item{destination}{Destination path for storing the DB. The default is tempdir(); if you wish to edit locally the models and
 link them to the current project, set this parameter to a new directory name, e.g. scGateDB}
 
-\item{force_update}{Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten .}
+\item{force_update}{Whether to update an existing database.}
 
 \item{version}{Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.}
 
@@ -43,7 +43,8 @@ scGate.model.db <- get_scGateDB()
 # To see a specific model, browse the list of models:
 scGate.model.db$human$generic$Myeloid
 # Apply scGate with this model
-query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
+data(query.seurat)
+query <- scGate(query.seurat, model=scGate.model.db$human$generic$Myeloid, reduction="pca")
 }
 \seealso{
 \code{\link{scGate}} \code{\link{load_scGate_model}}

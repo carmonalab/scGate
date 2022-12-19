@@ -80,14 +80,14 @@ list of signatures will be returned but not used for filtering.}
 \item{verbose}{Verbose output}
 }
 \value{
-A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
+A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells passed the scGate filter.
     The \code{active.ident} is also set to this variable.
 }
 \description{
 Apply scGate to filter specific cell types in a query dataset
 }
 \details{
-Models for scGate are dataframes where each line is a signature for a given filtering level.
+Models for scGate are data frames where each line is a signature for a given filtering level.
     A database of models can be downloaded using the function \code{get_scGateDB}.
     You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
     
@@ -97,52 +97,29 @@ Models for scGate are dataframes where each line is a signature for a given filt
     more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 }
 \examples{
-\dontrun{
-library(scGate)
-library(Seurat)
-testing.datasets <- get_testing_data(version = 'hsa.latest') # get some testing datasets
-seurat_object <- testing.datasets[["Satija"]]
+### Test using a small toy set
+data(query.seurat)
 # Define basic gating model for B cells
-my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1"))
-# Apply the model
-seurat_object <- scGate(data = seurat_object, model = my_scGate_model)
-table(seurat_object$is.pure)
-DimPlot(seurat_object)
-# Subset object after gating
-seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
-
-############
-# Using pre-defined models
-
+my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) 
+query.seurat <- scGate(query.seurat, model = my_scGate_model, reduction="pca")
+table(query.seurat$is.pure)
+\donttest{
+### Test with larger datasets
+library(Seurat)
+testing.datasets <- get_testing_data(version = 'hsa.latest')
+seurat_object <- testing.datasets[["JerbyArnon"]]
+# Download pre-defined models
 models <- get_scGateDB()
 seurat_object <- scGate(seurat_object, model=models$human$generic$PanBcell)
 DimPlot(seurat_object)
 seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
 
-############
-# Tree-like model visualization
-
-plot_tree(models$human$generic$PanBcell) 
-
-############
-# Using a manually edited model
-my_scGate_model <- load_scGate_model("custom_model.tsv")
-seurat_object <- scGate(seurat_object, model=my_scGate_model)
-seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
-
-############
-# Run multiple models at once
+### Run multiple models at once
 models <- get_scGateDB()
 model.list <- list("Bcell" = models$human$generic$Bcell,
                    "Tcell" = models$human$generic$Tcell)
 seurat_object <- scGate(seurat_object, model=model.list)
 DimPlot(seurat_object, group.by = "scGate_multi")
-
-###########
-# Run on pre-integrated space (e.g. using harmony reduction)
-models <- get_scGateDB()
-seurat_object <- scGate(seurat_object, model=models$human$generic$Tcell, reduction="harmony")
-DimPlot(seurat_object)
 }
 }
 \seealso{

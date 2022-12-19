@@ -11,11 +11,14 @@ get_testing_data(version = "hsa.latest", destination = tempdir())
 
 \item{destination}{Save to this directory}
 }
+\value{
+A list of datasets that can be used to test scGate
+}
 \description{
 Helper function to obtain some sample data
 }
 \examples{
-\dontrun{
+\donttest{
 testing.datasets <- get_testing_data(version = 'hsa.latest')
 }
 }

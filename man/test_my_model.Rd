@@ -34,22 +34,21 @@ that such labels were named as in your cell_type meta.data column.}
 
 \item{plot}{Whether to return plots to device}
 }
+\value{
+Returns performance metrics for the benchmarking datasets, and optionally
+    plots of the predicted cell type labels in reduced dimensionality space.
+}
 \description{
 Wrapper for fast model testing on 3 sampled datasets
 }
 \examples{
-\dontrun{
+\donttest{
 scGate.model.db <- get_scGateDB()
 # Browse the list of models and select one:
 model.panBcell <-  scGate.model.db$human$generic$PanBcell
-# Case 1: test the model with available testing datasets
+# Test the model with available testing datasets
 panBcell.performance <- test_my_model(model.panBcell, target = "PanBcell")
 model.Myeloid <-  scGate.model.db$human$generic$Myeloid
 myeloid.performance <- test_my_model(model.Myeloid, target = "Myeloid")
-# Case 2: use your own dataset for testing purposes.
-my.seurat.object <- readRDS(path.to.your.custom.dataset)
-my.seurat.object$cell_type <- my.object$your.gold.standard.column
-performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model,
-    custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))
 }     
 }

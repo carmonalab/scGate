@@ -11,7 +11,11 @@ performance.metrics(actual, pred, return_contingency = FALSE)
 
 \item{pred}{Logical or numeric binary vector giving the predicted cell labels.}
 
-\item{return_contingency}{Logical indicating if contingency table must be returned. Default is FALSE}
+\item{return_contingency}{Logical indicating if contingency table must be returned.}
+}
+\value{
+Prediction performance metrics (Precision, Recall, MCC) between actual and
+   predicted cell type labels.
 }
 \description{
 Evaluate model performance for binary tasks
