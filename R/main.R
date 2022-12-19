@@ -382,7 +382,7 @@ get_scGateDB <- function(destination = tempdir(),
     #for some reason GitHub remove the 'v' from repo name after unzipping
     repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl=TRUE)) 
   }
-  
+  destination <- normalizePath(destination, winslash = "/")
   repo_path = file.path(destination,repo.name)
   repo_path.v = file.path(destination,repo.name.v)
   temp <- tempfile()
@@ -404,27 +404,28 @@ get_scGateDB <- function(destination = tempdir(),
   }
   
   #Now load the models into a list structure
-  allfiles <- list.files(repo_path.v, recursive = T, full.names = T)
-  modelfiles <- grep("scGate_Model.tsv", allfiles, value = T)
+  allfiles <- list.files(repo_path.v, recursive = TRUE)
+  modelfiles <- grep("scGate_Model.tsv", allfiles, value = TRUE)
   uniq_dirs <- sort(unique(dirname(modelfiles)))
   
   model_db <- list()
   for (dir in uniq_dirs) {
-    pattern <- paste0(repo_path.v, '\\/?')
-    tmp <- gsub(pattern, "", dir, perl=T)
-    sub <- strsplit(tmp, split="/")[[1]]
+    sub <- strsplit(dir, split="/")[[1]]
+    model_path <- file.path(repo_path.v, dir)
     
-    if (length(sub)==1) {
-      if(verbose) message(paste("loading ",dir))
-      model_db[[sub[1]]] <- load.model.helper(dir,verbose=verbose)
+    if (length(sub)==0) {
+      stop("Error in scGate DB format")
+    } else if (length(sub)==1) {
+      if(verbose) message(paste("loading ",model_path))
+      model_db[[sub[1]]] <- load.model.helper(model_path,verbose=verbose)
     } else if (length(sub)==2) {
-      if(verbose) message(paste("loading ",dir))
-      model_db[[sub[1]]][[sub[2]]] <- load.model.helper(dir,verbose=verbose)
+      if(verbose) message(paste("loading ",model_path))
+      model_db[[sub[1]]][[sub[2]]] <- load.model.helper(model_path,verbose=verbose)
     } else if (length(sub)==2) {
-      if(verbose) message(paste("loading ",dir))
-      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(dir,verbose=verbose)
+      if(verbose) message(paste("loading ",model_path))
+      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(model_path,verbose=verbose)
     } else {
-      message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", dir))
+      message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", model_path))
     } 
   }
   return(model_db)
