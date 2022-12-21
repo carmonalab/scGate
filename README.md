@@ -17,9 +17,15 @@ scGate evaluates the strength of signature marker expression in each cell using 
 
 ### Installation
 
+Install `scGate` from [CRAN](https://cran.r-project.org/web/packages/scGate/index.html)
 ```r
-install.packages("remotes")
-remotes::install_github("carmonalab/scGate")
+install.packages("scGate")
+```
+
+For older versions of `scGate`, download a tagged version from GitHub:
+```r
+library(remotes)
+remotes::install_github("carmonalab/scGate", ref="v1.2.0")
 ```
 
 ### Testing the package

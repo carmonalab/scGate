@@ -851,6 +851,7 @@ get_testing_data <- function(version = 'hsa.latest', destination = tempdir()){
 #'      column (by default "scGate_multi") is added to the metadata of the Seurat object.
 #' @import Seurat
 #' @examples
+#' \donttest{
 #' # Define gating models
 #' model.B <- gating_model(name = "Bcell", signature = c("MS4A1")) 
 #' model.T <- gating_model(name = "Tcell", signature = c("CD2","CD3D","CD3E"))
@@ -862,6 +863,7 @@ get_testing_data <- function(version = 'hsa.latest', destination = tempdir()){
 #'     reduction="pca", output.col.name = "is.pure_Bcell")
 #' query.seurat <- combine_scGate_multiclass(query.seurat, scGate_class=c("Tcell","Bcell"))      
 #' table(query.seurat$scGate_multi)
+#' }
 #' @export
 
 combine_scGate_multiclass <- function(obj,
