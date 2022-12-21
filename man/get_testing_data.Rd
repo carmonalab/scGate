@@ -4,17 +4,21 @@
 \alias{get_testing_data}
 \title{Download sample data}
 \usage{
-get_testing_data(version = "hsa.latest", destination = "./scGateDB")
+get_testing_data(version = "hsa.latest", destination = tempdir())
 }
 \arguments{
 \item{version}{Which sample dataset}
 
 \item{destination}{Save to this directory}
 }
+\value{
+A list of datasets that can be used to test scGate
+}
 \description{
 Helper function to obtain some sample data
 }
 \examples{
-library(scGate)
+\donttest{
 testing.datasets <- get_testing_data(version = 'hsa.latest')
+}
 }

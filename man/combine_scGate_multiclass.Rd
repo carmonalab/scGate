@@ -26,10 +26,25 @@ combine_scGate_multiclass(
 
 \item{out_column}{The name of the metadata column where to store the multi-class cell labels}
 }
+\value{
+A Seurat object with multi-class annotations based on the combination of multiple models. A new
+     column (by default "scGate_multi") is added to the metadata of the Seurat object.
+}
 \description{
 If a single-cell dataset has precomputed results for multiple scGate models, combined them in multi-class annotation
 }
 \examples{
-library(scGate)
-obj <- combine_scGate_multiclass(obj)
+\donttest{
+# Define gating models
+model.B <- gating_model(name = "Bcell", signature = c("MS4A1")) 
+model.T <- gating_model(name = "Tcell", signature = c("CD2","CD3D","CD3E"))
+# Apply scGate with these models
+data(query.seurat)
+query.seurat <- scGate(query.seurat, model=model.T,
+    reduction="pca", output.col.name = "is.pure_Tcell")
+query.seurat <- scGate(query.seurat, model=model.B,
+    reduction="pca", output.col.name = "is.pure_Bcell")
+query.seurat <- combine_scGate_multiclass(query.seurat, scGate_class=c("Tcell","Bcell"))      
+table(query.seurat$scGate_multi)
+}
 }

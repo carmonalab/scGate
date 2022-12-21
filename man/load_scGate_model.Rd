@@ -11,14 +11,21 @@ load_scGate_model(model_file, master.table = "master_table.tsv")
 
 \item{master.table}{File name of the master table (in repo_path folder) that contains cell type signatures.}
 }
+\value{
+A scGate model in dataframe format, which can given as input to the \code{\link{scGate}} function.
+}
 \description{
-Loads a custom scGate model into R. For the format of these models, have a look or edit one of the default models obtained with \code{\link{get_scGateDB}}
+Loads a custom scGate model into R. For the format of these models, have a
+look or edit one of the default models obtained with \code{\link{get_scGateDB}}
 }
 \examples{
-library(scGate)
-my.model <- load_scGate_model("my_model.tsv")
-plot_tree(my.model)
-query <- scGate(query, model=my.model)
+dir <- tempdir() # this may also be set to your working directory
+models <- get_scGateDB(destination=dir)
+# Original or edited model
+model.path <- paste0(dir,"/scGate_models-master/human/generic/Bcell_scGate_Model.tsv")
+master.path <- paste0(dir,"/scGate_models-master/human/generic/master_table.tsv")
+my.model <- load_scGate_model(model.path, master.path)
+my.model
 }
 \seealso{
 \code{\link{scGate}} \code{\link{get_scGateDB}}

@@ -13,15 +13,20 @@ plot_levels(obj, pure.col = "green", impure.col = "gray")
 
 \item{impure.col}{Color code for impure category}
 }
+\value{
+UMAP plots with 'Pure'/'Impure' labels for each level of the scGate model
+}
 \description{
 Fast plotting of gating results over each model level.
 }
 \examples{
-library(scGate)
 scGate.model.db <- get_scGateDB()
-# To see a specific model, browse the list of models:
-scGate.model.db$human$generic$Myeloid
+model <- scGate.model.db$human$generic$Myeloid
 # Apply scGate with this model
-query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
-plot_levels(query)
+data(query.seurat)
+query.seurat <- scGate(query.seurat, model=model,
+    reduction="pca", save.levels=TRUE)
+library(patchwork)     
+pll <- plot_levels(query.seurat)
+wrap_plots(pll)
 }

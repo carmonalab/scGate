@@ -11,7 +11,7 @@ plot_UCell_scores(
   pos.thr = 0.2,
   neg.thr = 0.2,
   ncol = NULL,
-  combine = T
+  combine = TRUE
 )
 }
 \arguments{
@@ -30,17 +30,21 @@ plot_UCell_scores(
 \item{combine}{Whether to combine plots into a single object, or to return a list of plots}
 }
 \value{
+Returns a density plot of UCell scores for the signatures in the scGate model,
+    for each level of the model
+
 Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
 }
 \description{
 Show distribution of UCell scores for each level of a given scGate model
 }
 \examples{
-library(scGate)
 scGate.model.db <- get_scGateDB()
 model <- scGate.model.db$human$generic$Tcell
 # Apply scGate with this model
-query <- scGate(query, model=model, save.levels=T)
+data(query.seurat)
+query.seurat <- scGate(query.seurat, model=model,
+    reduction="pca", save.levels=TRUE)
 # View UCell score distribution
-plot_UCell_scores(query, model)
+plot_UCell_scores(query.seurat, model)
 }

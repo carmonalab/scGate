@@ -9,35 +9,46 @@ test_my_model(
   testing.version = "hsa.latest",
   custom.dataset = NULL,
   target = NULL,
-  plot = T
+  plot = TRUE
 )
 }
 \arguments{
 \item{model}{scGate model in data.frame format}
 
-\item{testing.version}{Character indicating the version of testing tatasets to be used. By default "hsa-latest" will be used. It will be ignored if custom.dataset variable is provied in Seurat format. Check available version in "https://figshare.com/XXXX/".}
+\item{testing.version}{Character indicating the version of testing tatasets
+to be used. By default "hsa-latest" will be used. It will be ignored if
+a custom dataset is provided (in Seurat format).}
 
-\item{custom.dataset}{Seurat object to be used as a testing dataset. For testing purposes, metadata seurat object must contain a column named 'cell_type' to be used as a gold standard. Also a set of positive targets mut be provided in the target variable.}
+\item{custom.dataset}{Seurat object to be used as a testing dataset. For
+testing purposes, metadata seurat object must contain a column named
+'cell_type' to be used as a gold standard. Also a set of positive
+targets must be provided in the target variable.}
 
-\item{target}{Positive target cell types. If default testing version is used this variable must be a character indicating one of the available target models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell'). 
-If a custom.dataset is provided in seurat format, this variable must be a vector of positive cell types in your data. The last case also require that such labels were named as in your cell_type meta.data column.}
+\item{target}{Positive target cell types. If default testing version is used
+this variable must be a character indicating one of the available target
+models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T',
+'NK','MoMacDC','Plasma_cell','PanBcell'). 
+If a custom dataset is provided in Seurat format, this variable must be
+a vector of positive cell types in your data. The last case also require
+that such labels were named as in your cell_type meta.data column.}
 
 \item{plot}{Whether to return plots to device}
+}
+\value{
+Returns performance metrics for the benchmarking datasets, and optionally
+    plots of the predicted cell type labels in reduced dimensionality space.
 }
 \description{
 Wrapper for fast model testing on 3 sampled datasets
 }
 \examples{
-library(scGate)
+\donttest{
 scGate.model.db <- get_scGateDB()
 # Browse the list of models and select one:
 model.panBcell <-  scGate.model.db$human$generic$PanBcell
-# Case 1: test the model with available testing datasets
-panBcell.performance <- test_my_model(model.panBcell, testing.version = 'hsa.latest',target = "PanBcell")
+# Test the model with available testing datasets
+panBcell.performance <- test_my_model(model.panBcell, target = "PanBcell")
 model.Myeloid <-  scGate.model.db$human$generic$Myeloid
-myeloid.performance <- test_my_model(model.Myeloid, testing.version = 'hsa.latest',target = "Myeloid")
-# Case 2: use your own dataset for testing purposes. 
-your.own.seurat.object <- readRDS(path.to.your.custom.dataset)
-your.own.seurat.object$cell_type <- your.own.seurat.object$your.gold.standard.column   ## This make a copy of the cell_type reference column as required for scGate
-performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model, custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))  # notice that 'Bcell' and 'PlasmaCell' must be celltypes present in your custom.dataset
+myeloid.performance <- test_my_model(model.Myeloid, target = "Myeloid")
+}     
 }

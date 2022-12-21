@@ -16,7 +16,6 @@
 #'     based on the given \code{assay}; otherwise you may specify a precalculated dimensionality reduction (e.g.
 #'     in the case of an integrated dataset after batch-effect correction)
 #' @param pca.dim Number of principal components for dimensionality reduction
-#' @param resol Resolution for cluster analysis (if \code{by.knn=FALSE})
 #' @param param_decay Controls decrease in parameter complexity at each iteration, between 0 and 1.
 #'     \code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay
 #' @param ncores Number of processors for parallel processing
@@ -25,7 +24,6 @@
 #' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
 #'     list of signatures will be returned but not used for filtering.
 #' @param save.levels Whether to save in metadata the filtering output for each gating model level
-#' @param by.knn Perform k-nearest neighbor smoothing for UCell scores
 #' @param keep.ranks Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
@@ -33,9 +31,9 @@
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
 
-#' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells correspond to the desidered cell type(s).
+#' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells passed the scGate filter.
 #'     The \code{active.ident} is also set to this variable.
-#' @details Models for scGate are dataframes where each line is a signature for a given filtering level.
+#' @details Models for scGate are data frames where each line is a signature for a given filtering level.
 #'     A database of models can be downloaded using the function \code{get_scGateDB}.
 #'     You may directly use the models from the database, or edit one of these models to generate your own custom gating model.
 #'     
@@ -44,54 +42,36 @@
 #'     multi-class classifier, where only cells that are "Pure" for a single model are assigned a label, cells that are "Pure" for
 #'     more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 #' @examples
-#' library(scGate)
-#' testing.datasets <- get_testing_data(version = 'hsa.latest') # get some testing datasets
-#' seurat_object <- testing.datasets[["Satija"]]
-#' my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) # define basic gating model for B cells
-#' seurat_object <- scGate(data = seurat_object, model = my_scGate_model) # gate it!
-#' table(seurat_object$is.pure)
-#' DimPlot(seurat_object)
-#' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure") # create a subsetted Seurat object with gated population
-#' 
-#' ############
-#' # Using pre-defined models
-#' 
+#' ### Test using a small toy set
+#' data(query.seurat)
+#' # Define basic gating model for B cells
+#' my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) 
+#' query.seurat <- scGate(query.seurat, model = my_scGate_model, reduction="pca")
+#' table(query.seurat$is.pure)
+#' \donttest{
+#' ### Test with larger datasets
+#' library(Seurat)
+#' testing.datasets <- get_testing_data(version = 'hsa.latest')
+#' seurat_object <- testing.datasets[["JerbyArnon"]]
+#' # Download pre-defined models
 #' models <- get_scGateDB()
 #' seurat_object <- scGate(seurat_object, model=models$human$generic$PanBcell)
 #' DimPlot(seurat_object)
 #' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
-#' 
-#' ############
-#' # Tree-like model visualization
-#' 
-#' plot_tree(models$human$generic$PanBcell) 
-#' 
-#' ############
-#' # Using a manually edited model
-#' 
-#' my_scGate_model <- load_scGate_model("custom_model.tsv")
-#' seurat_object <- scGate(seurat_object, model=my_scGate_model)
-#' seurat_object_filtered <- subset(seurat_object, subset=is.pure=="Pure")
-#' 
-#' ############
-#' # Run multiple models at once
+#'
+#' ### Run multiple models at once
 #' models <- get_scGateDB()
 #' model.list <- list("Bcell" = models$human$generic$Bcell,
 #'                    "Tcell" = models$human$generic$Tcell)
-#' seurat_object <- scGate(seurat_object, model=model.list, verbose=T)
+#' seurat_object <- scGate(seurat_object, model=model.list)
 #' DimPlot(seurat_object, group.by = "scGate_multi")
-#' 
-#' ###########
-#' # Run on pre-integrated space (e.g. using harmony)
-#' models <- get_scGateDB()
-#' seurat_object <- scGate(seurat_object, model=models$human$generic$Tcell, reduction="harmony")
-#' DimPlot(seurat_object)
-#' 
+#' }
 #' @seealso \code{\link{load_scGate_model}} \code{\link{get_scGateDB}} \code{\link{plot_tree}}
 #' @import Seurat
 #' @import ggplot2
 #' @importFrom dplyr %>% distinct bind_rows
-#' @importFrom UCell AddModuleScore_UCell
+#' @importFrom UCell AddModuleScore_UCell SmoothKNN
+#' @import BiocParallel
 #' @export
 
 scGate <- function(data,
@@ -107,12 +87,10 @@ scGate <- function(data,
                    min.cells=30,
                    nfeatures=2000,
                    pca.dim=30,
-                   resol=3,
                    param_decay=0.25,
                    maxRank=1500,
                    output.col.name='is.pure',
-                   by.knn = TRUE,
-                   k.param=10,
+                   k.param=30,
                    genes.blacklist="default",
                    multi.asNA = FALSE,
                    additional.signatures=NULL,
@@ -167,29 +145,37 @@ scGate <- function(data,
     names(model) <- paste(output.col.name, seq_along(model), sep = ".")
   }
   
+  if (ncores>1) {
+    bpp <- MulticoreParam(workers=ncores)
+  } else {
+    bpp <- SerialParam()
+  }
+  
   # compute signature scores using UCell
   if (verbose) {
     message(sprintf("Computing UCell scores for all signatures using %s assay...\n", assay.ucell))
   }
-  data <- score.computing.for.scGate(data, model, ncores=ncores, assay=assay.ucell, slot=slot, maxRank=maxRank, 
-                                     keep.ranks=keep.ranks, add.sign=additional.signatures)
+  data <- score.computing.for.scGate(data, model, bpp=bpp, assay=assay.ucell,
+                                     slot=slot, maxRank=maxRank, 
+                                     keep.ranks=keep.ranks,
+                                     add.sign=additional.signatures)
   
   for (m in names(model)) {
     
     col.id <- paste0(output.col.name, "_", m)
 
     data <- run_scGate_singlemodel(data, model=model[[m]], k.param=k.param,
-                           param_decay=param_decay, pca.dim=pca.dim, resol=resol,
-                           nfeatures=nfeatures, by.knn=by.knn, min.cells=min.cells,
+                           param_decay=param_decay, pca.dim=pca.dim,
+                           nfeatures=nfeatures, min.cells=min.cells, bpp=bpp,
                            assay=assay, slot=slot, genes.blacklist=genes.blacklist,
                            pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
                            reduction=reduction, colname=col.id, save.levels=save.levels)
     
     Idents(data) <- col.id
-    n_rem <- sum(data[[col.id]]=="Impure")
-    frac.to.rem <- n_rem/ncol(data)
-    mess <- sprintf("\n### Detected a total of %i non-pure cells for %s (%.2f%% of total)",
-                    n_rem, m, 100*frac.to.rem)
+    n_pure <- sum(data[[col.id]]=="Pure")
+    frac.to.keep <- n_pure/ncol(data)
+    mess <- sprintf("\n### Detected a total of %i pure '%s' cells (%.2f%% of total)",
+                    n_pure, m, 100*frac.to.keep)
     message(mess)
   }
  
@@ -218,21 +204,25 @@ scGate <- function(data,
 
 #' Plot model tree
 #'
-#' View scGate model as a decision tree
+#' View scGate model as a decision tree (require ggparty package)
 #'
 #' @param model A scGate model to be visualized
 #' @param box.size Box size
 #' @param edge.text.size Edge text size
-#' @return A plot of the model as a decision tree. At each level, green boxes indicate the 'positive' (accepted) cell types, red boxed indicate the
-#'     'negative' cell types (filtered out). The final Pure population is the bottom right subset in the tree.
+#' @return A plot of the model as a decision tree. At each level, green boxes
+#'     indicate the 'positive' (accepted) cell types, red boxed indicate the
+#'     'negative' cell types (filtered out). The final Pure population is the
+#'     bottom right subset in the tree.
 #' @examples
-#' plot_tree(model)
+#' library(ggparty)
+#' models <- get_scGateDB()
+#' plot_tree(models$human$generic$Tcell)
 #' @export
 
 
 plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   
-  if (!requireNamespace('ggparty', quietly = T)) {  #check whether ggparty is available
+  if (!requireNamespace('ggparty', quietly = TRUE)) {  #check whether ggparty is available
     stop("Please install and load package 'ggparty'")
   }
   nlev <- length(unique(model$levels))
@@ -264,18 +254,20 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   pn <- list()
   #bottom level
   
-  pn[[nlev]] <- partynode(nlev+1, split = partysplit(nlev, index=1:2, breaks = 0),
-                          kids = list(partynode(nlev+2),
-                                      partynode(nlev+3))) 
+  pn[[nlev]] <- partykit::partynode(nlev+1,
+                          split = partykit::partysplit(nlev, index=1:2, breaks = 0),
+                          kids = list(partykit::partynode(nlev+2),
+                                      partykit::partynode(nlev+3))) 
   
   for (i in (nlev-1):1) {
-    pn[[i]] <- partynode(i, split = partysplit(i, index=1:2, breaks=0),
-                         kids = list(partynode(i+1),
+    pn[[i]] <- partykit::partynode(i,
+                         split = partykit::partysplit(i, index=1:2, breaks=0),
+                         kids = list(partykit::partynode(i+1),
                                      pn[[i+1]]))
   }
   
   #first element in list has complete structure
-  py <- party(pn[[1]], df)
+  py <- partykit::party(pn[[1]], df)
   
   
   sign.annot <- vector(length=2*nlev+1)
@@ -291,7 +283,7 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
     is.pos[2*i+1] <- "Positive"
   }
   
-  gg <- ggparty(py)
+  gg <- ggparty::ggparty(py)
   gg$data$info <- sign.annot
   gg$data$p.value <- is.pos
   
@@ -299,13 +291,13 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   gg$data$breaks_label[grep("<=", gg$data$breaks_label)] <- "Negative"
   gg$data$breaks_label[grep(">", gg$data$breaks_label)] <- "Positive"
   
-  gg <- gg + geom_edge() +
-    geom_edge_label(size = edge.text.size) +
-    geom_node_label(ids = "inner",
+  gg <- gg + ggparty::geom_edge() +
+    ggparty::geom_edge_label(size = edge.text.size) +
+    ggparty::geom_node_label(ids = "inner",
                     mapping = aes(col = .data$p.value),
                     line_list = list(aes(label= .data$info)),
                     line_gpar = list(list(size = box.size)))  +
-    geom_node_label(ids = "terminal",
+    ggparty::geom_node_label(ids = "terminal",
                     mapping = aes(col = .data$p.value),
                     nudge_y=0.01,
                     line_list = list(aes(label= .data$info)),
@@ -316,25 +308,29 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   return(gg)
 }
 
-
 #' Load a single scGate model
 #'
-#' Loads a custom scGate model into R. For the format of these models, have a look or edit one of the default models obtained with \code{\link{get_scGateDB}}
+#' Loads a custom scGate model into R. For the format of these models, have a
+#' look or edit one of the default models obtained with \code{\link{get_scGateDB}}
 #'
 #' @param model_file scGate model file, in .tsv format.
 #' @param master.table File name of the master table (in repo_path folder) that contains cell type signatures.
+#' @return A scGate model in dataframe format, which can given as input to the \code{\link{scGate}} function.
 #' @examples
-#' library(scGate)
-#' my.model <- load_scGate_model("my_model.tsv")
-#' plot_tree(my.model)
-#' query <- scGate(query, model=my.model)
+#' dir <- tempdir() # this may also be set to your working directory
+#' models <- get_scGateDB(destination=dir)
+#' # Original or edited model
+#' model.path <- paste0(dir,"/scGate_models-master/human/generic/Bcell_scGate_Model.tsv")
+#' master.path <- paste0(dir,"/scGate_models-master/human/generic/master_table.tsv")
+#' my.model <- load_scGate_model(model.path, master.path)
+#' my.model
 #' @seealso \code{\link{scGate}} \code{\link{get_scGateDB}} 
 #' @importFrom utils read.table
 #' @export
 
 load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
   
-  model <- read.table(model_file, sep ="\t",header =T)
+  model <- read.table(model_file, sep ="\t",header =TRUE)
   model <- use_master_table(model, master.table = master.table)
   
   return(model)
@@ -346,40 +342,47 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 #' Download, update or load local version of the scGate model database. These are stored in a GitHub repository, from where you can download specific 
 #' versions of the database.
 #' 
-#' @param destination destination path for db storage. The default is current location. 
-#' @param force_update  Whether to update an existing database. WARNING: note that setting it TRUE, the current models folder will be overwritten . 
+#' @param destination Destination path for storing the DB. The default is tempdir(); if you wish to edit locally the models and
+#'    link them to the current project, set this parameter to a new directory name, e.g. scGateDB
+#' @param force_update  Whether to update an existing database.
 #' @param version Specify the version of the scGate_models database (e.g. 'v0.1'). By default downloads the latest available version.
 #' @param repo_url  URL path to scGate model repository database
+#' @param branch  branch of the scGate model repository, either 'master' (default) or 'dev' for the latest models 
+#' @param verbose  display progress messages
 #' @return A list of models, organized according to the folder structure of the database. See the examples below.
 #' @details Models for scGate are dataframes where each line is a signature for a given filtering level. A database of models can be downloaded using the function
 #'     \code{get_scGateDB}. You may directly use the models from the database, or edit one of these models to generate your own custom gating model.  
-#' @examples 
-#' library(scGate)
+#' @examples
 #' scGate.model.db <- get_scGateDB()
 #' # To see a specific model, browse the list of models:
 #' scGate.model.db$human$generic$Myeloid
 #' # Apply scGate with this model
-#' query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
+#' data(query.seurat)
+#' query <- scGate(query.seurat, model=scGate.model.db$human$generic$Myeloid, reduction="pca")
 #' @seealso \code{\link{scGate}} \code{\link{load_scGate_model}}
 #' @importFrom dplyr %>%  
 #' @importFrom utils download.file unzip read.table
 #' @export
 
-get_scGateDB <- function(destination = "./scGateDB",
+get_scGateDB <- function(destination = tempdir(),
                          force_update = FALSE,
                          version = "latest",
+                         branch=c("master","dev"), 
+                         verbose=FALSE,
                          repo_url = "https://github.com/carmonalab/scGate_models"){
   
-  if (version=="latest") {
-    repo_url_zip = sprintf("%s/archive/master.zip", repo_url)
-    repo.name <- "scGate_models-master"
+  branch = branch[1]
+  if (version == "latest") {
+    repo_url_zip = sprintf("%s/archive/%s.zip", repo_url,branch)
+    repo.name <- paste0("scGate_models-",branch)
     repo.name.v <- repo.name
   } else {
     repo_url_zip = sprintf("%s/archive/refs/tags/%s.zip", repo_url, version)
     repo.name = sprintf("scGate_models-%s", version)
-    repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl = T))  #for some reason GitHub remove the 'v' from repo name after unzipping
+    #for some reason GitHub remove the 'v' from repo name after unzipping
+    repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl=TRUE)) 
   }
-  
+  destination <- normalizePath(destination, winslash = "/")
   repo_path = file.path(destination,repo.name)
   repo_path.v = file.path(destination,repo.name.v)
   temp <- tempfile()
@@ -401,30 +404,32 @@ get_scGateDB <- function(destination = "./scGateDB",
   }
   
   #Now load the models into a list structure
-  allfiles <- list.files(repo_path.v, recursive = T, full.names = T)
-  modelfiles <- grep("scGate_Model.tsv", allfiles, value = T)
+  allfiles <- list.files(repo_path.v, recursive = TRUE)
+  modelfiles <- grep("scGate_Model.tsv", allfiles, value = TRUE)
   uniq_dirs <- sort(unique(dirname(modelfiles)))
   
   model_db <- list()
   for (dir in uniq_dirs) {
-    pattern <- paste0(repo_path.v, '\\/?')
-    tmp <- gsub(pattern, "", dir, perl=T)
-    sub <- strsplit(tmp, split="/")[[1]]
+    sub <- strsplit(dir, split="/")[[1]]
+    model_path <- file.path(repo_path.v, dir)
     
-    if (length(sub)==1) {
-      model_db[[sub[1]]] <- load.model.helper(dir)
+    if (length(sub)==0) {
+      stop("Error in scGate DB format")
+    } else if (length(sub)==1) {
+      if(verbose) message(paste("loading ",model_path))
+      model_db[[sub[1]]] <- load.model.helper(model_path,verbose=verbose)
     } else if (length(sub)==2) {
-      model_db[[sub[1]]][[sub[2]]] <- load.model.helper(dir)
+      if(verbose) message(paste("loading ",model_path))
+      model_db[[sub[1]]][[sub[2]]] <- load.model.helper(model_path,verbose=verbose)
     } else if (length(sub)==2) {
-      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(dir)
+      if(verbose) message(paste("loading ",model_path))
+      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(model_path,verbose=verbose)
     } else {
-      message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", dir))
+      message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", model_path))
     } 
   }
   return(model_db)
-  
 }
-
 
 #' Performance metrics
 #'
@@ -432,12 +437,15 @@ get_scGateDB <- function(destination = "./scGateDB",
 #' 
 #' @param actual Logical or numeric binary vector giving the actual cell labels. 
 #' @param pred  Logical or numeric binary vector giving the predicted cell labels. 
-#' @param return_contingency  Logical indicating if contingency table must be returned. Default is FALSE
+#' @param return_contingency  Logical indicating if contingency table must be returned.
+#' @return Prediction performance metrics (Precision, Recall, MCC) between actual and
+#'    predicted cell type labels.
 #' @examples
-#' results <- performance.metrics(actual= sample(c(1,0),20,replace =T),pred =  sample(c(1,0),20,replace = T,prob = c(0.65,0.35) ) )
+#' results <- performance.metrics(actual= sample(c(1,0),20,replace=TRUE),
+#'     pred =  sample(c(1,0),20,replace=TRUE,prob = c(0.65,0.35) ) )
 #' @export
 
-performance.metrics <- function(actual,pred,return_contingency =F){
+performance.metrics <- function(actual,pred,return_contingency=FALSE){
   actual <- as.numeric(actual +0)  
   pred <- as.numeric(pred +0)  
   tp <- sum(actual&pred)
@@ -458,10 +466,10 @@ performance.metrics <- function(actual,pred,return_contingency =F){
   }else{
     ct <- table(actual,pred)
     ## ordering contingency table, but avoiding errors when all predictions (or all actual cells) are equals
-    nam.act <- unique(actual)%>%sort(decreasing = T)%>%as.character()  # 
-    nam.pred <- unique(pred)%>%sort(decreasing = T)%>%as.character()
+    nam.act <- unique(actual)%>%sort(decreasing = TRUE)%>%as.character()  # 
+    nam.pred <- unique(pred)%>%sort(decreasing = TRUE)%>%as.character()
     ct <- ct[nam.act,nam.pred]  
-    return(list('conting' = ct,
+    return(list('counting' = ct,
                 'summary' = res.Summary ))
   }
   
@@ -472,36 +480,50 @@ performance.metrics <- function(actual,pred,return_contingency =F){
 #' Wrapper for fast model testing on 3 sampled datasets 
 #' 
 #' @param model scGate model in data.frame format 
-#' @param testing.version  Character indicating the version of testing tatasets to be used. By default "hsa-latest" will be used. It will be ignored if custom.dataset variable is provied in Seurat format. Check available version in "https://figshare.com/XXXX/". 
-#' @param custom.dataset  Seurat object to be used as a testing dataset. For testing purposes, metadata seurat object must contain a column named 'cell_type' to be used as a gold standard. Also a set of positive targets mut be provided in the target variable. 
-#' @param target Positive target cell types. If default testing version is used this variable must be a character indicating one of the available target models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T','NK','MoMacDC','Plasma_cell','PanBcell'). 
-#'     If a custom.dataset is provided in seurat format, this variable must be a vector of positive cell types in your data. The last case also require that such labels were named as in your cell_type meta.data column. 
-#' @param plot Whether to return plots to device 
+#' @param testing.version  Character indicating the version of testing tatasets
+#'     to be used. By default "hsa-latest" will be used. It will be ignored if
+#'     a custom dataset is provided (in Seurat format). 
+#' @param custom.dataset  Seurat object to be used as a testing dataset. For
+#'     testing purposes, metadata seurat object must contain a column named
+#'     'cell_type' to be used as a gold standard. Also a set of positive
+#'     targets must be provided in the target variable. 
+#' @param target Positive target cell types. If default testing version is used
+#'     this variable must be a character indicating one of the available target
+#'     models ('immune','Lymphoid','Myeloid','Tcell','Bcell','CD8T','CD4T',
+#'     'NK','MoMacDC','Plasma_cell','PanBcell'). 
+#'     If a custom dataset is provided in Seurat format, this variable must be
+#'     a vector of positive cell types in your data. The last case also require
+#'     that such labels were named as in your cell_type meta.data column. 
+#' @param plot Whether to return plots to device
+#' @return Returns performance metrics for the benchmarking datasets, and optionally
+#'     plots of the predicted cell type labels in reduced dimensionality space.  
 #' @examples
-#' library(scGate)
+#' \donttest{
 #' scGate.model.db <- get_scGateDB()
 #' # Browse the list of models and select one:
 #' model.panBcell <-  scGate.model.db$human$generic$PanBcell
-#' # Case 1: test the model with available testing datasets
-#' panBcell.performance <- test_my_model(model.panBcell, testing.version = 'hsa.latest',target = "PanBcell")
+#' # Test the model with available testing datasets
+#' panBcell.performance <- test_my_model(model.panBcell, target = "PanBcell")
 #' model.Myeloid <-  scGate.model.db$human$generic$Myeloid
-#' myeloid.performance <- test_my_model(model.Myeloid, testing.version = 'hsa.latest',target = "Myeloid")
-#' # Case 2: use your own dataset for testing purposes. 
-#' your.own.seurat.object <- readRDS(path.to.your.custom.dataset)
-#' your.own.seurat.object$cell_type <- your.own.seurat.object$your.gold.standard.column   ## This make a copy of the cell_type reference column as required for scGate
-#' performance.on.custom.dataset <- test_my_model(your.custom.PanBcell.model, custom.dataset = your.own.seurat.object, target = c("Bcell","PlasmaCell"))  # notice that 'Bcell' and 'PlasmaCell' must be celltypes present in your custom.dataset
+#' myeloid.performance <- test_my_model(model.Myeloid, target = "Myeloid")
+#' }     
 #' @importFrom utils download.file
+#' @importFrom methods is
+#' @importFrom patchwork wrap_plots
 #' @export
 
-test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset = NULL,target = NULL, plot = T){
-  performance.computation  <- ifelse (is.null(target), F, T)
+test_my_model <- function(model, testing.version = 'hsa.latest',
+                          custom.dataset = NULL,target = NULL,
+                          plot = TRUE){
   
-  if(class(custom.dataset) == "Seurat"){
+  performance.computation  <- ifelse (is.null(target), FALSE, TRUE)
+  
+  if (is(custom.dataset, "Seurat")){
     testing.datasets <- list()
     testing.datasets$user.dataset <- custom.dataset
-    custom = TRUE
-  }else{ 
-    custom = FALSE
+    custom <- TRUE
+  } else { 
+    custom <- FALSE
   }
 
   if(!custom){
@@ -509,7 +531,7 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     
     if(is.null(target)){
       message("warning: target cell_type not provided. Avoiding performance computation")  
-      performace.computation = F
+      performance.computation <- FALSE
     }else if(!target %in% targets){
       stop(sprintf("target must be one of %s; or NULL for avoiding performance computation",paste(targets,collapse = "';'")))
     }
@@ -517,14 +539,13 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     ## check dataset version
     available.datasets = c("hsa.latest")
     if(!testing.version %in% available.datasets){
-      stop("please, provide a valid testing.version paramter or provide a custom.dataset in seurat format")
+      stop("Please provide a valid testing.version parameter or provide a custom.dataset in seurat format")
     }
     
     # load testing datasets
     if(testing.version == "hsa.latest"){
       testing.datasets <- get_testing_data(version = testing.version)
     }
-    
   }  
   
   if(custom){
@@ -534,7 +555,7 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     
     if(is.null(target)){
       message("warning: target cell_type not provided. Avoiding performance computation")  
-      performace.computation = F
+      performance.computation <- FALSE
     }else if(any(!target %in% custom.dataset$cell_type)){
       stop("all target celltypes must be included in cell_type metadata field. Otherwise, set target = NULL for avoiding performance computation")
     }
@@ -547,7 +568,8 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
   for(dset in names(testing.datasets)){
     obj <- testing.datasets[[dset]]
     plt <- list()
-    dropcols = obj@meta.data %>% colnames() %>% grep("^is.pure",.,value =T) %>% unique()
+    cols <- colnames(obj@meta.data)
+    dropcols = grep("^is.pure",cols,value =TRUE) %>% unique()
     if(length(dropcols)>0){
       for(col in dropcols){
         obj[[col]] <- NULL   
@@ -559,7 +581,8 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
 
     # add annotation plot
     nname <- sprintf("%s manual annot",dset)
-    plt <- DimPlot(obj, group.by = "cell_type",label = T, repel =T,label.size = 3) + 
+    plt <- DimPlot(obj, group.by = "cell_type", label = TRUE,
+                   repel =TRUE, label.size = 3) + 
       ggtitle(nname) + NoLegend() +  theme(aspect.ratio = 1)
 
     # add one DimPlot by model level
@@ -572,9 +595,11 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
     
     if(performance.computation){
       if(!custom){    
-        performance = scGate::performance.metrics(actual = obj@meta.data[,target], pred = obj$is.pure== "Pure")
+        performance = scGate::performance.metrics(actual = obj@meta.data[,target],
+                                                  pred = obj$`is.pure`== "Pure")
       }else{
-        performance = scGate::performance.metrics(actual = obj@cell_type %in% target, pred = obj$is.pure== "Pure")
+        performance = scGate::performance.metrics(actual = obj@cell_type %in% target,
+                                                  pred = obj$`is.pure`== "Pure")
       }
       perf.out[[dset]] <- performance 
     }
@@ -604,19 +629,23 @@ test_my_model <- function(model,testing.version = 'hsa.latest', custom.dataset =
 #' 
 #' @param obj Gated Seurat object output of scGate filtering function
 #' @param pure.col Color code for pure category 
-#' @param impure.col Color code for impure category 
+#' @param impure.col Color code for impure category
+#' @return UMAP plots with 'Pure'/'Impure' labels for each level of the scGate model
 #' @examples
-#' library(scGate)
 #' scGate.model.db <- get_scGateDB()
-#' # To see a specific model, browse the list of models:
-#' scGate.model.db$human$generic$Myeloid
+#' model <- scGate.model.db$human$generic$Myeloid
 #' # Apply scGate with this model
-#' query <- scGate(query, model=scGate.model.db$human$generic$Myeloid)
-#' plot_levels(query)
+#' data(query.seurat)
+#' query.seurat <- scGate(query.seurat, model=model,
+#'     reduction="pca", save.levels=TRUE)
+#' library(patchwork)     
+#' pll <- plot_levels(query.seurat)
+#' wrap_plots(pll)
+#' @importFrom Seurat DimPlot
 #' @export
 
 plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
-  myCols <- grep("^is.pure.", colnames(obj@meta.data),value = T)
+  myCols <- grep("^is.pure.", colnames(obj@meta.data),value = TRUE)
   plots <- list()
   for (myCol in myCols){
     plots[[myCol]] <- DimPlot(obj, group.by = myCol, 
@@ -637,25 +666,27 @@ plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
 #' @param overlay Degree of overlay for ggridges
 #' @param ncol Number of columns in output object (passed to wrap_plots)
 #' @param combine Whether to combine plots into a single object, or to return a list of plots
-#'  
+#' @return Returns a density plot of UCell scores for the signatures in the scGate model,
+#'     for each level of the model  
 #' @examples
-#' library(scGate)
 #' scGate.model.db <- get_scGateDB()
 #' model <- scGate.model.db$human$generic$Tcell
 #' # Apply scGate with this model
-#' query <- scGate(query, model=model, save.levels=T)
+#' data(query.seurat)
+#' query.seurat <- scGate(query.seurat, model=model,
+#'     reduction="pca", save.levels=TRUE)
 #' # View UCell score distribution
-#' plot_UCell_scores(query, model)
+#' plot_UCell_scores(query.seurat, model)
 #' @return Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
-#' @import ggplot2
 #' @importFrom reshape2 melt
 #' @importFrom ggridges geom_density_ridges
 #' @importFrom patchwork wrap_plots
 #' @export
 #' 
-plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2, neg.thr=0.2, ncol=NULL, combine=T) {
+plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2,
+                              neg.thr=0.2, ncol=NULL, combine=TRUE) {
   
-  u_cols <- grep('_UCell', colnames(obj@meta.data), value = T)
+  u_cols <- grep('_UCell', colnames(obj@meta.data), value = TRUE)
   
   levs <- unique(model$levels)
   pll <- list()
@@ -729,7 +760,7 @@ plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2, neg.thr=0.2, n
 
 #' Model creation and editing
 #'
-#'Generate an scGate model from scratch or edit an existing one
+#' Generate an scGate model from scratch or edit an existing one
 #' 
 #' @param model scGate model to be modified. When is NULL (default) a new model will be initialized.   
 #' @param level integer. It refers to the hierarchical level of the model tree in which the signature will be added (level=1 by default)    
@@ -738,24 +769,24 @@ plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2, neg.thr=0.2, n
 #' @param positive Logical indicating if the signature must be used as a positive signature in those model level. Default is TRUE. 
 #' @param negative Same as `positive` but negated (negative=TRUE equals to positive=FALSE)
 #' @param remove Whether to remove the given signature from the model
+#' @return A scGate model that can be used by \code{\link{scGate}} to filter target cell types.
 #' @examples
-#' library(scGate)
 #' # create a simple gating model
-#' my_model <- gating_model(model = my_model, 
-#'                        level = 1, positive = T, name = "immune", signature = c("PTPRC"))
-#' my_model <- gating_model(model = my_model, 
-#'                        level = 1, positive = F, name = "Epithelial", signature = c("CDH1","FLT1") )
+#' my_model <- gating_model(level = 1, name = "immune", signature = c("PTPRC"))
+#' my_model <- gating_model(model = my_model, level = 1, positive = FALSE,
+#'     name = "Epithelial", signature = c("CDH1","FLT1") )
 #' # Remove an existing signature
 #' dropped_model <- gating_model(model = my_model, remove =TRUE, level = 1, name = "Epithelial")
 #' @importFrom stats setNames
 #' @export
 
-gating_model <- function(model=NULL, level= 1, name, signature, positive = T, negative = F, remove = F){
+gating_model <- function(model=NULL, level= 1, name, signature,
+                         positive = TRUE, negative = FALSE, remove = FALSE){
   
   template <- setNames(data.frame(matrix(ncol = 4, nrow = 0)), c("levels","use_as", "name", "signature"))
   
   if(negative){
-    positive <-  F
+    positive <- FALSE
   }
   
   if(is.null(model)){
@@ -769,13 +800,10 @@ gating_model <- function(model=NULL, level= 1, name, signature, positive = T, ne
                                 signature = ifelse(length(signature) >1, paste(signature,collapse = ";") ,signature))
     model <- rbind(model,new.signature)
   }else{
-    L <- paste0("level",level)
+    lev <- paste0("level",level)
     
-    model <- model[!((model$levels == L) & (model$name == name)),]
+    model <- model[!((model$levels == lev) & (model$name == name)),]
   }
-  
-  
-  
   return(model)
 }
 
@@ -784,31 +812,25 @@ gating_model <- function(model=NULL, level= 1, name, signature, positive = T, ne
 #' Helper function to obtain some sample data
 #' 
 #' @param version Which sample dataset   
-#' @param destination Save to this directory   
+#' @param destination Save to this directory
+#' @return A list of datasets that can be used to test scGate    
 #' @examples
-#' library(scGate)
+#' \donttest{
 #' testing.datasets <- get_testing_data(version = 'hsa.latest')
+#' }
 #' @export
 
-get_testing_data <- function(version = 'hsa.latest', destination = "./scGateDB"){
+get_testing_data <- function(version = 'hsa.latest', destination = tempdir()){
   data.folder = file.path(destination,"testing.data")
   if(!dir.exists(data.folder)){
-    dir.create(data.folder,recursive = T)
+    dir.create(data.folder,recursive = TRUE)
   }
   if(version == 'hsa.latest'){
-    testing.data.url =   "https://figshare.com/ndownloader/files/31114669?private_link=75b1193bd4c705ffb50b"  ## When testing the dataset became public, this line must be replaced with the corresponding DOI
+    testing.data.url = "https://figshare.com/ndownloader/files/31114669?private_link=75b1193bd4c705ffb50b"
     testing.data.path = file.path(data.folder,"testing.dataset.2k.rds")
   }
   if(!file.exists(testing.data.path)){
-    # for low speed conections, avoid tout limit error
-    tout.curr <- getOption('timeout')
-    if(tout.curr <500){
-      options(timeout=500)
       download.file(url = testing.data.url,destfile = testing.data.path)
-      options(timeout = tout.curr)
-    }else{
-      download.file(url = testing.data.url,destfile = testing.data.path)
-    }
   }
   
   testing.data <- readRDS(testing.data.path)
@@ -825,10 +847,23 @@ get_testing_data <- function(version = 'hsa.latest', destination = "./scGateDB")
 #' @param min_cells Minimum number of cells for a cell label to be considered
 #' @param multi.asNA How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)
 #' @param out_column The name of the metadata column where to store the multi-class cell labels
-#' @examples
-#' library(scGate)
-#' obj <- combine_scGate_multiclass(obj)
+#' @return A Seurat object with multi-class annotations based on the combination of multiple models. A new
+#'      column (by default "scGate_multi") is added to the metadata of the Seurat object.
 #' @import Seurat
+#' @examples
+#' \donttest{
+#' # Define gating models
+#' model.B <- gating_model(name = "Bcell", signature = c("MS4A1")) 
+#' model.T <- gating_model(name = "Tcell", signature = c("CD2","CD3D","CD3E"))
+#' # Apply scGate with these models
+#' data(query.seurat)
+#' query.seurat <- scGate(query.seurat, model=model.T,
+#'     reduction="pca", output.col.name = "is.pure_Tcell")
+#' query.seurat <- scGate(query.seurat, model=model.B,
+#'     reduction="pca", output.col.name = "is.pure_Bcell")
+#' query.seurat <- combine_scGate_multiclass(query.seurat, scGate_class=c("Tcell","Bcell"))      
+#' table(query.seurat$scGate_multi)
+#' }
 #' @export
 
 combine_scGate_multiclass <- function(obj,
@@ -840,8 +875,8 @@ combine_scGate_multiclass <- function(obj,
 ){
   #Use all columns with given prefix
   if (is.null(scGate_classes)){  
-    cols <- grep(prefix, colnames(obj@meta.data), value = T)
-    cols <- grep("\\.level\\d+$", cols, invert=T, perl=T, value=T)
+    cols <- grep(prefix, colnames(obj@meta.data), value = TRUE)
+    cols <- grep("\\.level\\d+$", cols, invert=TRUE, perl=TRUE, value=TRUE)
   } else {
     cols <- paste0(prefix, scGate_classes)
     cols <- cols[cols %in% colnames(obj@meta.data)]
@@ -895,3 +930,13 @@ combine_scGate_multiclass <- function(obj,
 #' @format A list of signatures
 NULL
 
+#' Toy dataset to test the package
+#' 
+#' A downsampled version (300 cells) of the single-cell dataset by Zilionis et
+#' al. (2019) <doi:10.1016/j.immuni.2019.03.009>, with precalculated PCA and
+#' UMAP reductions.
+#' 
+#' @name query.seurat
+#' @docType data
+#' @format A Seurat object
+NULL
