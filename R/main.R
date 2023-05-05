@@ -520,7 +520,7 @@ test_my_model <- function(model, testing.version = 'hsa.latest',
   
   if (is(custom.dataset, "Seurat")){
     testing.datasets <- list()
-    testing.datasets$user.dataset <- custom.dataset
+    testing.datasets[["custom.dataset"]] <- custom.dataset
     custom <- TRUE
   } else { 
     custom <- FALSE
@@ -598,7 +598,7 @@ test_my_model <- function(model, testing.version = 'hsa.latest',
         performance = scGate::performance.metrics(actual = obj@meta.data[,target],
                                                   pred = obj$`is.pure`== "Pure")
       }else{
-        performance = scGate::performance.metrics(actual = obj@cell_type %in% target,
+        performance = scGate::performance.metrics(actual = obj$cell_type %in% target,
                                                   pred = obj$`is.pure`== "Pure")
       }
       perf.out[[dset]] <- performance 
@@ -608,8 +608,13 @@ test_my_model <- function(model, testing.version = 'hsa.latest',
   }
   
   if(performance.computation){
-    perf <- Reduce(rbind,perf.out)
-    rownames(perf) <- names(perf.out)
+    
+    if(!custom){
+      perf <- Reduce(rbind,perf.out)
+      rownames(perf) <- names(perf.out)  
+    } else {
+      perf <- perf.out
+    }
   }
   
   if(plot) {
