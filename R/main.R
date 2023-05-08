@@ -598,7 +598,7 @@ test_my_model <- function(model, testing.version = 'hsa.latest',
         performance = scGate::performance.metrics(actual = obj@meta.data[,target],
                                                   pred = obj$`is.pure`== "Pure")
       }else{
-        performance = scGate::performance.metrics(actual = obj$cell_type %in% target,
+        performance = scGate::performance.metrics(actual = obj@meta.data$cell_type %in% target,
                                                   pred = obj$`is.pure`== "Pure")
       }
       perf.out[[dset]] <- performance 
