@@ -4,6 +4,8 @@
   <img height="80" src="inst/RSticker_SCGATE.png">
 </p>
 
+[![](https://cranlogs.r-pkg.org/badges/scGate)](https://cran.r-project.org/package=scGate)
+
 **scGate** is an R package that automatizes the typical manual marker-based approach to cell type annotation, to enable accurate and intuitive purification of a cell population of interest from a complex scRNA-seq dataset, **without requiring reference gene expression profiles or training data**. **scGate** works with any scRNA-seq technology and with other single-cell modalities.
 
 **scGate** builds upon [UCell](https://github.com/carmonalab/UCell) for robust single-cell signature scoring and [Seurat](https://github.com/satijalab/seurat/), a comprehensive and powerful framework for single-cell omics analysis.
