@@ -93,6 +93,13 @@ models.list <- scGate_models_DB$human$generic[c("Bcell","MoMacDC","CD8T","CD4T",
 obj <- scGate(obj, model = models.list)
 ```
 
+scGate also provides **collections** of gating models that work nicely with each other to annotate cell types in specific tissues, e.g. for the tumor micro-environment (TME):
+```r
+models.TME <- scGate_models_DB$human$TME_HiRes
+obj <- scGate(obj, model=models.TME)
+table(obj$scGate_multi)
+```
+
 See examples of **scGate** as a classifier at: [scGate multi-class](https://carmonalab.github.io/scGate.demo/#scgate-as-a-multi-class-classifier) and [scGate on integrated objects](https://carmonalab.github.io/scGate.demo/scGate.integrated.html)
 
 
