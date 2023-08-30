@@ -1,7 +1,7 @@
 Package: scGate
 Type: Package
 Title: Marker-Based Cell Type Purification for Single-Cell Sequencing Data
-Version: 1.4.1
+Version: 1.5.0
 Authors@R: c(
   person('Massimo', 'Andreatta',
     email = 'massimo.andreatta@unil.ch',
@@ -21,9 +21,9 @@ Authors@R: c(
   )
 Description: A common bioinformatics task in single-cell data analysis is to purify a cell type or cell population of interest from heterogeneous datasets. 'scGate' automatizes marker-based purification of specific cell populations, without requiring training data or reference gene expression profiles. Briefly, 'scGate' takes as input: i) a gene expression matrix stored in a 'Seurat' object and ii) a “gating model” (GM), consisting of a set of marker genes that define the cell population of interest. The GM can be as simple as a single marker gene, or a combination of positive and negative markers. More complex GMs can be constructed in a hierarchical fashion, akin to gating strategies employed in flow cytometry. 'scGate' evaluates the strength of signature marker expression in each cell using the rank-based method 'UCell', and then performs k-nearest neighbor (kNN) smoothing by calculating the mean 'UCell' score across neighboring cells. kNN-smoothing aims at compensating for the large degree of sparsity in scRNA-seq data. Finally, a universal threshold over kNN-smoothed signature scores is applied in binary decision trees generated from the user-provided gating model, to annotate cells as either “pure” or “impure”, with respect to the cell population of interest. See the related publication Andreatta et al. (2022) <doi:10.1093/bioinformatics/btac141>.
 biocViews:
-Depends: R(>= 4.2.0)
+Depends: R(>= 4.3.0)
 Imports: Seurat(>= 4.0.0),
-    UCell(>= 2.1.3),
+    UCell(>= 2.5.1),
     dplyr,
     stats,
     utils,

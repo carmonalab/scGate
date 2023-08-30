@@ -22,6 +22,8 @@ scGate(
   maxRank = 1500,
   output.col.name = "is.pure",
   k.param = 30,
+  smooth.decay = 0.1,
+  smooth.up.only = FALSE,
   genes.blacklist = "default",
   multi.asNA = FALSE,
   additional.signatures = NULL,
@@ -66,6 +68,10 @@ in the case of an integrated dataset after batch-effect correction)}
 \item{output.col.name}{Column name with 'pure/impure' annotation}
 
 \item{k.param}{Number of nearest neighbors for knn smoothing}
+
+\item{smooth.decay}{Decay parameter for knn weights: (1-decay)^n}
+
+\item{smooth.up.only}{If TRUE, only let smoothing increase signature scores}
 
 \item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}

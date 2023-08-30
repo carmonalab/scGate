@@ -12,6 +12,8 @@
 #' @param maxRank Maximum number of genes that UCell will rank per cell
 #' @param nfeatures Number of variable genes for dimensionality reduction
 #' @param k.param Number of nearest neighbors for knn smoothing
+#' @param smooth.decay Decay parameter for knn weights: (1-decay)^n
+#' @param smooth.up.only If TRUE, only let smoothing increase signature scores
 #' @param reduction Dimensionality reduction to use for knn smoothing. By default, calculates a new reduction
 #'     based on the given \code{assay}; otherwise you may specify a precalculated dimensionality reduction (e.g.
 #'     in the case of an integrated dataset after batch-effect correction)
@@ -91,6 +93,8 @@ scGate <- function(data,
                    maxRank=1500,
                    output.col.name='is.pure',
                    k.param=30,
+                   smooth.decay=0.1,
+                   smooth.up.only=FALSE,
                    genes.blacklist="default",
                    multi.asNA = FALSE,
                    additional.signatures=NULL,
@@ -165,6 +169,7 @@ scGate <- function(data,
     col.id <- paste0(output.col.name, "_", m)
 
     data <- run_scGate_singlemodel(data, model=model[[m]], k.param=k.param,
+                           smooth.decay=smooth.decay, smooth.up.only=smooth.up.only,
                            param_decay=param_decay, pca.dim=pca.dim,
                            nfeatures=nfeatures, min.cells=min.cells, bpp=bpp,
                            assay=assay, slot=slot, genes.blacklist=genes.blacklist,
