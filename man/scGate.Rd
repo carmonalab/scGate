@@ -22,7 +22,7 @@ scGate(
   maxRank = 1500,
   output.col.name = "is.pure",
   k.param = 30,
-  smooth.decay = 0.1,
+  smooth.decay = 0.2,
   smooth.up.only = FALSE,
   genes.blacklist = "default",
   multi.asNA = FALSE,

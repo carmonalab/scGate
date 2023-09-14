@@ -1,7 +1,7 @@
 run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data",
                                    reduction="calculate", nfeatures=2000, pca.dim=30,
                                    param_decay=0.25, min.cells=30, k.param=30, bpp=SerialParam(),
-                                   smooth.decay=0.1, smooth.up.only=FALSE,
+                                   smooth.decay=0.2, smooth.up.only=FALSE,
                                    genes.blacklist="default", verbose=FALSE,
                                    colname="is.pure", save.levels=FALSE) {
   
@@ -97,7 +97,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
 
 find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
                     nfeatures=2000, k.param=10, bpp=SerialParam(),
-                    smooth.decay=0.1, smooth.up.only=FALSE,
+                    smooth.decay=0.2, smooth.up.only=FALSE,
                     min.cells=30, reduction="calculate", genes.blacklist=NULL) {
   
   DefaultAssay(q) <- assay
