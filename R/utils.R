@@ -1,7 +1,7 @@
 run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data",
                                    reduction="calculate", nfeatures=2000, pca.dim=30,
                                    param_decay=0.25, min.cells=30, k.param=30, bpp=SerialParam(),
-                                   smooth.decay=0.1, smooth.up.only=FALSE,
+                                   smooth.decay=0.05, smooth.up.only=FALSE,
                                    genes.blacklist="default", verbose=FALSE,
                                    colname="is.pure", save.levels=FALSE,
                                    return.as.meta=TRUE) {
@@ -42,6 +42,9 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     }
     
     k.use <- round((1-param_decay)**(lev-1) * k.param)
+    
+    smooth.decay.use <- 1-(1-smooth.decay)*(1-param_decay*(lev-1))
+    
     if (reduction=="calculate") {
       pca.use <- round((1-param_decay)**(lev-1) * pca.dim)
       nfeat.use <- round((1-param_decay)**(lev-1) * nfeatures)
@@ -50,7 +53,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     }
     q <- find.nn(q, assay=assay, slot=slot, signatures=all.names,min.cells=min.cells,
                  nfeatures=nfeat.use, reduction=reduction, npca=pca.use, k.param=k.use,
-                 smooth.decay=smooth.decay, smooth.up.only=smooth.up.only,
+                 smooth.decay=smooth.decay.use, smooth.up.only=smooth.up.only,
                  bpp=bpp, genes.blacklist=genes.blacklist)
     
     q <- filter_bymean(q, positive=pos.names, negative=neg.names, assay=assay,
@@ -105,7 +108,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
 
 find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
                     nfeatures=2000, k.param=10, bpp=SerialParam(),
-                    smooth.decay=0.1, smooth.up.only=FALSE,
+                    smooth.decay=0.05, smooth.up.only=FALSE,
                     min.cells=30, reduction="calculate", genes.blacklist=NULL) {
   
   DefaultAssay(q) <- assay
@@ -149,6 +152,9 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
     red.use <- 'pca'
   } else {
     red.use <- reduction
+  }
+  if (smooth.decay>1) {
+    smooth.decay=1
   }
   
   #Smooth scores by kNN neighbors
