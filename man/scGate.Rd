@@ -14,7 +14,7 @@ scGate(
   ncores = 1,
   seed = 123,
   keep.ranks = FALSE,
-  reduction = c("calculate", "pca", "umap", "harmony", "Liors_elephant"),
+  reduction = c("calculate", "pca", "umap", "harmony"),
   min.cells = 30,
   nfeatures = 2000,
   pca.dim = 30,
@@ -42,7 +42,7 @@ scGate(
 
 \item{assay}{Seurat assay to use}
 
-\item{slot}{Data slot in Seurat object}
+\item{slot}{Data slot in Seurat object to calculate UCell scores}
 
 \item{ncores}{Number of processors for parallel processing}
 

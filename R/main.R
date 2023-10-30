@@ -73,7 +73,7 @@
 #' @import ggplot2
 #' @importFrom dplyr %>% distinct bind_rows
 #' @importFrom UCell AddModuleScore_UCell SmoothKNN
-#' @import BiocParallel
+#' @importFrom BiocParallel MulticoreParam SerialParam bplapply
 #' @export
 
 scGate <- function(data,
@@ -85,7 +85,7 @@ scGate <- function(data,
                    ncores=1,
                    seed=123,
                    keep.ranks=FALSE,
-                   reduction=c("calculate","pca","umap","harmony","Liors_elephant"),
+                   reduction=c("calculate","pca","umap","harmony"),
                    min.cells=30,
                    nfeatures=2000,
                    pca.dim=30,
@@ -164,29 +164,34 @@ scGate <- function(data,
                                      keep.ranks=keep.ranks,
                                      add.sign=additional.signatures)
   
-  for (m in names(model)) {
-    
-    col.id <- paste0(output.col.name, "_", m)
-
-    data <- run_scGate_singlemodel(data, model=model[[m]], k.param=k.param,
-                           smooth.decay=smooth.decay, smooth.up.only=smooth.up.only,
-                           param_decay=param_decay, pca.dim=pca.dim,
-                           nfeatures=nfeatures, min.cells=min.cells, bpp=bpp,
-                           assay=assay, slot=slot, genes.blacklist=genes.blacklist,
-                           pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
-                           reduction=reduction, colname=col.id, save.levels=save.levels)
-    
-    Idents(data) <- col.id
-    n_pure <- sum(data[[col.id]]=="Pure")
-    frac.to.keep <- n_pure/ncol(data)
-    mess <- sprintf("\n### Detected a total of %i pure '%s' cells (%.2f%% of total)",
-                    n_pure, m, 100*frac.to.keep)
-    message(mess)
-  }
- 
+  
+  preds <- BiocParallel::bplapply(
+    X = names(model), 
+    BPPARAM =  bpp,
+    FUN = function(m) {
+      col.id <- paste0(output.col.name, "_", m)
+      x <- run_scGate_singlemodel(data, model=model[[m]], k.param=k.param,
+                                     smooth.decay=smooth.decay, smooth.up.only=smooth.up.only,
+                                     param_decay=param_decay, pca.dim=pca.dim,
+                                     nfeatures=nfeatures, min.cells=min.cells, bpp=bpp,
+                                     assay=assay, slot=slot, genes.blacklist=genes.blacklist,
+                                     pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
+                                     reduction=reduction, colname=col.id, save.levels=save.levels)
+      n_pure <- sum(x[,col.id] == "Pure")
+      frac.to.keep <- n_pure/nrow(x)
+      mess <- sprintf("\n### Detected a total of %i pure '%s' cells (%.2f%% of total)",
+                      n_pure, m, 100*frac.to.keep)
+      message(mess)
+      x
+    }
+  )
+  preds.comb <- Reduce(cbind, preds)
+  data <- AddMetaData(data, preds.comb)
+  Idents(data) <- colnames(preds.comb)[1]
+  
   #Combine results from multiple model into single cell type annotation 
   data <- combine_scGate_multiclass(data, prefix=paste0(output.col.name,"_"),
-                            scGate_classes = names(m), multi.asNA = multi.asNA,
+                            scGate_classes = names(model), multi.asNA = multi.asNA,
                             min_cells=min.cells, out_column = "scGate_multi")
 
   #Back-compatibility with previous versions

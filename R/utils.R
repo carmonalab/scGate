@@ -3,7 +3,8 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
                                    param_decay=0.25, min.cells=30, k.param=30, bpp=SerialParam(),
                                    smooth.decay=0.1, smooth.up.only=FALSE,
                                    genes.blacklist="default", verbose=FALSE,
-                                   colname="is.pure", save.levels=FALSE) {
+                                   colname="is.pure", save.levels=FALSE,
+                                   return.as.meta=TRUE) {
   
   if (!inherits(model, "data.frame")) {
     stop("Invalid scGate model. Please check the format of your model")
@@ -13,6 +14,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   
   q <- data  #local copy to progressively remove cells
   tot.cells <- ncol(q)
+  meta.cols <- c()
   
   ## prepare output object (one pure/impure flag by level)
   output_by_level <- rep("Impure",length(list.model)*tot.cells)
@@ -74,6 +76,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   
   #Add 'pure' labels to metadata
   data <- AddMetaData(data,col.name = colname, metadata = rep("Impure",tot.cells))
+  meta.cols <- c(meta.cols, colname)
   
   if(length(pure.cells)>0){
     data@meta.data[pure.cells, colname] <- "Pure"
@@ -89,9 +92,14 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
       combname <- paste0(colname,".",name.lev)
       data <- AddMetaData(data,col.name = combname, metadata = output_by_level[[name.lev]])
       data@meta.data[,combname] <- factor(data@meta.data[,combname], levels=c("Pure","Impure"))
+      meta.cols <- c(meta.cols, combname)
     }
   }
-  return(data)
+  if (return.as.meta) {
+    return(data@meta.data[,meta.cols, drop=F])
+  } else {
+    return(data)
+  }
 }
 
 
@@ -135,8 +143,9 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
     VariableFeatures(q) <- setdiff(VariableFeatures(q), genes.blacklist)
     
     q <- ScaleData(q, verbose=FALSE)
-    q <- RunPCA(q, features = VariableFeatures(q), npcs=npca, verbose = FALSE, reduction.key = "knnPCA_")
-    
+    q <- suppressWarnings(RunPCA(q, features = VariableFeatures(q),
+                                 npcs=npca, verbose = FALSE,
+                                 reduction.key = "knnPCA_"))
     red.use <- 'pca'
   } else {
     red.use <- reduction

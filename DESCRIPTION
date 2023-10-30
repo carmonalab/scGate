@@ -1,7 +1,7 @@
 Package: scGate
 Type: Package
 Title: Marker-Based Cell Type Purification for Single-Cell Sequencing Data
-Version: 1.5.0
+Version: 1.6.0
 Authors@R: c(
   person('Massimo', 'Andreatta',
     email = 'massimo.andreatta@unil.ch',
@@ -23,7 +23,7 @@ Description: A common bioinformatics task in single-cell data analysis is to pur
 biocViews:
 Depends: R(>= 4.3.0)
 Imports: Seurat(>= 4.0.0),
-    UCell(>= 2.5.1),
+    UCell(>= 2.6.0),
     dplyr,
     stats,
     utils,
