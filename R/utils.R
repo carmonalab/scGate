@@ -129,13 +129,13 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
     if (ngenes > 200) {  #only perform this for high-dim data
       q <- FindVariableFeatures(q, selection.method = "vst", nfeatures = nfeatures, verbose = FALSE)
     } else {
-      q@assays[[assay]]@var.features <- rownames(q)
+      VariableFeatures(q) <- rownames(q)
     }
     
-    q@assays[[assay]]@var.features <- setdiff(q@assays[[assay]]@var.features, genes.blacklist)
+    VariableFeatures(q) <- setdiff(VariableFeatures(q), genes.blacklist)
     
     q <- ScaleData(q, verbose=FALSE)
-    q <- RunPCA(q, features = q@assays[[assay]]@var.features, npcs=npca, verbose = FALSE, reduction.key = "knnPCA_")
+    q <- RunPCA(q, features = VariableFeatures(q), npcs=npca, verbose = FALSE, reduction.key = "knnPCA_")
     
     red.use <- 'pca'
   } else {

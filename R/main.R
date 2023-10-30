@@ -5,8 +5,8 @@
 #' @param data Seurat object containing a query data set - filtering will be applied to this object
 #' @param model A single scGate model, or a list of scGate models. See Details for this format
 #' @param pca.dim Number of dimensions for cluster analysis
-#' @param assay Seurat assay to use
-#' @param slot Data slot in Seurat object
+#' @param assay Seurat assay to use 
+#' @param slot Data slot in Seurat object to calculate UCell scores
 #' @param pos.thr Minimum UCell score value for positive signatures
 #' @param neg.thr Maximum UCell score value for negative signatures
 #' @param maxRank Maximum number of genes that UCell will rank per cell
@@ -108,7 +108,7 @@ scGate <- function(data,
   }
   assay <- DefaultAssay(data)
   
-  if (assay == "integrated") { #UCell should not run on integrated assay
+  if (assay == "integrated") { #UCell should not be run on integrated assay
     if ('RNA' %in% Assays(data)) {
       assay.ucell <- 'RNA'
     } else if ('SCT' %in% Assays(data)) {
