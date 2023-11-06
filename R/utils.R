@@ -1,6 +1,6 @@
 run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=NULL, slot="data",
                                    reduction="calculate", nfeatures=2000, pca.dim=30,
-                                   param_decay=0.25, min.cells=30, k.param=30, bpp=SerialParam(),
+                                   param_decay=0.25, min.cells=30, k.param=30,
                                    smooth.decay=0.1, smooth.up.only=FALSE,
                                    genes.blacklist="default", verbose=FALSE,
                                    colname="is.pure", save.levels=FALSE,
@@ -54,7 +54,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     q <- find.nn(q, assay=assay, slot=slot, signatures=all.names,min.cells=min.cells,
                  nfeatures=nfeat.use, reduction=reduction, npca=pca.use, k.param=k.use,
                  smooth.decay=smooth.decay.use, smooth.up.only=smooth.up.only,
-                 bpp=bpp, genes.blacklist=genes.blacklist)
+                 genes.blacklist=genes.blacklist)
     
     q <- filter_bymean(q, positive=pos.names, negative=neg.names, assay=assay,
                        pos.thr=pos.thr, neg.thr=neg.thr)
@@ -107,7 +107,7 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
 
 
 find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
-                    nfeatures=2000, k.param=10, bpp=SerialParam(),
+                    nfeatures=2000, k.param=10,
                     smooth.decay=0.1, smooth.up.only=FALSE,
                     min.cells=30, reduction="calculate", genes.blacklist=NULL) {
   
@@ -159,7 +159,7 @@ find.nn <- function(q, assay = "RNA", slot="data", signatures=NULL, npca=30,
   
   #Smooth scores by kNN neighbors
   q <- SmoothKNN(q, signature.names=signatures, reduction=red.use, k=k.param,
-                 decay=smooth.decay, up.only=smooth.up.only, suffix = NULL, BPPARAM=bpp)
+                 decay=smooth.decay, up.only=smooth.up.only, suffix = NULL)
   
   return(q)
   

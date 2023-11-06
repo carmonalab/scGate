@@ -12,6 +12,7 @@ scGate(
   assay = NULL,
   slot = "data",
   ncores = 1,
+  BPPARAM = NULL,
   seed = 123,
   keep.ranks = FALSE,
   reduction = c("calculate", "pca", "umap", "harmony"),
@@ -45,6 +46,9 @@ scGate(
 \item{slot}{Data slot in Seurat object to calculate UCell scores}
 
 \item{ncores}{Number of processors for parallel processing}
+
+\item{BPPARAM}{A [BiocParallel::bpparam()] object that tells scGate
+how to parallelize. If provided, it overrides the `ncores` parameter.}
 
 \item{seed}{Integer seed for random number generator}
 

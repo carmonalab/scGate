@@ -20,7 +20,6 @@
 #' @param pca.dim Number of principal components for dimensionality reduction
 #' @param param_decay Controls decrease in parameter complexity at each iteration, between 0 and 1.
 #'     \code{param_decay == 0} gives no decay, increasingly higher \code{param_decay} gives increasingly stronger decay
-#' @param ncores Number of processors for parallel processing
 #' @param output.col.name Column name with 'pure/impure' annotation
 #' @param min.cells Minimum number of cells to cluster or define cell types
 #' @param additional.signatures A list of additional signatures, not included in the model, to be evaluated (e.g. a cycling signature). The scores for this
@@ -30,6 +29,9 @@
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
 #' @param multi.asNA How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)
+#' @param BPPARAM A [BiocParallel::bpparam()] object that tells scGate
+#'     how to parallelize. If provided, it overrides the `ncores` parameter. 
+#' @param ncores Number of processors for parallel processing
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
 
@@ -83,6 +85,7 @@ scGate <- function(data,
                    assay=NULL,
                    slot="data",
                    ncores=1,
+                   BPPARAM=NULL,
                    seed=123,
                    keep.ranks=FALSE,
                    reduction=c("calculate","pca","umap","harmony"),
@@ -149,17 +152,18 @@ scGate <- function(data,
     names(model) <- paste(output.col.name, seq_along(model), sep = ".")
   }
   
-  if (ncores>1) {
-    bpp <- MulticoreParam(workers=ncores)
-  } else {
-    bpp <- SerialParam()
+  if (is.null(BPPARAM)) {
+    if (ncores>1) {
+      BPPARAM <- MulticoreParam(workers=ncores)
+    } else {
+      BPPARAM <- SerialParam()
+    }
   }
-  
   # compute signature scores using UCell
   if (verbose) {
     message(sprintf("Computing UCell scores for all signatures using %s assay...\n", assay.ucell))
   }
-  data <- score.computing.for.scGate(data, model, bpp=bpp, assay=assay.ucell,
+  data <- score.computing.for.scGate(data, model, bpp=BPPARAM, assay=assay.ucell,
                                      slot=slot, maxRank=maxRank, 
                                      keep.ranks=keep.ranks,
                                      add.sign=additional.signatures)
@@ -167,13 +171,13 @@ scGate <- function(data,
   
   preds <- BiocParallel::bplapply(
     X = names(model), 
-    BPPARAM =  bpp,
+    BPPARAM =  BPPARAM,
     FUN = function(m) {
       col.id <- paste0(output.col.name, "_", m)
       x <- run_scGate_singlemodel(data, model=model[[m]], k.param=k.param,
                                      smooth.decay=smooth.decay, smooth.up.only=smooth.up.only,
                                      param_decay=param_decay, pca.dim=pca.dim,
-                                     nfeatures=nfeatures, min.cells=min.cells, bpp=bpp,
+                                     nfeatures=nfeatures, min.cells=min.cells,
                                      assay=assay, slot=slot, genes.blacklist=genes.blacklist,
                                      pos.thr=pos.thr, neg.thr=neg.thr, verbose=verbose,
                                      reduction=reduction, colname=col.id, save.levels=save.levels)
