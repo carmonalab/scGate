@@ -107,13 +107,13 @@ Models for scGate are data frames where each line is a signature for a given fil
     more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 }
 \examples{
+\donttest{
 ### Test using a small toy set
 data(query.seurat)
 # Define basic gating model for B cells
 my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) 
 query.seurat <- scGate(query.seurat, model = my_scGate_model, reduction="pca")
 table(query.seurat$is.pure)
-\donttest{
 ### Test with larger datasets
 library(Seurat)
 testing.datasets <- get_testing_data(version = 'hsa.latest')

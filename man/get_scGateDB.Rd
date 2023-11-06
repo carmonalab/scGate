@@ -42,9 +42,6 @@ Models for scGate are dataframes where each line is a signature for a given filt
 scGate.model.db <- get_scGateDB()
 # To see a specific model, browse the list of models:
 scGate.model.db$human$generic$Myeloid
-# Apply scGate with this model
-data(query.seurat)
-query <- scGate(query.seurat, model=scGate.model.db$human$generic$Myeloid, reduction="pca")
 }
 \seealso{
 \code{\link{scGate}} \code{\link{load_scGate_model}}

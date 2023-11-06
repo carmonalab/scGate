@@ -46,13 +46,13 @@
 #'     multi-class classifier, where only cells that are "Pure" for a single model are assigned a label, cells that are "Pure" for
 #'     more than one gating model are labeled as "Multi", all others cells are annotated as NA.
 #' @examples
+#' \donttest{
 #' ### Test using a small toy set
 #' data(query.seurat)
 #' # Define basic gating model for B cells
 #' my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) 
 #' query.seurat <- scGate(query.seurat, model = my_scGate_model, reduction="pca")
 #' table(query.seurat$is.pure)
-#' \donttest{
 #' ### Test with larger datasets
 #' library(Seurat)
 #' testing.datasets <- get_testing_data(version = 'hsa.latest')
@@ -168,9 +168,9 @@ scGate <- function(data,
                                      keep.ranks=keep.ranks,
                                      add.sign=additional.signatures)
   
-  
-  preds <- BiocParallel::bplapply(
-    X = names(model), 
+  preds <- my.lapply(
+    X = names(model),
+    ncores = ncores,
     BPPARAM =  BPPARAM,
     FUN = function(m) {
       col.id <- paste0(output.col.name, "_", m)
@@ -370,9 +370,6 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 #' scGate.model.db <- get_scGateDB()
 #' # To see a specific model, browse the list of models:
 #' scGate.model.db$human$generic$Myeloid
-#' # Apply scGate with this model
-#' data(query.seurat)
-#' query <- scGate(query.seurat, model=scGate.model.db$human$generic$Myeloid, reduction="pca")
 #' @seealso \code{\link{scGate}} \code{\link{load_scGate_model}}
 #' @importFrom dplyr %>%  
 #' @importFrom utils download.file unzip read.table
@@ -651,6 +648,7 @@ test_my_model <- function(model, testing.version = 'hsa.latest',
 #' @param impure.col Color code for impure category
 #' @return UMAP plots with 'Pure'/'Impure' labels for each level of the scGate model
 #' @examples
+#' \donttest{
 #' scGate.model.db <- get_scGateDB()
 #' model <- scGate.model.db$human$generic$Myeloid
 #' # Apply scGate with this model
@@ -660,6 +658,7 @@ test_my_model <- function(model, testing.version = 'hsa.latest',
 #' library(patchwork)     
 #' pll <- plot_levels(query.seurat)
 #' wrap_plots(pll)
+#' }
 #' @importFrom Seurat DimPlot
 #' @export
 
@@ -688,6 +687,7 @@ plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
 #' @return Returns a density plot of UCell scores for the signatures in the scGate model,
 #'     for each level of the model  
 #' @examples
+#' \donttest{
 #' scGate.model.db <- get_scGateDB()
 #' model <- scGate.model.db$human$generic$Tcell
 #' # Apply scGate with this model
@@ -696,6 +696,7 @@ plot_levels <- function(obj, pure.col = "green" ,impure.col = "gray"){
 #'     reduction="pca", save.levels=TRUE)
 #' # View UCell score distribution
 #' plot_UCell_scores(query.seurat, model)
+#' }
 #' @return Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
 #' @importFrom reshape2 melt
 #' @importFrom ggridges geom_density_ridges

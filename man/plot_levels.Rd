@@ -20,6 +20,7 @@ UMAP plots with 'Pure'/'Impure' labels for each level of the scGate model
 Fast plotting of gating results over each model level.
 }
 \examples{
+\donttest{
 scGate.model.db <- get_scGateDB()
 model <- scGate.model.db$human$generic$Myeloid
 # Apply scGate with this model
@@ -29,4 +30,5 @@ query.seurat <- scGate(query.seurat, model=model,
 library(patchwork)     
 pll <- plot_levels(query.seurat)
 wrap_plots(pll)
+}
 }

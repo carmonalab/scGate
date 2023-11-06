@@ -39,6 +39,7 @@ Either a plot combined by patchwork (combine=T) or a list of plots (combine=F)
 Show distribution of UCell scores for each level of a given scGate model
 }
 \examples{
+\donttest{
 scGate.model.db <- get_scGateDB()
 model <- scGate.model.db$human$generic$Tcell
 # Apply scGate with this model
@@ -47,4 +48,5 @@ query.seurat <- scGate(query.seurat, model=model,
     reduction="pca", save.levels=TRUE)
 # View UCell score distribution
 plot_UCell_scores(query.seurat, model)
+}
 }

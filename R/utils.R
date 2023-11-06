@@ -368,3 +368,12 @@ use_master_table <- function(df.model, master.table, name = "name",descript = "s
   #  df.model[descript] <- output.sign
   return(df.model)
 }
+
+#Serial or parallel lapply
+my.lapply <- function(X=NULL, FUN, ncores=1, BPPARAM) {
+  if (ncores>1) {
+    BiocParallel::bplapply(X=X, FUN=FUN, BPPARAM = BPPARAM)
+  } else {
+    lapply(X=X, FUN=FUN)
+  }
+}
