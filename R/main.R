@@ -28,6 +28,7 @@
 #' @param keep.ranks Store UCell rankings in Seurat object. This will speed up calculations if the same object is applied again with new signatures.
 #' @param genes.blacklist Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 #'     you may deactivate blacklisting by setting \code{genes.blacklist=NULL}
+#' @param return.CellOntology If TRUE Cell ontology name and id are returned as additional metadata columns when running multiple models.
 #' @param multi.asNA How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)
 #' @param BPPARAM A [BiocParallel::bpparam()] object that tells scGate
 #'     how to parallelize. If provided, it overrides the `ncores` parameter. 
@@ -99,6 +100,7 @@ scGate <- function(data,
                    smooth.decay=0.1,
                    smooth.up.only=FALSE,
                    genes.blacklist="default",
+                   return.CellOntology = TRUE,
                    multi.asNA = FALSE,
                    additional.signatures=NULL,
                    save.levels=FALSE,
@@ -147,6 +149,8 @@ scGate <- function(data,
   #With single model, make a list of one element
   if (!inherits(model, "list")) {
     model <- list("Target" = model)
+    # also if single model is provided do not run return.CellOntology
+    return.CellOntology <- FALSE
   }
   if (is.null(names(model))) {
     names(model) <- paste(output.col.name, seq_along(model), sep = ".")
@@ -197,6 +201,11 @@ scGate <- function(data,
   data <- combine_scGate_multiclass(data, prefix=paste0(output.col.name,"_"),
                             scGate_classes = names(model), multi.asNA = multi.asNA,
                             min_cells=min.cells, out_column = "scGate_multi")
+  
+  # Add CellOntology name and id if specificed
+  if(return.CellOntology){
+    data <- map.CellOntology(data)
+  }
 
   #Back-compatibility with previous versions
   if (names(model)[1] == 'Target') {
@@ -378,7 +387,7 @@ load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
 get_scGateDB <- function(destination = tempdir(),
                          force_update = FALSE,
                          version = "latest",
-                         branch=c("master","dev"), 
+                         branch=c("master","dev"),
                          verbose=FALSE,
                          repo_url = "https://github.com/carmonalab/scGate_models"){
   
