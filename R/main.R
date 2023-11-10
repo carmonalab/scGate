@@ -77,6 +77,7 @@
 #' @importFrom dplyr %>% distinct bind_rows
 #' @importFrom UCell AddModuleScore_UCell SmoothKNN
 #' @importFrom BiocParallel MulticoreParam SerialParam bplapply
+#' @importFrom dplyr left_join
 #' @export
 
 scGate <- function(data,

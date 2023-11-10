@@ -26,6 +26,7 @@ scGate(
   smooth.decay = 0.1,
   smooth.up.only = FALSE,
   genes.blacklist = "default",
+  return.CellOntology = TRUE,
   multi.asNA = FALSE,
   additional.signatures = NULL,
   save.levels = FALSE,
@@ -79,6 +80,8 @@ in the case of an integrated dataset after batch-effect correction)}
 
 \item{genes.blacklist}{Genes blacklisted from variable features. The default loads the list of genes in \code{scGate::genes.blacklist.default};
 you may deactivate blacklisting by setting \code{genes.blacklist=NULL}}
+
+\item{return.CellOntology}{If TRUE Cell ontology name and id are returned as additional metadata columns when running multiple models.}
 
 \item{multi.asNA}{How to label cells that are "Pure" for multiple annotations: "Multi" (FALSE) or NA (TRUE)}
 

@@ -416,7 +416,7 @@ get_CellOntology_dictionary <- function(destination = tempdir(),
     unzip(temp,exdir = destination, overwrite = force_update)
     unlink(temp)
   }else{
-    message(sprintf("Using local version of repo %s. If you want update it, set option force_update = TRUE",repo.name))
+    message(sprintf("\nUsing local version of repo %s for cell ontology dictionary",repo.name))
   }
   
   #Now load the models into a list structure
