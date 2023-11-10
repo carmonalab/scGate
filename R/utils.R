@@ -433,12 +433,11 @@ get_CellOntology_dictionary <- function(destination = tempdir(),
 
 # Function to retrieve cell ontology name and id based on a dictionary
 map.CellOntology <- function(object = NULL,
-                             branch = c("master","dev"),
+                             branch = "dev", # change to master later
                              multi.col.name = "scGate_multi",
                              force_update = F){
-  branch = branch[1]
   # Fetch dictionary
-  dict <- get_CellOntology_dictionary(branch = "dev")
+  dict <- get_CellOntology_dictionary(branch = branch)
   
   # prepare for seurat objects
   if(class(object) == "Seurat"){
