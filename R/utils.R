@@ -441,7 +441,8 @@ map.CellOntology <- function(object = NULL,
   
   # prepare for seurat objects
   if(class(object) == "Seurat"){
-    data <- object@meta.data
+    data <- object@meta.data %>% 
+              tibble::rownames_to_column("Row.names")
   } else if(class(object) == "data.frame"){
     data <- object
   } else{
@@ -453,7 +454,8 @@ map.CellOntology <- function(object = NULL,
   }
   
   # Combine with scGate_multi
-  data <- left_join(data, dict, by = multi.col.name)
+  data <- left_join(data, dict, by = multi.col.name) %>% 
+            tibble::column_to_rownames("Row.names")
   
   if(class(object) == "Seurat"){
     object@meta.data <- data
