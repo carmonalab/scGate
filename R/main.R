@@ -204,7 +204,15 @@ scGate <- function(data,
   
   # Add CellOntology name and id if specificed
   if(return.CellOntology){
-    data <- map.CellOntology(data)
+    tryCatch(
+    {
+      data <- map.CellOntology(data)
+    },
+      error = function(e){
+        message(e)
+        message("Cell ontology ID addition not possible.")
+      }
+    )
   }
 
   #Back-compatibility with previous versions
