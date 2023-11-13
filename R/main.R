@@ -35,6 +35,7 @@
 #' @param ncores Number of processors for parallel processing
 #' @param seed Integer seed for random number generator
 #' @param verbose Verbose output
+#' @param progressbar Whether to show a progressbar or not
 
 #' @return A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells passed the scGate filter.
 #'     The \code{active.ident} is also set to this variable.
@@ -105,7 +106,8 @@ scGate <- function(data,
                    multi.asNA = FALSE,
                    additional.signatures=NULL,
                    save.levels=FALSE,
-                   verbose=FALSE) {
+                   verbose=FALSE,
+                   progressbar = T) {
   
   set.seed(seed)
   
@@ -159,7 +161,7 @@ scGate <- function(data,
   
   if (is.null(BPPARAM)) {
     if (ncores>1) {
-      BPPARAM <- MulticoreParam(workers=ncores)
+      BPPARAM <- MulticoreParam(workers=ncores, progressbar = progressbar)
     } else {
       BPPARAM <- SerialParam()
     }
@@ -173,9 +175,8 @@ scGate <- function(data,
                                      keep.ranks=keep.ranks,
                                      add.sign=additional.signatures)
   
-  preds <- my.lapply(
+  preds <- bplapply(
     X = names(model),
-    ncores = ncores,
     BPPARAM =  BPPARAM,
     FUN = function(m) {
       col.id <- paste0(output.col.name, "_", m)
