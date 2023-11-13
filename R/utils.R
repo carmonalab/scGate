@@ -369,17 +369,9 @@ use_master_table <- function(df.model, master.table, name = "name",descript = "s
   return(df.model)
 }
 
-#Serial or parallel lapply
-my.lapply <- function(X=NULL, FUN, ncores=1, BPPARAM) {
-  if (ncores>1) {
-    BiocParallel::bplapply(X=X, FUN=FUN, BPPARAM = BPPARAM)
-  } else {
-    lapply(X=X, FUN=FUN)
-  }
-}
 
 
-# Function to download dictionary
+# Function to download dictionary for cell ontology to scGate cell name conversion
 get_CellOntology_dictionary <- function(destination = tempdir(),
                                  force_update = FALSE,
                                  version = "latest",
@@ -430,6 +422,8 @@ get_CellOntology_dictionary <- function(destination = tempdir(),
   
   return(dict)
 }
+
+
 
 # Function to retrieve cell ontology name and id based on a dictionary
 map.CellOntology <- function(object = NULL,
