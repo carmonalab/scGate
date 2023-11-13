@@ -30,7 +30,8 @@ scGate(
   multi.asNA = FALSE,
   additional.signatures = NULL,
   save.levels = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  progressbar = T
 )
 }
 \arguments{
@@ -91,6 +92,8 @@ list of signatures will be returned but not used for filtering.}
 \item{save.levels}{Whether to save in metadata the filtering output for each gating model level}
 
 \item{verbose}{Verbose output}
+
+\item{progressbar}{Whether to show a progressbar or not}
 }
 \value{
 A new metadata column \code{is.pure} is added to the query Seurat object, indicating which cells passed the scGate filter.
