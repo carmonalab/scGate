@@ -202,7 +202,7 @@ scGate <- function(data,
   #Combine results from multiple model into single cell type annotation 
   data <- combine_scGate_multiclass(data, prefix=paste0(output.col.name,"_"),
                             scGate_classes = names(model), multi.asNA = multi.asNA,
-                            min_cells=min.cells, out_column = "scGate_multi")
+                            min_cells=1, out_column = "scGate_multi")
   
   # Add CellOntology name and id if specificed
   if(return.CellOntology){
@@ -908,7 +908,7 @@ get_testing_data <- function(version = 'hsa.latest', destination = tempdir()){
 combine_scGate_multiclass <- function(obj,
                                   prefix="is.pure_",
                                   scGate_classes=NULL,
-                                  min_cells=20,
+                                  min_cells=1,
                                   multi.asNA = FALSE,
                                   out_column="scGate_multi"
 ){
