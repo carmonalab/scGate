@@ -436,25 +436,30 @@ map.CellOntology <- function(object = NULL,
   
   # prepare for seurat objects
   if(class(object) == "Seurat"){
-    data <- object@meta.data %>% 
-              tibble::rownames_to_column("Row.names")
+    data <- object@meta.data
   } else if(class(object) == "data.frame"){
-    data <- object %>% 
-            tibble::rownames_to_column("Row.names")
+    data <- object
   } else{
     stop("Object should be either a data.frame or a Seurat object")
   }
   
   if(!any(grepl(multi.col.name, names(data)))){
     stop(paste(multi.col.name, "not found in the data"))
-  } 
+  }
+  
+  # convert rownames to a column
+  data$Row.names <- rownames(data)
+  rownames(data) <- NULL
   
   # keep only multi.col.name and rownames dataframe
   data <- data[,c("Row.names", multi.col.name)]
   
   # Combine with scGate_multi
-  data <- left_join(data, dict, by = multi.col.name) %>% 
-            tibble::column_to_rownames("Row.names")
+  data <- left_join(data, dict, by = multi.col.name)
+  
+  # render rownames for Seurat metadata addition
+  rownames(data) <- data$Row.names
+  data$Row.names <- NULL
   
   if(class(object) == "Seurat"){
     object <- AddMetaData(object, metadata = data)
