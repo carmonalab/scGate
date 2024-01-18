@@ -427,16 +427,16 @@ get_CellOntology_dictionary <- function(destination = tempdir(),
 
 # Function to retrieve cell ontology name and id based on a dictionary
 map.CellOntology <- function(object = NULL,
-                             branch = "dev", # change to master later
+                             branch = "master",
                              multi.col.name = "scGate_multi",
                              force_update = F){
   # Fetch dictionary
-  dict <- get_CellOntology_dictionary(branch = branch)
+  dict <- get_CellOntology_dictionary(branch = branch,
+                                      force_update = force_update)
   
   # prepare for seurat objects
   if(class(object) == "Seurat"){
-    data <- object@meta.data %>% 
-              tibble::rownames_to_column("Row.names")
+    data <- object@meta.data
   } else if(class(object) == "data.frame"){
     data <- object
   } else{
@@ -447,12 +447,22 @@ map.CellOntology <- function(object = NULL,
     stop(paste(multi.col.name, "not found in the data"))
   }
   
+  # convert rownames to a column
+  data$Row.names <- rownames(data)
+  rownames(data) <- NULL
+  
+  # keep only multi.col.name and rownames dataframe
+  data <- data[,c("Row.names", multi.col.name)]
+  
   # Combine with scGate_multi
-  data <- left_join(data, dict, by = multi.col.name) %>% 
-            tibble::column_to_rownames("Row.names")
+  data <- left_join(data, dict, by = multi.col.name)
+  
+  # render rownames for Seurat metadata addition
+  rownames(data) <- data$Row.names
+  data$Row.names <- NULL
   
   if(class(object) == "Seurat"){
-    object@meta.data <- data
+    object <- AddMetaData(object, metadata = data)
     return(object)
   } else if(class(object) == "data.frame"){
     return(data)
