@@ -363,7 +363,7 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
 
 load_scGate_model <- function(model_file, master.table = "master_table.tsv"){
   
-  model <- read.table(model_file, sep ="\t",header =TRUE)
+  model <- suppressWarnings(read.table(model_file, sep ="\t", header =TRUE))
   model <- use_master_table(model, master.table = master.table)
   
   return(model)
