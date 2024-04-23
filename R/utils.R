@@ -434,7 +434,6 @@ map.CellOntology <- function(object = NULL,
   dict <- get_CellOntology_dictionary(branch = branch,
                                       force_update = force_update)
   
-  # prepare for seurat objects
   if (inherits(object, "Seurat")){
     data <- object@meta.data
   } else if (inherits(object, "data.frame")){
@@ -461,10 +460,10 @@ map.CellOntology <- function(object = NULL,
   rownames(data) <- data$Row.names
   data$Row.names <- NULL
   
-  if(class(object) == "Seurat"){
+  if (inherits(object, "Seurat")){
     object <- AddMetaData(object, metadata = data)
     return(object)
-  } else if(class(object) == "data.frame"){
+  } else if (inherits(object, "data.frame")){
     return(data)
   }
 }
