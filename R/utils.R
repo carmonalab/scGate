@@ -435,9 +435,9 @@ map.CellOntology <- function(object = NULL,
                                       force_update = force_update)
   
   # prepare for seurat objects
-  if(class(object) == "Seurat"){
+  if (inherits(object, "Seurat")){
     data <- object@meta.data
-  } else if(class(object) == "data.frame"){
+  } else if (inherits(object, "data.frame")){
     data <- object
   } else{
     stop("Object should be either a data.frame or a Seurat object")
@@ -467,5 +467,4 @@ map.CellOntology <- function(object = NULL,
   } else if(class(object) == "data.frame"){
     return(data)
   }
-  
 }
