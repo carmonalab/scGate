@@ -1,6 +1,14 @@
 \name{NEWS}
 \title{News for package \pkg{scGate}}
 
+\section{New in version 1.6.2}{
+\itemize{
+    \item Enable parallelization over a list of scGate models (in multi-classifier mode)
+    \item Fix bug on parallelization when specifying BPPARAM
+    \item Added cell ontology links for controlled cell type dictionary
+    \item Update accessor functions for compatibility with Seurat v5
+}}
+
 \section{New in version 1.4.0}{
 \itemize{
     \item Use function \code{SmoothKNN()} from the \code{UCell} package for nearest neighbor smoothing of signature scores

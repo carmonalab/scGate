@@ -8,7 +8,7 @@ combine_scGate_multiclass(
   obj,
   prefix = "is.pure_",
   scGate_classes = NULL,
-  min_cells = 20,
+  min_cells = 1,
   multi.asNA = FALSE,
   out_column = "scGate_multi"
 )
