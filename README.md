@@ -27,7 +27,7 @@ install.packages("scGate")
 For older versions of **scGate**, download a tagged version from GitHub:
 ```r
 library(remotes)
-remotes::install_github("carmonalab/scGate", ref="v1.2.0")
+remotes::install_github("carmonalab/scGate", ref="v1.6.2")
 ```
 
 ### Testing the package
