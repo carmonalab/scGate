@@ -12,7 +12,15 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
   
   list.model <- table.to.model(model)
   
-  q <- data  #local copy to progressively remove cells
+  #local copy to progressively remove cells
+  q <- data
+  if (reduction == "calculate") {
+    dimreducs <- NULL
+  } else {
+    dimreducs <- reduction
+  }
+  q <- DietSeurat(q, dimreducs = dimreducs, assays = assay)
+  
   tot.cells <- ncol(q)
   meta.cols <- c()
   
@@ -190,6 +198,7 @@ filter_bymean <- function(q, positive, negative, pos.thr=0.1, neg.thr=0.2, assay
     neg <- scores[,negative]
   }
   ispure <- rep("Impure", ncol(q))
+  names(ispure) <- rownames(scores)
   
   if(length(positive)>0 & length(negative)>0) {
     ispure[pos>pos.thr & neg<neg.thr] <- "Pure"
