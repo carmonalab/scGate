@@ -1,10 +1,10 @@
 Package: scGate
 Type: Package
 Title: Marker-Based Cell Type Purification for Single-Cell Sequencing Data
-Version: 1.6.3
+Version: 1.7.0
 Authors@R: c(
   person('Massimo', 'Andreatta',
-    email = 'massimo.andreatta@unil.ch',
+    email = 'massimo.andreatta@unige.ch',
     role = c('aut','cre'),
     comment = c(ORCID = '0000-0002-8036-2647')), 
   person('Ariel','Berenstein',
@@ -12,10 +12,10 @@ Authors@R: c(
     role = c('aut'),
     comment = c(ORCID = '0000-0001-8540-5389')), 
   person('Josep','Garnica',
-    email = 'josep.garnicacaparros@unil.ch',
+    email = 'josep.garnicacaparros@unige.ch',
     role = c('aut')),  
   person('Santiago', 'Carmona',
-    email = 'santiago.carmona@unil.ch',
+    email = 'santiago.carmona@unige.ch',
     role = c('aut'),
     comment = c(ORCID = '0000-0002-2495-0671')) 
   )
@@ -43,4 +43,4 @@ BugReports: https://github.com/carmonalab/scGate/issues
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2

@@ -1,6 +1,12 @@
 \name{NEWS}
 \title{News for package \pkg{scGate}}
 
+\section{New in version 1.7.0}{
+\itemize{
+    \item Update maintainer emails
+    \item Bug fixes
+}}
+
 \section{New in version 1.6.2}{
 \itemize{
     \item Enable parallelization over a list of scGate models (in multi-classifier mode)
