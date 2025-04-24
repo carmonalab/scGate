@@ -18,4 +18,4 @@ Currently available scGate vignettes:
 
 4. scGate to annotate scRNA-seq datasets integrated with **Harmony** and **STACAS** - [scGate integrated](https://carmonalab.github.io/scGate.demo/scGate.integrated.html)
 
-More information available at the [scGate repository](https://github.com/carmonalab/scGate) at on the related [publication](https://academic.oup.com/bioinformatics/article/38/9/2642/6544581).
+More information available at the [scGate repository](https://github.com/carmonalab/scGate) at on the related [publication](https://doi.org/10.1093/bioinformatics/btac141).
