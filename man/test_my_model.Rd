@@ -42,7 +42,7 @@ Returns performance metrics for the benchmarking datasets, and optionally
 Wrapper for fast model testing on 3 sampled datasets
 }
 \examples{
-\donttest{
+\dontrun{
 scGate.model.db <- get_scGateDB()
 # Browse the list of models and select one:
 model.panBcell <-  scGate.model.db$human$generic$PanBcell

@@ -55,6 +55,8 @@
 #' my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) 
 #' query.seurat <- scGate(query.seurat, model = my_scGate_model, reduction="pca")
 #' table(query.seurat$is.pure)
+#' }
+#' \dontrun{
 #' ### Test with larger datasets
 #' library(Seurat)
 #' testing.datasets <- get_testing_data(version = 'hsa.latest')
@@ -246,6 +248,7 @@ scGate <- function(data,
 #'     indicate the 'positive' (accepted) cell types, red boxed indicate the
 #'     'negative' cell types (filtered out). The final Pure population is the
 #'     bottom right subset in the tree.
+#' @import colorspace
 #' @examples
 #' library(ggparty)
 #' models <- get_scGateDB()
@@ -528,7 +531,7 @@ performance.metrics <- function(actual,pred,return_contingency=FALSE){
 #' @return Returns performance metrics for the benchmarking datasets, and optionally
 #'     plots of the predicted cell type labels in reduced dimensionality space.  
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' scGate.model.db <- get_scGateDB()
 #' # Browse the list of models and select one:
 #' model.panBcell <-  scGate.model.db$human$generic$PanBcell

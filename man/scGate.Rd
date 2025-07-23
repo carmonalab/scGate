@@ -120,6 +120,8 @@ data(query.seurat)
 my_scGate_model <- gating_model(name = "Bcell", signature = c("MS4A1")) 
 query.seurat <- scGate(query.seurat, model = my_scGate_model, reduction="pca")
 table(query.seurat$is.pure)
+}
+\dontrun{
 ### Test with larger datasets
 library(Seurat)
 testing.datasets <- get_testing_data(version = 'hsa.latest')
