@@ -18,7 +18,7 @@ A list of datasets that can be used to test scGate
 Helper function to obtain some sample data
 }
 \examples{
-\donttest{
+\dontrun{
 testing.datasets <- get_testing_data(version = 'hsa.latest')
 }
 }

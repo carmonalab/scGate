@@ -854,7 +854,7 @@ gating_model <- function(model=NULL, level= 1, name, signature,
 #' @param destination Save to this directory
 #' @return A list of datasets that can be used to test scGate    
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' testing.datasets <- get_testing_data(version = 'hsa.latest')
 #' }
 #' @export
@@ -865,7 +865,7 @@ get_testing_data <- function(version = 'hsa.latest', destination = tempdir()){
     dir.create(data.folder,recursive = TRUE)
   }
   if(version == 'hsa.latest'){
-    testing.data.url = "https://figshare.com/ndownloader/files/31114669?private_link=75b1193bd4c705ffb50b"
+    testing.data.url = "https://figshare.com/ndownloader/files/56482271"
     testing.data.path = file.path(data.folder,"testing.dataset.2k.rds")
   }
   if(!file.exists(testing.data.path)){
