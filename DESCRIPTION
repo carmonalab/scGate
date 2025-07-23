@@ -30,6 +30,7 @@ Imports: Seurat (>= 4.0.0),
     methods,
     patchwork,
     ggridges,
+    colorspace,
     reshape2,
     ggplot2,
     BiocParallel
