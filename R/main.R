@@ -868,7 +868,7 @@ get_testing_data <- function(version = 'hsa.latest', destination = tempdir()){
     dir.create(data.folder,recursive = TRUE)
   }
   if(version == 'hsa.latest'){
-    testing.data.url = "https://figshare.com/ndownloader/files/56482271"
+    testing.data.url = "https://ndownloader.figshare.com/files/56482271"
     testing.data.path = file.path(data.folder,"testing.dataset.2k.rds")
   }
   if(!file.exists(testing.data.path)){
