@@ -6,6 +6,12 @@
 \itemize{
     \item Remove dependency from ggparty. Use self-contained ggplot2 function to visualize model trees.
     \item Update figshare link (changed url format)
+    \item Fix kNN-smoothing being applied cumulatively across levels to signatures used at multiple levels; each level now smooths the original UCell scores. This may slightly change results at levels > 1
+    \item Model levels are now evaluated in numerical order (level1, level2, ...) regardless of row order in the model table. Level names must be level1..levelN, without gaps, and are case-insensitive (e.g. 'Level4' is the same as 'level4')
+    \item Stored UCell rankings (keep.ranks=TRUE) are only re-used if computed with the same assay, slot and maxRank; otherwise rankings are recomputed
+    \item get_scGateDB: fix caching and force_update for tagged versions; remove system call to 'rm' (Windows compatibility)
+    \item Fix performance.metrics with return_contingency=TRUE
+    \item scGate with a single model no longer overwrites the scGate_multi metadata column
 }}
 
 \section{New in version 1.7.0}{

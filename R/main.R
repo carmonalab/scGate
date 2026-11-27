@@ -152,8 +152,10 @@ scGate <- function(data,
   }
   
   #With single model, make a list of one element
+  single.model <- FALSE
   if (!inherits(model, "list")) {
     model <- list("Target" = model)
+    single.model <- TRUE
     # also if single model is provided do not run return.CellOntology
     return.CellOntology <- FALSE
   }
@@ -201,10 +203,13 @@ scGate <- function(data,
   data <- AddMetaData(data, preds.comb)
   Idents(data) <- colnames(preds.comb)[1]
   
-  #Combine results from multiple model into single cell type annotation 
-  data <- combine_scGate_multiclass(data, prefix=paste0(output.col.name,"_"),
-                            scGate_classes = names(model), multi.asNA = multi.asNA,
-                            min_cells=1, out_column = "scGate_multi")
+  #Combine results from multiple model into single cell type annotation
+  #(not for a single model, to avoid overwriting existing multi-class annotations)
+  if (!single.model) {
+    data <- combine_scGate_multiclass(data, prefix=paste0(output.col.name,"_"),
+                              scGate_classes = names(model), multi.asNA = multi.asNA,
+                              min_cells=1, out_column = "scGate_multi")
+  }
   
   # Add CellOntology name and id if specificed
   if(return.CellOntology){
@@ -226,7 +231,7 @@ scGate <- function(data,
     data@meta.data[,cn] <- NULL
     
     if (save.levels) {
-      for (l in unique(model[[1]]$levels)) {
+      for (l in unique(tolower(trimws(model[[1]]$levels)))) {
         cn <- paste0(output.col.name, "_Target.",l)
         data@meta.data[,paste0(output.col.name,".",l)] <- data@meta.data[,cn]
         data@meta.data[,cn] <- NULL
@@ -266,8 +271,8 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   pos.annot <- neg.annot <- character(nlev)
   for (i in 1:nlev) {
     sub <- model[lev == paste0("level",i), , drop=FALSE]
-    pos.annot[i] <- paste0(sub[sub$use_as=="positive","name"], collapse = "\n")
-    neg.annot[i] <- paste0(sub[sub$use_as=="negative","name"], collapse = "\n")
+    pos.annot[i] <- paste0(sub[tolower(sub$use_as)=="positive","name"], collapse = "\n")
+    neg.annot[i] <- paste0(sub[tolower(sub$use_as)=="negative","name"], collapse = "\n")
   }
   
   #Layout: the 'positive' branch runs diagonally to the bottom right,
@@ -398,12 +403,12 @@ get_scGateDB <- function(destination = tempdir(),
     #for some reason GitHub remove the 'v' from repo name after unzipping
     repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl=TRUE)) 
   }
-  destination <- normalizePath(destination, winslash = "/")
-  repo_path = file.path(destination,repo.name)
+  destination <- normalizePath(destination, winslash = "/", mustWork = FALSE)
+  #path of the unzipped repo (GitHub drops the 'v' of version tags)
   repo_path.v = file.path(destination,repo.name.v)
   temp <- tempfile()
   
-  if(!dir.exists(repo_path)){
+  if(!dir.exists(repo_path.v)){
     if(!dir.exists(destination)) {
       dir.create(destination)
     }
@@ -412,7 +417,7 @@ get_scGateDB <- function(destination = tempdir(),
     unlink(temp)
   }else if(force_update){
     download.file(repo_url_zip,temp)
-    system(sprintf("rm -r %s",repo_path))  # this ensure that db would be completely overwritten and old model will not persist. 
+    unlink(repo_path.v, recursive = TRUE)  # this ensure that db would be completely overwritten and old model will not persist.
     unzip(temp,exdir = destination, overwrite = force_update)
     unlink(temp)
   }else{
@@ -437,9 +442,9 @@ get_scGateDB <- function(destination = tempdir(),
     } else if (length(sub)==2) {
       if(verbose) message(paste("loading ",model_path))
       model_db[[sub[1]]][[sub[2]]] <- load.model.helper(model_path,verbose=verbose)
-    } else if (length(sub)==2) {
+    } else if (length(sub)==3) {
       if(verbose) message(paste("loading ",model_path))
-      model_db[[sub[1]]][[sub[2]]][[sub[[3]]]] <- load.model.helper(model_path,verbose=verbose)
+      model_db[[sub[1]]][[sub[2]]][[sub[3]]] <- load.model.helper(model_path,verbose=verbose)
     } else {
       message(sprintf("Warning: max depth for scGate models is 3. Skipping folder %s", model_path))
     } 
@@ -474,17 +479,17 @@ performance.metrics <- function(actual,pred,return_contingency=FALSE){
   #sqrt_ <- sqrt((tp + fp)*(tp+fn)*(tn+fp)*(tn+fn))
   sqrt_ <- exp(0.5* sum(log(c(tp+fp, tp+fn, tn+fp, tn+fn))) )
   MCC <- (tp*tn - fp*fn) / sqrt_
-  
-  
-  if(!return_contingency){  
-    res.Summary <- c(PREC,REC,MCC); names(res.Summary) <- c("PREC","REC","MCC")
+
+  res.Summary <- c(PREC,REC,MCC); names(res.Summary) <- c("PREC","REC","MCC")
+
+  if(!return_contingency){
     return(res.Summary)
   }else{
     ct <- table(actual,pred)
     ## ordering contingency table, but avoiding errors when all predictions (or all actual cells) are equals
-    nam.act <- unique(actual)%>%sort(decreasing = TRUE)%>%as.character()  # 
+    nam.act <- unique(actual)%>%sort(decreasing = TRUE)%>%as.character()  #
     nam.pred <- unique(pred)%>%sort(decreasing = TRUE)%>%as.character()
-    ct <- ct[nam.act,nam.pred]  
+    ct <- ct[nam.act,nam.pred, drop=FALSE]
     return(list('counting' = ct,
                 'summary' = res.Summary ))
   }
@@ -713,7 +718,9 @@ plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2,
   
   u_cols <- grep('_UCell', colnames(obj@meta.data), value = TRUE)
   
-  levs <- unique(model$levels)
+  model.levels <- tolower(trimws(model$levels))
+  levs <- unique(model.levels)
+  levs <- levs[order(suppressWarnings(as.integer(sub("^level", "", levs))))]
   pll <- list()
   
   palette <- c("#00fd0c","#f4340e")
@@ -732,7 +739,7 @@ plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2,
     
     lev.name <- levs[l]
     
-    sigs <- model[model$levels == lev.name, c("use_as","name")]
+    sigs <- model[model.levels == lev.name, c("use_as","name")]
     
     col <- sprintf("%s_UCell", sigs$name)
     col <- col[col %in% u_cols]
@@ -751,7 +758,7 @@ plot_UCell_scores <- function(obj, model, overlay=5, pos.thr=0.2,
     colnames(to.plot) <- c("Signature","Score")
     
     to.plot$Class <- "Positive"
-    to.plot$Class[to.plot$Signature %in% sigs[sigs$use_as =="negative","name"]] <- "Negative"
+    to.plot$Class[to.plot$Signature %in% sigs[tolower(sigs$use_as)=="negative","name"]] <- "Negative"
     
     #vertical lines (thresholds)
     to.plot$Thr <- NA
@@ -906,7 +913,7 @@ combine_scGate_multiclass <- function(obj,
     cols <- paste0(prefix, scGate_classes)
     cols <- cols[cols %in% colnames(obj@meta.data)]
   }
-  if (is.null(cols)) {
+  if (length(cols) == 0) {
     stop("Could not find scGate annotations in this object metadata.")
   }
   

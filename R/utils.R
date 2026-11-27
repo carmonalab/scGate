@@ -43,7 +43,13 @@ run_scGate_singlemodel <- function(data, model, pos.thr=0.2, neg.thr=0.2, assay=
     pos.names <- sprintf("%s_UCell", names(list.model[[lev]]$positive))
     neg.names <- sprintf("%s_UCell", names(list.model[[lev]]$negative))
     all.names <- c(pos.names, neg.names)
-    
+
+    #Restore unsmoothed UCell scores for the remaining cells. kNN-smoothing
+    #overwrites scores in place, so without this signatures re-used across levels
+    #would be smoothed again on top of the previous level's smoothing
+    raw.names <- intersect(all.names, colnames(data@meta.data))
+    q@meta.data[, raw.names] <- data@meta.data[colnames(q), raw.names, drop=FALSE]
+
     ##Reduce parameter complexity at each iteration
     if (param_decay < 0 | param_decay > 1) {
       stop("Parameter param_decay must be a number between 0 and 1")
@@ -241,9 +247,29 @@ score.computing.for.scGate <- function(data, model, bpp=SerialParam(), assay="RN
     signatures <- append(signatures, add.sign)
   }
   
+  #UCell uses stored rankings whenever a UCellRanks assay is present, ignoring
+  #the requested assay, slot and maxRank. Only use stored ranks if they were
+  #computed by scGate with the same settings; otherwise set them aside and recompute
+  rank.settings <- list(assay=assay, slot=slot, maxRank=maxRank)
+  stored.ranks <- NULL
+  if ("UCellRanks" %in% Assays(data)) {
+    if (!isTRUE(all.equal(data@misc[["scGate_UCellRanks"]], rank.settings))) {
+      message(sprintf("Stored UCellRanks do not match current settings (assay=%s, slot=%s, maxRank=%s). Recomputing rankings.",
+                      assay, slot, maxRank))
+      stored.ranks <- data[["UCellRanks"]]
+      data[["UCellRanks"]] <- NULL
+    }
+  }
+
   data <- AddModuleScore_UCell(data, features = signatures, assay=assay, slot=slot,
                                       BPPARAM = bpp, storeRanks = keep.ranks, maxRank = maxRank)
-  
+
+  if (keep.ranks && "UCellRanks" %in% Assays(data)) {
+    data@misc[["scGate_UCellRanks"]] <- rank.settings
+  } else if (!is.null(stored.ranks)) {
+    data[["UCellRanks"]] <- stored.ranks  #give back the user's stored ranks
+  }
+
   return(data)
 }
 
@@ -291,8 +317,24 @@ model.to.table <- function(scGate.model){
 
 
 table.to.model <- function(scGate.table){
+  #Levels are evaluated in order of their number (level1, level2, ...),
+  #independently of the order of rows in the table. Level names are case-insensitive
+  scGate.table$levels <- tolower(trimws(scGate.table$levels))
+  lev.names <- unique(scGate.table$levels)
+  lev.num <- suppressWarnings(as.integer(sub("^level", "", lev.names)))
+  if (any(is.na(lev.num))) {
+    stop(sprintf("Invalid level names in scGate model: %s. Levels must be named level1, level2, ...",
+                 paste(lev.names[is.na(lev.num)], collapse=", ")))
+  }
+  if (!identical(sort(lev.num), seq_along(lev.num))) {
+    stop(sprintf("Levels in scGate model must be consecutive and start from level1. Found: %s",
+                 paste(lev.names, collapse=", ")))
+  }
   mod <- list()
-  for(i in 1:nrow(scGate.table)){ 
+  for (lev in lev.names[order(lev.num)]) {
+    mod[[lev]] <- list()
+  }
+  for(i in 1:nrow(scGate.table)){
     lev <- scGate.table$levels[i] 
     useas <- tolower(scGate.table$use_as[i])
     if(!useas %in% c("positive","negative")){
@@ -399,12 +441,12 @@ get_CellOntology_dictionary <- function(destination = tempdir(),
     #for some reason GitHub remove the 'v' from repo name after unzipping
     repo.name.v <- sprintf("scGate_models-%s", gsub("^v","",version, perl=TRUE)) 
   }
-  destination <- normalizePath(destination, winslash = "/")
-  repo_path = file.path(destination,repo.name)
+  destination <- normalizePath(destination, winslash = "/", mustWork = FALSE)
+  #path of the unzipped repo (GitHub drops the 'v' of version tags)
   repo_path.v = file.path(destination,repo.name.v)
   temp <- tempfile()
   
-  if(!dir.exists(repo_path)){
+  if(!dir.exists(repo_path.v)){
     if(!dir.exists(destination)) {
       dir.create(destination)
     }
@@ -413,7 +455,7 @@ get_CellOntology_dictionary <- function(destination = tempdir(),
     unlink(temp)
   }else if(force_update){
     download.file(repo_url_zip,temp)
-    system(sprintf("rm -r %s",repo_path))  # this ensure that db would be completely overwritten and old model will not persist. 
+    unlink(repo_path.v, recursive = TRUE)  # this ensure that db would be completely overwritten and old model will not persist.
     unzip(temp,exdir = destination, overwrite = force_update)
     unlink(temp)
   }else{
