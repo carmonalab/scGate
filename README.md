@@ -78,10 +78,9 @@ You may manually edit the available models (eg in Excel) or create new models fo
 my_scGate_model <- load_scGate_model("path_to_my.model")
 ```
 
-You can use the `plot_tree` function to visualize the hierarchical structure of one of the models (requires [ggparty](https://cran.r-project.org/package=ggparty)).
+You can use the `plot_tree` function to visualize the hierarchical structure of one of the models.
 
 ```r
-install.packages("ggparty")
 scGate::plot_tree(scGate_models_DB$human$generic$Tcell.alphabeta)
 ```
 

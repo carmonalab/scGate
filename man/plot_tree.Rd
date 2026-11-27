@@ -9,21 +9,20 @@ plot_tree(model, box.size = 8, edge.text.size = 4)
 \arguments{
 \item{model}{A scGate model to be visualized}
 
-\item{box.size}{Box size}
+\item{box.size}{Font size (in points) of the text in the node boxes}
 
-\item{edge.text.size}{Edge text size}
+\item{edge.text.size}{Size of the edge labels (in mm, as in \code{geom_text})}
 }
 \value{
-A plot of the model as a decision tree. At each level, green boxes
+A ggplot of the model as a decision tree. At each level, green boxes
     indicate the 'positive' (accepted) cell types, red boxed indicate the
     'negative' cell types (filtered out). The final Pure population is the
     bottom right subset in the tree.
 }
 \description{
-View scGate model as a decision tree (require ggparty package)
+View scGate model as a decision tree
 }
 \examples{
-library(ggparty)
 models <- get_scGateDB()
 plot_tree(models$human$generic$Tcell)
 }

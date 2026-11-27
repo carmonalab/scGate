@@ -1,6 +1,13 @@
 \name{NEWS}
 \title{News for package \pkg{scGate}}
 
+
+\section{New in version 1.8.0}{
+\itemize{
+    \item Remove dependency from ggparty. Use self-contained ggplot2 function to visualize model trees.
+    \item Update figshare link (changed url format)
+}}
+
 \section{New in version 1.7.0}{
 \itemize{
     \item Update maintainer emails

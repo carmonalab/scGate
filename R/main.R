@@ -239,107 +239,90 @@ scGate <- function(data,
 
 #' Plot model tree
 #'
-#' View scGate model as a decision tree (require ggparty package)
+#' View scGate model as a decision tree
 #'
 #' @param model A scGate model to be visualized
-#' @param box.size Box size
-#' @param edge.text.size Edge text size
-#' @return A plot of the model as a decision tree. At each level, green boxes
+#' @param box.size Font size (in points) of the text in the node boxes
+#' @param edge.text.size Size of the edge labels (in mm, as in \code{geom_text})
+#' @return A ggplot of the model as a decision tree. At each level, green boxes
 #'     indicate the 'positive' (accepted) cell types, red boxed indicate the
 #'     'negative' cell types (filtered out). The final Pure population is the
 #'     bottom right subset in the tree.
 #' @import colorspace
 #' @examples
-#' library(ggparty)
 #' models <- get_scGateDB()
 #' plot_tree(models$human$generic$Tcell)
 #' @export
 
-
 plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   
-  if (!requireNamespace('ggparty', quietly = TRUE)) {  #check whether ggparty is available
-    stop("Please install and load package 'ggparty'")
-  }
-  nlev <- length(unique(model$levels))
+  lev <- tolower(model$levels)
+  nlev <- length(unique(lev))
   if(nlev <= 1){
     stop("your model must contain at least two levels to be ploted as a tree")
   }
-  #restructure data for visualization
-  level.list <- list()
+  
+  #Signatures by level
+  pos.annot <- neg.annot <- character(nlev)
   for (i in 1:nlev) {
-    level.list[[i]] <- list()
-    sub <- subset(model, tolower(model$levels)==paste0("level",i))
-    
-    level.list[[i]][["positive"]] <- sub[sub$use_as=="positive","name"]
-    level.list[[i]][["negative"]] <- sub[sub$use_as=="negative","name"]
+    sub <- model[lev == paste0("level",i), , drop=FALSE]
+    pos.annot[i] <- paste0(sub[sub$use_as=="positive","name"], collapse = "\n")
+    neg.annot[i] <- paste0(sub[sub$use_as=="negative","name"], collapse = "\n")
   }
   
-  #Initialize dataframe for tree
-  df <- data.frame(matrix(ncol=nlev+1, nrow=nlev+1, data = 0))
-  colnames(df) <- c(paste0("Level_", 1:nlev), "Pure")
+  #Layout: the 'positive' branch runs diagonally to the bottom right,
+  #'negative' leaves hang directly below the node they split from.
+  #Node k=0 is the root; nodes k=1..nlev are the positive nodes of each level.
+  #Vertical spacing (in units of text lines) adapts to the size of the boxes
+  #sharing a column: positive node k-1 and negative leaf k
+  n.lines <- function(x) lengths(strsplit(x, "\n", fixed = TRUE))
+  pos.h <- c(1, pmax(n.lines(pos.annot), 1))   #includes root
+  neg.h <- pmax(n.lines(neg.annot), 1)
+  gap <- pmax((pos.h[1:nlev] + neg.h)/2 + 2, 4)
+  ypos <- c(0, -cumsum(gap))
   
-  for (i in 2:nlev) {
-    for (j in 1:(i-1)) {
-      df[i,j] <- 1   
-    }
-  }
-  df[nlev+1,] <- 1
+  nodes <- rbind(
+    data.frame(x = 0, y = 0, info = "Root", class = "Root"),
+    data.frame(x = 1:nlev, y = ypos[-1], info = pos.annot, class = "Positive"),
+    data.frame(x = 0:(nlev-1), y = ypos[-1], info = neg.annot, class = "Negative")
+  )
   
-  ##Construct tree structure
-  pn <- list()
-  #bottom level
+  edges <- rbind(
+    data.frame(x = 0:(nlev-1), y = ypos[1:nlev],
+               xend = 1:nlev, yend = ypos[-1], label = "Positive",
+               h.from = pos.h[1:nlev], h.to = pos.h[-1]),
+    data.frame(x = 0:(nlev-1), y = ypos[1:nlev],
+               xend = 0:(nlev-1), yend = ypos[-1], label = "Negative",
+               h.from = pos.h[1:nlev], h.to = neg.h)
+  )
+  #edge labels are centered on the visible part of the edge (between boxes),
+  #and placed outside: left of 'negative', right of 'positive' edges
+  edges$ymid <- ((edges$y - edges$h.from/2) + (edges$yend + edges$h.to/2))/2
+  frac <- (edges$ymid - edges$y)/(edges$yend - edges$y)
+  edges$xmid <- edges$x + frac*(edges$xend - edges$x) +
+    ifelse(edges$label=="Positive", 0.05, -0.05)
+  edges$hjust <- ifelse(edges$label=="Positive", 0, 1)
   
-  pn[[nlev]] <- partykit::partynode(nlev+1,
-                          split = partykit::partysplit(nlev, index=1:2, breaks = 0),
-                          kids = list(partykit::partynode(nlev+2),
-                                      partykit::partynode(nlev+3))) 
+  bottom.pad <- max(pos.h[nlev+1], neg.h[nlev])/2 + 1
   
-  for (i in (nlev-1):1) {
-    pn[[i]] <- partykit::partynode(i,
-                         split = partykit::partysplit(i, index=1:2, breaks=0),
-                         kids = list(partykit::partynode(i+1),
-                                     pn[[i+1]]))
-  }
+  palette <- c(Negative = "#f60a0a", Positive = "#00ae60", Root = "black")
   
-  #first element in list has complete structure
-  py <- partykit::party(pn[[1]], df)
-  
-  
-  sign.annot <- vector(length=2*nlev+1)
-  is.pos <- vector(length=2*nlev+1)
-  sign.annot[1] <- "Root"
-  is.pos[1] <- NA
-  
-  for (i in 1:nlev) {
-    sign.annot[2*i] <- paste0(level.list[[i]]$negative, collapse = "\n")
-    sign.annot[2*i+1] <- paste0(level.list[[i]]$positive, collapse = "\n")
-    
-    is.pos[2*i] <- "Negative"
-    is.pos[2*i+1] <- "Positive"
-  }
-  
-  gg <- ggparty::ggparty(py)
-  gg$data$info <- sign.annot
-  gg$data$p.value <- is.pos
-  
-  
-  gg$data$breaks_label[grep("<=", gg$data$breaks_label)] <- "Negative"
-  gg$data$breaks_label[grep(">", gg$data$breaks_label)] <- "Positive"
-  
-  gg <- gg + ggparty::geom_edge() +
-    ggparty::geom_edge_label(size = edge.text.size) +
-    ggparty::geom_node_label(ids = "inner",
-                    mapping = aes(col = .data$p.value),
-                    line_list = list(aes(label= .data$info)),
-                    line_gpar = list(list(size = box.size)))  +
-    ggparty::geom_node_label(ids = "terminal",
-                    mapping = aes(col = .data$p.value),
-                    nudge_y=0.01,
-                    line_list = list(aes(label= .data$info)),
-                    line_gpar = list(list(size = box.size))) +
-    scale_color_manual(values=c("#f60a0a", "#00ae60")) +
-    theme(legend.position = "none", plot.margin = unit(c(1,1,1,1), "cm")) 
+  gg <- ggplot() +
+    geom_segment(data = edges,
+                 aes(x = .data$x, y = .data$y, xend = .data$xend, yend = .data$yend),
+                 colour = "grey40") +
+    geom_text(data = edges,
+              aes(x = .data$xmid, y = .data$ymid, label = .data$label,
+                  hjust = .data$hjust),
+              size = edge.text.size, colour = "grey30", fontface = "italic") +
+    geom_label(data = nodes,
+               aes(x = .data$x, y = .data$y, label = .data$info, colour = .data$class),
+               size = box.size / .pt, fill = "white") +
+    scale_colour_manual(values = palette) +
+    scale_x_continuous(expand = expansion(add = 0.6)) +
+    scale_y_continuous(expand = expansion(add = c(bottom.pad, 1.5))) +
+    theme_void() +
+    theme(legend.position = "none", plot.margin = unit(c(1,1,1,1), "cm"))
   
   return(gg)
 }
