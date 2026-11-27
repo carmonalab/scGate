@@ -271,7 +271,7 @@ plot_tree <- function(model, box.size = 8, edge.text.size = 4) {
   }
   
   #Layout: the 'positive' branch runs diagonally to the bottom right,
-  #'negative' leaves hang directly below the node they split from.
+  # 'negative' leaves hang directly below the node they split from.
   #Node k=0 is the root; nodes k=1..nlev are the positive nodes of each level.
   #Vertical spacing (in units of text lines) adapts to the size of the boxes
   #sharing a column: positive node k-1 and negative leaf k
